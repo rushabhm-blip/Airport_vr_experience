@@ -553,11 +553,16 @@ export class Director {
 
   _chips() {
     const far = !!this.station && !this.near && !this.tour;
-    const c = far ? [] : [{ id: 'repeat', label: 'Repeat', icon: 'repeat' }];
-    c.push(this.tour ? { id: 'stoptour', label: 'Stop', icon: 'pause' } : { id: 'help', label: 'Help', icon: 'help' });
-    if (far) c.push({ id: 'gostation', label: 'Take me', icon: 'play' });
-    if (this.phone?.opened && this.phone.isAway) c.push({ id: 'phone', label: 'Phone', icon: 'phone' });
-    c.push(this.paused ? { id: 'resume', label: 'Resume', icon: 'play' } : { id: 'pause', label: 'Pause', icon: 'pause' }, { id: 'menu', label: 'Menu', icon: 'menu' });
+    const c = [], W = 1.25;
+    // the transport controls: Back, Pause / Play, Next (always the same place on the card)
+    if (!this.tour && !this.paused && this.index > 0) c.push({ id: 'prevstep', label: 'Back', icon: 'prev', w: W });
+    c.push(this.paused ? { id: 'resume', label: 'Play', icon: 'play', w: W } : { id: 'pause', label: 'Pause', icon: 'pause', w: W });
+    if (!this.tour && !this.paused && this.index < STEPS.length - 1) c.push({ id: 'nextstep', label: 'Next', icon: 'next', w: W });
+    if (far) c.push({ id: 'gostation', label: 'Take me', icon: 'play', w: 1.6 });
+    if (!far && !this.paused) c.push({ id: 'repeat', label: 'Repeat', icon: 'repeat', iconOnly: true });
+    c.push(this.tour ? { id: 'stoptour', label: 'Stop', icon: 'pause', iconOnly: true } : { id: 'help', label: 'Help', icon: 'help', iconOnly: true });
+    if (this.phone?.opened && this.phone.isAway) c.push({ id: 'phone', label: 'Phone', icon: 'phone', iconOnly: true });
+    c.push({ id: 'menu', label: 'Menu', icon: 'menu', iconOnly: true });
     return c;
   }
 
@@ -601,6 +606,8 @@ export class Director {
     switch (id) {
       case 'repeat': return this.voice.repeat();
       case 'pause': return this.pause(true);
+      case 'prevstep': return this.previousStep();
+      case 'nextstep': return this.completed.has(this.index) ? this.next() : this.skipStep();
       case 'resume': return this.pause(false);
       case 'help': return this.help();
       case 'menu': return this.app.openMenu();

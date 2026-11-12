@@ -14,6 +14,8 @@ const ICONS = {
     ctx.save(); ctx.fillStyle = '#fff'; ctx.font = `700 ${s * 0.62}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + s * 0.03); ctx.restore();
   },
   phone(ctx, x, y, s) { ctx.lineWidth = 5; roundRect(ctx, x - s * 0.24, y - s * 0.42, s * 0.48, s * 0.84, s * 0.1); ctx.stroke(); ctx.fillRect(x - s * 0.07, y + s * 0.28, s * 0.14, s * 0.05); },
+  prev(ctx, x, y, s) { ctx.fillRect(x - s * 0.4, y - s * 0.38, s * 0.1, s * 0.76); ctx.beginPath(); ctx.moveTo(x + s * 0.4, y - s * 0.4); ctx.lineTo(x - s * 0.28, y); ctx.lineTo(x + s * 0.4, y + s * 0.4); ctx.closePath(); ctx.fill(); },
+  next(ctx, x, y, s) { ctx.fillRect(x + s * 0.3, y - s * 0.38, s * 0.1, s * 0.76); ctx.beginPath(); ctx.moveTo(x - s * 0.4, y - s * 0.4); ctx.lineTo(x + s * 0.28, y); ctx.lineTo(x - s * 0.4, y + s * 0.4); ctx.closePath(); ctx.fill(); },
   menu(ctx, x, y, s) { for (const dy of [-0.26, 0, 0.26]) ctx.fillRect(x - s * 0.36, y + dy * s - s * 0.05, s * 0.72, s * 0.1); },
 };
 
@@ -183,18 +185,24 @@ export class Panel extends Surface {
       ctx.shadowColor = 'rgba(10,30,50,0.25)'; ctx.shadowBlur = 28; ctx.shadowOffsetY = 10;
       ctx.fillStyle = COLORS.glass; roundRect(ctx, x, cy, pw, ch, 52); ctx.fill();
       ctx.restore();
-      const cw = pw / n;
+      // each chip has a width weight: the Back / Pause / Next controls are wide and labelled, the small utilities are icon-only
+      const wts = s.chips.map((c) => c.w ?? (c.iconOnly ? 0.7 : 1)), tot = wts.reduce((a, b) => a + b, 0), labelled = s.chips.filter((c) => !c.iconOnly).length;
+      let acc = 0;
       s.chips.forEach((c, k) => {
+        const cw = pw * wts[k] / tot, x0 = x + pw * acc / tot; acc += wts[k];
         const hover = this.hoverId === c.id, press = this.pressedId === c.id;
-        const cx = x + cw * k + cw / 2, cyc = cy + ch / 2;
-        if (hover || press) { ctx.fillStyle = 'rgba(27,138,134,0.2)'; roundRect(ctx, x + cw * k + 8, cy + 8, cw - 16, ch - 16, 44); ctx.fill(); }
+        const cx = x0 + cw / 2, cyc = cy + ch / 2;
+        if (hover || press) { ctx.fillStyle = 'rgba(27,138,134,0.2)'; roundRect(ctx, x0 + 8, cy + 8, cw - 16, ch - 16, 44); ctx.fill(); }
         ctx.fillStyle = ctx.strokeStyle = COLORS.navy; ctx.lineWidth = 6; ctx.lineCap = 'round';
-        const label = c.label, cs = n >= 5 ? 0.7 : n === 4 ? 0.84 : 1;
-        ctx.font = `700 ${34 * cs}px ${FONT}`;
-        const lw = ctx.measureText(label).width, iconW = 44 * cs, total = iconW + 14 * cs + lw;
-        ICONS[c.icon]?.(ctx, cx - total / 2 + iconW / 2, cyc, 40 * cs);
-        ctx.textBaseline = 'middle'; ctx.fillText(label, cx - total / 2 + iconW + 14 * cs, cyc + 2); ctx.textBaseline = 'alphabetic';
-        this.hot.push({ id: c.id, x: x + cw * k, y: cy, w: cw, h: ch });
+        if (c.iconOnly) ICONS[c.icon]?.(ctx, cx, cyc, 52);
+        else {
+          const label = c.label, cs = labelled >= 4 ? 0.8 : labelled === 3 ? 0.92 : 1;
+          ctx.font = `700 ${34 * cs}px ${FONT}`;
+          const lw = ctx.measureText(label).width, iconW = 44 * cs, total = iconW + 14 * cs + lw;
+          ICONS[c.icon]?.(ctx, cx - total / 2 + iconW / 2, cyc, 40 * cs);
+          ctx.textBaseline = 'middle'; ctx.fillText(label, cx - total / 2 + iconW + 14 * cs, cyc + 2); ctx.textBaseline = 'alphabetic';
+        }
+        this.hot.push({ id: c.id, x: x0, y: cy, w: cw, h: ch });
       });
     }
   }

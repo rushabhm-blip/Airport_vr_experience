@@ -63,12 +63,21 @@ export class Staff {
     model.scale.setScalar(h / Math.max(0.5, size.y)); model.position.y = -box.min.y * model.scale.y;
     this.root.add(model); this.character = model;
     this.mixer = new THREE.AnimationMixer(model);
-    const idle = clips.find((c) => /idle|stand|breath/i.test(c.name)) || clips[0];
+    this.clips = clips;
+    const idle = (this.wantClip && clips.find((c) => this.wantClip.test(c.name))) || clips.find((c) => /idle|stand|breath/i.test(c.name)) || clips[0];
     if (idle) this.mixer.clipAction(idle).play();
     model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = true; } if (/^(head|Head)$/.test(o.name) || /mixamorigHead$/.test(o.name)) this.headBone = o; if (o.morphTargetDictionary) { const k = Object.keys(o.morphTargetDictionary).find((n) => /blink|eyesClosed|eyeBlink/i.test(n)); if (k) (this.blinkTargets ||= []).push([o, o.morphTargetDictionary[k]]); } });
     const hit = new THREE.Mesh(new THREE.BoxGeometry(0.6, h, 0.4).translate(0, h / 2, 0), new THREE.MeshBasicMaterial({ visible: false }));
     this.body = hit; this.root.add(hit);
     this.bodyYaw = 0; this.blinkT = 2 + Math.random() * 3; this.blinkLeft = 0;
+  }
+
+  /** Prefer a named animation, such as /drive/ for a seated driver. Works before or after the model has loaded. */
+  playClip(re) {
+    this.wantClip = re;
+    if (!this.mixer || !this.clips) return;
+    const c = this.clips.find((x) => re.test(x.name)); if (!c) return;
+    this.mixer.stopAllAction(); this.mixer.clipAction(c).reset().play();
   }
 
   /** Character path of update(): subtle blinking, a body turn only when you are well off to the side, head attention within limits. */

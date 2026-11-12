@@ -999,7 +999,7 @@ const cab = (d) => {
       blink(d, () => {
         if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
         interior = cabInterior(d); d.stage.props.add(interior);
-        seatedDriver = d.addStaff('driver', 'Cab driver', d.stage.props, [-0.4, -0.42, -1.12]); seatedDriver.noPush = true;   // in the driver's seat
+        seatedDriver = d.addStaff('driver', 'Cab driver', d.stage.props, [-0.4, -0.15, -1.12]); seatedDriver.noPush = true; seatedDriver.playClip(/drive/i);   // in the driver's seat, with the model's own seated "Drive car" animation
         facade = facadePlane(d, 34, 70);                                    // the airport, far ahead: it comes closer as you drive
         d.app.env.driveSpeed = 0.9;
         const sc = d.stage.scenery, dur = d.reduceMotion ? 0.6 : 9;

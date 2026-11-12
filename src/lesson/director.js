@@ -134,14 +134,33 @@ export class Director {
   /** A translucent teal "guide hand" (pointing finger + pulse ring) that performs steps for the learner. */
   guideHand() {
     if (this._hand) return this._hand;
-    const mat = new THREE.MeshBasicMaterial({ color: 0x38e1d2, transparent: true, opacity: 0.6, depthTest: false, toneMapped: false });
-    const g = new THREE.Group();
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), mat);
-    const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.016, 0.16, 12).rotateX(Math.PI / 2).translate(0, 0.05, 0.08).rotateX(-0.5), mat);
-    const palm = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), mat); palm.position.set(0, 0.13, 0.24);
+    // A lit, translucent right hand: pointing index finger, curled fingers, thumb, palm, wrist and cuff. The fingertip is the origin.
+    const skin = new THREE.MeshLambertMaterial({ color: 0x4fe6d8, emissive: 0x14867e, emissiveIntensity: 0.55, transparent: true, opacity: 0.8, depthTest: false, toneMapped: false });
+    const cuffMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9fe8e1, emissiveIntensity: 0.6, transparent: true, opacity: 0.85, depthTest: false, toneMapped: false });
+    const g = new THREE.Group(), hand = new THREE.Group();
+    const part = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); hand.add(m); return m; };
+    const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 14).rotateX(Math.PI / 2);        // lies along z
+    // index finger: two joints with a slight natural bend; its tip is at z = 0
+    part(cap(0.0082, 0.034), skin, 0, 0, 0.0252);
+    part(cap(0.0088, 0.036), skin, 0, -0.003, 0.0645, -0.1);
+    // the other three fingers are curled under: rounded knuckles side by side
+    [[-0.0185, 0.0088], [-0.0372, 0.0085], [-0.0545, 0.0072]].forEach(([x, r]) => {
+      part(cap(r, 0.022), skin, x, -0.011, 0.084, 0.35);
+      part(cap(r * 0.95, 0.016), skin, x, -0.027, 0.074, 1.2);
+    });
+    // thumb tucked alongside the index finger
+    part(cap(0.0088, 0.026), skin, 0.0185, -0.01, 0.083, 0.2, -0.5);
+    part(cap(0.0095, 0.024), skin, 0.027, -0.012, 0.112, 0.2, -0.25);
+    // palm and back of the hand
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), skin); palm.scale.set(0.034, 0.0185, 0.052); palm.position.set(-0.016, -0.002, 0.135); hand.add(palm);
+    // wrist, then a cuff band so the hand reads as a hand and not a blob
+    part(new THREE.CylinderGeometry(0.0235, 0.0275, 0.075, 18).rotateX(Math.PI / 2), skin, -0.016, -0.002, 0.2);
+    part(new THREE.CylinderGeometry(0.0285, 0.0285, 0.014, 20).rotateX(Math.PI / 2), cuffMat, -0.016, -0.002, 0.245);
+    hand.rotation.set(0.5, 0, 0.1);       // fingers a little higher than the wrist, like a hand reaching up from below
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 14, 10), cuffMat); tip.scale.set(1, 1, 1);          // a bright fingertip dot
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.038, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false, toneMapped: false, side: THREE.DoubleSide }));
-    g.add(tip, finger, palm, ring); g.userData.ring = ring;
-    for (const m of g.children) m.renderOrder = 40;
+    g.add(hand, tip, ring); g.userData.ring = ring;
+    g.traverse((m) => { if (m.isMesh) m.renderOrder = 40; });
     g.visible = false;
     this.stage.root.add(g);
     return (this._hand = g);

@@ -7,7 +7,7 @@ import { bookingCard, passCard, screenOverlay, Hotspot, labelSurface, setLabelTe
 import { FONT, roundRect, wrapText, ease, lerp } from '../util.js';
 import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCanvas } from '../ui/documents.js';
 import { mergeStatic } from '../world/merge.js';
-import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop } from '../world/images.js';
+import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop, keyedCrop } from '../world/images.js';
 
 /** A real photo as a distant backdrop (only in the virtual/immersive view; in passthrough it would float in the room). */
 /** Two thin rods from the top of a hanging sign up to the ceiling (2.9 m), so it is visibly fixed to it. */
@@ -952,6 +952,14 @@ function cabPlate(d, file = 'cab-interior-driver.webp') {
   return g;
 }
 
+/** The taxi as a photo billboard (green key removed). state: 'closed' or 'open' (rear door). Returns the mesh, or null if the photo is missing. */
+function taxiBillboard(state = 'closed') {
+  const t = keyedCrop(state === 'open' ? 'cab-side-door-open' : 'cab-side-closed'); if (!t) return null;
+  const cw = 4.5, ch = cw / t.userData.aspect;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch).translate(0, ch / 2, 0), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, toneMapped: false }));
+  m.userData.open = keyedCrop('cab-side-door-open'); m.userData.closed = keyedCrop('cab-side-closed'); return m;
+}
+
 /** A quick dark blink, so a change of place never pops. */
 function blink(d, change) {
   const env = d.app.env; env.veil.visible = true;
@@ -982,14 +990,14 @@ const cab = (d) => {
     voice: 'Your cab is here.',
     help: 'Your cab is waiting. Choose Get in. Later, look for the terminal on your booking: it says Terminal 2. Point at that sign.',
     enter() {
-      const ct = cutoutCrop('cab-side', [14, 170, 1500, 712]);
-      if (ct) {
-        const cw = 4.4, ch = cw * 712 / 1500;
-        cabMesh = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch).translate(0, ch / 2, 0), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, toneMapped: false }));
-        d.addScenery(cabMesh, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true });
-      }
+      d.app.env.setOutdoorTheme('home');                                   // the street outside the traveller's home
+      cabMesh = taxiBillboard('closed');
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-0.7, 0, -1.3]);
-      driver.say('Good morning! Airport?', 7);
+      if (cabMesh) {
+        d.addScenery(cabMesh, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true });
+        cabMesh.position.z = -15; driver.root.visible = false;                     // the cab pulls up from down the road, then stops
+        d.tweens.add({ dur: d.reduceMotion ? 0.3 : 3.4, update: (e) => { cabMesh.position.z = -15 + 15.35 * (1 - Math.pow(1 - e, 2.2)); }, done: () => { driver.root.visible = true; driver.say('Good morning! Airport?', 7); } });
+      } else driver.say('Good morning! Airport?', 7);
       d.setPanel({ title: 'Your cab is here.', body: 'Get in when you are ready.', note: '', tone: 'normal', buttons: [{ id: 'in', label: 'Get in' }] });
     },
     staffLine() { return phase === 'terminal' ? 'Which terminal, please? Your booking will tell you.' : 'Take your time. Get in whenever you are ready.'; },
@@ -998,7 +1006,9 @@ const cab = (d) => {
       if (phase !== 'board') return; phase = 'ride'; d.voice.success();
       d.setPanel({ title: 'On the way to the airport.', body: 'Sit back. You stay seated.', note: '', tone: 'normal', buttons: [] });
       d.say('Off we go. Sit back. You stay seated while the cab takes you to the airport.');
-      blink(d, () => {
+      if (cabMesh?.userData.open) cabMesh.material.map = cabMesh.userData.open;       // the rear door swings open
+      d.tweens.add({ delay: d.reduceMotion ? 0.1 : 1.1, dur: 0.01, done: () => blink(d, () => {
+        d.app.env.setOutdoorTheme('airport');
         if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
         interior = cabPlate(d); d.stage.props.add(interior);                      // the real cab interior (the driver is in the photograph)
         facade = facadePlane(d, 34, 70);                                    // the airport, far ahead: it comes closer as you drive
@@ -1009,7 +1019,7 @@ const cab = (d) => {
           if (phase !== 'ride') return; phase = 'rideDone';
           d.setPanel({ title: 'You are at the airport.', body: 'Continue to choose your terminal.', note: '', tone: 'normal', buttons: [{ id: 'cont', label: 'Continue' }] }); d.say('You are at the airport.');
         } });
-      });
+      }) });
     },
     terminal() {
       phase = 'terminal';
@@ -1049,12 +1059,9 @@ const kerb = (d) => {
     help: 'The cab has stopped at the terminal. Tap Get out, and the entrance is straight ahead.',
     enter() {
       // the taxi you arrived in, parked beside you with its rear door open (a real photo, background removed)
-      const ct = cutoutCrop('cab-side', [14, 170, 1500, 712]);
-      if (ct) {
-        const cw = 4.4, ch = cw * 712 / 1500;
-        cab = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch).translate(0, ch / 2, 0), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, toneMapped: false }));
-        d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); d.obstacle(cab);
-      }
+      d.app.env.setOutdoorTheme('airport');
+      cab = taxiBillboard('open');
+      if (cab) { d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); d.obstacle(cab); }
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-0.7, 0, -1.3]);
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 });

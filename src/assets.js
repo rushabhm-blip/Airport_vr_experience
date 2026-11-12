@@ -5,14 +5,15 @@ import { tileTexture, boxUV } from './world/images.js';
 
 // Real textures (assets/images) laid over the pack's plain materials. [image, metres per repeat]
 const MESH_TEX = {
-  'terminal-floor-module': { FloorSlab: ['tex-floor', 2.4] },
+  'terminal-floor-module': { FloorSlab: ['airport-floor-tile', 3.6] },
   'terminal-wall-module': { Wall: ['tex-wall', 1.5] },
   'boarding-counter': { CounterTop: ['tex-counter', 0.9] },
   'checkin-counter': { CounterTop: ['tex-counter', 0.9] },
   'information-desk': { CounterTop: ['tex-counter', 0.9] },
-  'aircraft-cabin-section': { CabinFloor: ['tex-carpet', 0.6] },
+  'aircraft-cabin-section': { CabinFloor: ['blue-grey-carpet', 0.7] },
+  'security-tray': { TrayBase: ['security-tray-plastic', 0.5], 'TraySide-0266': ['security-tray-plastic', 0.5], TraySide0266: ['security-tray-plastic', 0.5], 'TrayEnd-0196': ['security-tray-plastic', 0.5], TrayEnd0196: ['security-tray-plastic', 0.5] },
 };
-const MATERIAL_TEX = { 'Navy upholstery': ['tex-seat', 0.3] };
+const MATERIAL_TEX = { 'Navy upholstery': ['tex-seat', 0.3], 'Satin stainless steel': ['brushed-steel', 0.6], 'Soft rubber': ['conveyor-rubber', 0.45], 'Warm mineral laminate': ['white-counter-laminate', 0.8] };
 const HIDE = { 'terminal-floor-module': /^Grout/, 'terminal-window-module': /^GlassPane/ }; // the photo already has grout; windows show the real view
 
 function retexture(id, root) {

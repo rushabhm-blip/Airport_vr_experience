@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { COLORS } from '../config.js';
 import { Tweens } from '../util.js';
-import { tileTexture, cropTexture, IMG } from './images.js';
+import { tileTexture, cropTexture, photoTexture, IMG } from './images.js';
 
 /**
  * Two ways to look at the same lesson:
@@ -96,9 +96,9 @@ export class Environment {
     ground.position.y = -0.02; g.add(ground);
     // the forecourt in front of the terminal: lighter paving, with a kerb where the road ends (z = -1.2)
     const pave = new THREE.Mesh(new THREE.PlaneGeometry(160, 80).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: speckle('#b4b4ae', ['#a2a29c', '#c6c6c0'], 60, 'rgba(90,90,85,0.35)'), roughness: 0.95 }));
-    pave.position.set(0, 0.01, -41.2); g.add(pave);
+    pave.position.set(0, 0.01, -41.2); pave.name = 'Pave'; g.add(pave);
     const kerb = new THREE.Mesh(new THREE.BoxGeometry(160, 0.14, 0.22), new THREE.MeshStandardMaterial({ color: 0xcfcfc8, roughness: 0.9 }));
-    kerb.position.set(0, 0.06, -1.2); g.add(kerb);
+    kerb.position.set(0, 0.06, -1.2); kerb.name = 'Kerb'; g.add(kerb);
     const sky = new THREE.Mesh(new THREE.SphereGeometry(70, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, toneMapped: false,
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
       fragmentShader: 'varying vec3 vP; void main(){ float h = clamp(vP.y*1.5+0.1,0.,1.); vec3 c = mix(vec3(0.86,0.90,0.93), vec3(0.42,0.68,0.92), pow(h,0.65)); gl_FragColor = vec4(c,1.0);}' }));
@@ -111,6 +111,30 @@ export class Environment {
       ring.position.y = 0.23 * H; ring.rotation.y = -1.22; ring.renderOrder = -9; g.add(ring);
     }
     this.stage.root.add(g); return g;
+  }
+
+  /**
+   * Which street the outdoor scene shows: 'airport' (the terminal forecourt photo ring) or 'home' (the street outside the traveller's
+   * home: three photographs, one in front and one on each side, on a curved backdrop at about 14 m).
+   */
+  setOutdoorTheme(theme) {
+    const g = this._outdoorGroup();
+    if (!this.kerbRing) this.kerbRing = g.children.find((o) => o.isMesh && o.geometry?.type === 'CylinderGeometry' && o.geometry.parameters.radiusTop === 60);
+    if (this.kerbRing) this.kerbRing.visible = theme !== 'home';
+    for (const n of ['Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = theme !== 'home'; }     // at home it is all road
+    if (theme === 'home' && !this.homeRing) {
+      const R = 14, arc = 2 * Math.PI / 3, H = 2 * R * Math.sin(arc / 2) / 3.0;       // each photograph is 3 : 1 and spans a third of the circle
+      const grp = this.homeRing = new THREE.Group(); grp.name = 'HomeStreet';
+      // the kerb line sits at about 69% down each photograph: put that line on the ground (so the photograph rises from y = 0)
+      const kerbAt = 0.69;
+      [['home-street', 0], ['side-left', 1], ['side-right', -1]].forEach(([name, k]) => {
+        const t = photoTexture(name); if (!t) return;
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 48, 1, true, Math.PI - arc / 2 + k * arc, arc), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide }));
+        seg.position.y = H * (kerbAt - 0.5); seg.renderOrder = -8; grp.add(seg);
+      });
+      g.add(grp);
+    }
+    if (this.homeRing) this.homeRing.visible = theme === 'home';
   }
 
   setBackground() {

@@ -8,6 +8,8 @@ const FILES = [
   'logo-practice-air.png', 'face-1.jpg', 'face-2.jpg', 'face-3.jpg', 'face-4.jpg',
   'staff-checkin.png', 'staff-security.png', 'staff-gate.png', 'staff-crew.png', 'staff-guard.png',
   'cab-side.png', 'person-driver.png', 'view-cab-window.jpg', 'kerb-golden.jpg', 'xray-bag-lying.jpg',
+  'home-street.jpg', 'side-left.jpg', 'side-right.jpg', 'cab-side-closed.jpg', 'cab-side-door-open.jpg', 'cab-rear-boot.jpg', 'security-hall.jpg', 'gate-lounge.jpg',
+  'brushed-steel.jpg', 'conveyor-rubber.jpg', 'security-tray-plastic.jpg', 'white-counter-laminate.jpg', 'airport-floor-tile.jpg', 'blue-grey-carpet.jpg',
   'item-powerbank.jpg', 'item-tablet.jpg', 'item-pouch.jpg', 'item-charger.jpg', 'item-clothes.jpg', 'item-bottle.jpg',
 ];
 
@@ -88,6 +90,32 @@ export function cutoutCrop(name, [x, y, w, h]) {
   const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, x, y, w, h, 0, 0, w, h);
   const d = g.getImageData(0, 0, w, h); keyWhite(d.data, w, h); g.putImageData(d, 0, 0);
   const t = finish(new THREE.CanvasTexture(c)); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.userData.aspect = w / h;
+  cache.set(k, t); return t;
+}
+
+/**
+ * A photo shot on a flat key colour (green or magenta): the key becomes transparent, the green fringe is removed, and the
+ * result is cropped to the object. userData.aspect is the cropped aspect ratio.
+ */
+export function keyedCrop(name, key = 'green') {
+  const im = IMG[name]; if (!im) return null;
+  const k = 'key:' + name + key;
+  if (cache.has(k)) return cache.get(k);
+  const W = im.width, H = im.height, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, W, H), p = d.data; let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i], gr = p[i + 1], b = p[i + 2];
+    const over = key === 'green' ? gr - Math.max(r, b) : Math.min(r, b) - gr;       // how strongly this pixel is the key colour
+    if (over > 70) p[i + 3] = 0;
+    else if (over > 25) { p[i + 3] = Math.round(255 * (70 - over) / 45); if (key === 'green') p[i + 1] = Math.max(r, b); else { p[i] = p[i + 2] = Math.max(gr, 0); } }
+    else if (over > 8 && key === 'green') p[i + 1] = Math.max(r, b) + 4;
+    if (p[i + 3] > 20) { const px = (i / 4) % W, py = ((i / 4) / W) | 0; if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; }
+  }
+  g.putImageData(d, 0, 0);
+  const w = Math.max(1, x1 - x0 + 1), h = Math.max(1, y1 - y0 + 1), o = document.createElement('canvas'); o.width = w; o.height = h;
+  o.getContext('2d').drawImage(c, x0, y0, w, h, 0, 0, w, h);
+  const t = finish(new THREE.CanvasTexture(o)); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.userData.aspect = w / h;
   cache.set(k, t); return t;
 }
 

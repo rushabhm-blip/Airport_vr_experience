@@ -193,8 +193,7 @@ class App {
 
   onSessionStart() {
     this.xrPresenting = true;
-    $('launcher').hidden = true; $('hud').hidden = true;
-    // BUG FIX: the background was chosen before the session existed, so a light-blue colour could stay painted over
+    $('launcher').hidden = true; $('hud').hidden = true;    // BUG FIX: the background was chosen before the session existed, so a light-blue colour could stay painted over
     // the passthrough room. Re-evaluate now that we are presenting (mixed mode => transparent => the real room shows).
     this.renderer.setClearColor(0x000000, 0);
     this.env.setBackground();
@@ -207,8 +206,7 @@ class App {
     this.beginFit();
   }
   onSessionEnd() {
-    this.xrPresenting = false;
-    $('launcher').hidden = false;
+    this.xrPresenting = false;    $('launcher').hidden = false;
     this.phase = 'idle'; this.anchor = null;
     this.director.setVisible(true);
     this.fitVisual.hide();

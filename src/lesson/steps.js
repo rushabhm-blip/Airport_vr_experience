@@ -6,6 +6,7 @@ import { Surface } from '../ui/surface.js';
 import { bookingCard, passCard, screenOverlay, Hotspot, labelSurface, setLabelText, ReadingCard } from '../ui/widgets.js';
 import { FONT, roundRect, wrapText, ease, lerp } from '../util.js';
 import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCanvas } from '../ui/documents.js';
+import { mergeStatic } from '../world/merge.js';
 import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop } from '../world/images.js';
 
 /** A real photo as a distant backdrop (only in the virtual/immersive view; in passthrough it would float in the room). */
@@ -677,9 +678,9 @@ const seat = (d) => {
       prevMode = d.app.env.mode; d.app.env.setMode('immersive'); d.app.env.setHall(false);
       W = new THREE.Group(); d.addScenery(W, { fixed: true });
       for (const z of [-1.5, -4.5]) { const b = d.assets.make('jetbridge-section', { actions: false }); b.position.set(0, 0, z); W.add(b); }
-      door = d.assets.make('aircraft-entry-door'); door.position.set(0, 0, -6.1); W.add(door);
-      crew = d.addStaff('crew', 'Cabin crew · practice', W, [0.4, 0, -6.95]);
-      const exitSign = labelSurface('EXIT', { w: 0.36, px: 420 }); exitSign.mesh.position.set(0, 2.2, -5.95); W.add(exitSign.mesh); d.track(exitSign, false);
+      door = d.assets.make('aircraft-entry-door'); door.userData.noMerge = true; door.position.set(0, 0, -6.1); W.add(door);
+      crew = d.addStaff('crew', 'Cabin crew · practice', W, [0.4, 0, -6.95]); crew.root.userData.noMerge = true;
+      const exitSign = labelSurface('EXIT', { w: 0.36, px: 420 }); exitSign.mesh.userData.noMerge = true; exitSign.mesh.position.set(0, 2.2, -5.95); W.add(exitSign.mesh); d.track(exitSign, false);
 
       ROWS.forEach((num, k) => {
         const z = rowZ(k);
@@ -690,15 +691,15 @@ const seat = (d) => {
           LETTERS[s].forEach((l, idx) => {
             const x = (idx - 1) * 0.54;
             const hot = new Hotspot({ size: [0.5, 0.95, 0.5], center: [x, 0.55, 0.05], label: num + l, onSelect: () => this.pick(k, s, idx) });
-            row.add(hot.mesh); d.input.addInteractive(hot.mesh); spots.push({ row: k, side: s, i: idx, hot });
-            const badge = labelSurface(l, { w: 0.22, px: 220 }); badge.mesh.position.set(x, 1.0, -0.33); badge.mesh.rotation.y = Math.PI; row.add(badge.mesh); d.track(badge, false);
+            hot.mesh.userData.noMerge = true; row.add(hot.mesh); d.input.addInteractive(hot.mesh); spots.push({ row: k, side: s, i: idx, hot });
+            const badge = labelSurface(l, { w: 0.22, px: 220 }); badge.mesh.userData.noMerge = true; badge.mesh.position.set(x, 1.0, -0.33); badge.mesh.rotation.y = Math.PI; row.add(badge.mesh); d.track(badge, false);
           });
           // overhead bins above each seat block, doors facing the aisle
           for (const dz of [-0.55, 0.55]) {
             const bin = d.assets.make('overhead-bin'); bin.position.set(s * 1.5, 1.72, z + dz); bin.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2; bin.scale.setScalar(0.88); W.add(bin);
           }
         }
-        const plate = labelSurface('Row ' + num, { w: 0.5, px: 520 }); plate.mesh.position.set(0, 2.05, z + 0.45); W.add(plate.mesh); d.track(plate, false);
+        const plate = labelSurface('Row ' + num, { w: 0.5, px: 520 }); plate.mesh.userData.noMerge = true; plate.mesh.position.set(0, 2.05, z + 0.45); W.add(plate.mesh); d.track(plate, false);
       });
       // aisle carpet runner, galley curtain at the far end
       const len = 10.4, ct = carpetTexture(); ct.repeat.set(1, len / 1.0);
@@ -706,6 +707,7 @@ const seat = (d) => {
       runner.position.set(0, 0.012, ROW0 - 1.5 * PITCH - 0.6); W.add(runner);
       const curtain = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 2.35), new THREE.MeshStandardMaterial({ map: curtainTexture(), roughness: 1 }));
       curtain.position.set(0, 1.18, rowZ(3) - 1.15); W.add(curtain);
+      this.merged = mergeStatic(W);      // same picture, far fewer draw calls on the headset
 
       const pass = makeDoc(d, 'boarding-pass'); pass.scale.setScalar(1.3); pass.rotation.x = -0.5;
       d.addProp(pass, { radius: 0.2 }, [-0.1, d.h - 0.42, -0.45]);

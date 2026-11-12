@@ -643,16 +643,10 @@ export class Director {
   local(obj) { return this.stage.root.worldToLocal(obj.getWorldPosition(new THREE.Vector3())); }
 
   /** A faint shelf at lap height, so dropped items land within a seated reach instead of the floor. */
+  /** No table anywhere. An invisible lap-height surface only stops things you let go of from dropping to the floor. */
   _buildMat() {
-    // A solid little table in front of you at lap height: your things rest on it instead of floating in the air.
-    const g = new THREE.Group(), y = this.lapY;
-    const wood = new THREE.MeshStandardMaterial({ color: 0xa88460, roughness: 0.65, metalness: 0 });
-    const leg = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.6 });
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.04, 0.6), wood); top.position.set(0, y - 0.02, -0.34); top.castShadow = top.receiveShadow = true; g.add(top);
-    for (const [x, z] of [[-0.52, -0.1], [0.52, -0.1], [-0.52, -0.58], [0.52, -0.58]]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, y - 0.04, 10), leg); l.position.set(x, (y - 0.04) / 2, z); l.castShadow = true; g.add(l); }
-    this.stage.root.add(g);
-    this.mat = { mesh: g };
-    this.addSupport(-0.57, 0.57, -0.64, -0.04, y, true);
+    this.mat = { mesh: null };
+    this.addSupport(-0.57, 0.57, -0.64, -0.04, this.lapY, true);
   }
 
   // ---------------------------------------------------------------- per frame

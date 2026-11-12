@@ -5,6 +5,7 @@ import { Tweens, wrapAngle, damp, disposeObject } from '../util.js';
 import { STEPS, STEP_IDS, OPTIONAL_STEPS } from './steps.js';
 import { Staff } from '../world/staff.js';
 import { Phone } from '../world/phone.js';
+import { makePointingHand } from '../world/hand.js';
 import { Presentation } from './presentation.mjs';
 import { JourneyLog } from './journey-log.mjs';
 import { cardScale, CARD } from './rules.mjs';
@@ -161,6 +162,9 @@ export class Director {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.038, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false, toneMapped: false, side: THREE.DoubleSide }));
     g.add(hand, tip, ring); g.userData.ring = ring;
     g.traverse((m) => { if (m.isMesh) m.renderOrder = 40; });
+    // swap in the realistic model once it has loaded; the simple hand above stays if it cannot be fetched
+    const realSkin = new THREE.MeshStandardMaterial({ color: 0x4fe6d8, emissive: 0x14867e, emissiveIntensity: 0.5, roughness: 0.6, transparent: true, opacity: 0.9, depthTest: false, toneMapped: false });
+    makePointingHand(realSkin).then((real) => { if (real) { g.remove(hand); g.add(real); tip.visible = false; } }).catch(() => {});
     g.visible = false;
     this.stage.root.add(g);
     return (this._hand = g);

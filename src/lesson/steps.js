@@ -920,33 +920,35 @@ function facadePlane(d, w, dist) {
   m.position.set(-(0.78 - 0.5) * w, 0.23 * h, -dist); m.name = 'Facade'; d.stage.scenery.add(m); return m;
 }
 
-/** The inside of the cab, built around the seated learner: floor, roof lining, doors with open windows, pillars, the back of the front seats and the dashboard. */
-function cabInterior(d) {
-  const g = new THREE.Group(); g.name = 'CabInterior';
-  const H = Math.max(1.0, d.h);
-  const lit = (c, r = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0.05 });
-  const dark = lit(0x2a2f35), leather = lit(0x464a50, 0.5), liner = lit(0xc9cbc8, 0.95), trim = lit(0x14161a, 0.6), carpet = lit(0x2b2e32, 1);
-  const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.receiveShadow = true; g.add(b); return b; };
-  box(1.5, 0.04, 2.9, carpet, 0, 0.02, -0.5);                       // floor
-  box(1.58, 0.05, 2.7, liner, 0, H + 0.34, -0.45);                  // roof lining
-  const sill = H - 0.2;
-  for (const s of [-1, 1]) {
-    box(0.07, sill, 2.7, dark, s * 0.77, sill / 2, -0.45);             // door panel (below the window)
-    box(0.1, 0.05, 2.7, trim, s * 0.77, sill + 0.02, -0.45);           // window sill
-    box(0.07, H + 0.34 - sill, 0.1, trim, s * 0.77, (sill + H + 0.34) / 2, 0.88);     // rear pillar
-    box(0.07, H + 0.34 - sill, 0.12, trim, s * 0.77, (sill + H + 0.34) / 2, -0.35);   // middle pillar
-    box(0.07, H + 0.34 - sill, 0.1, trim, s * 0.75, (sill + H + 0.34) / 2, -1.55);    // front pillar
-  }
-  box(1.52, 0.5, 0.12, dark, 0, H - 0.0, 0.95);                      // rear shelf under the back window
-  box(1.4, 0.14, 0.6, leather, 0, 0.36, 0.15);                       // rear bench: seat
-  box(1.4, 0.72, 0.13, leather, 0, 0.78, 0.5);                       // rear bench: back
-  for (const s of [-1, 1]) {
-    box(0.42, 0.6, 0.14, leather, s * 0.4, 0.5, -0.95);              // front seat backs
-    box(0.22, 0.16, 0.1, leather, s * 0.4, 0.9, -0.95);               // headrests
-  }
-  box(0.26, 0.32, 0.55, dark, 0, 0.24, -1.1);                       // centre console
-  box(1.5, 0.3, 0.5, dark, 0, 0.66, -1.95);                         // dashboard
-  const sw = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.018, 10, 28), trim); sw.position.set(-0.4, 0.98, -1.78); sw.rotation.x = -1.0; g.add(sw);
+/** The inside of the cab: your photograph, with the green glass keyed out so the road shows through the windows. Seen from the back seat. */
+function cabPlate(d, file = 'cab-interior-driver.webp') {
+  const DIST = 2.4, W = 2 * DIST * Math.tan(37 * Math.PI / 180), Hh = W * 1024 / 1536;     // wide-angle photo: about 74 degrees across, placed beyond the cards
+  const g = new THREE.Group(); g.name = 'CabPlate';
+  const mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.02, toneMapped: false, side: THREE.DoubleSide, depthWrite: false });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, Hh), mat); mesh.renderOrder = 5; g.add(mesh);
+  mesh.position.set(0, Math.max(1.0, d.h) - 0.05, -DIST);
+  // A closed cabin shell around the photo (open only in front, where the windows are) so no outdoor ground shows above, below or beside it.
+  const shellMat = new THREE.MeshBasicMaterial({ color: 0x4a4b4e, side: THREE.BackSide, toneMapped: false }), cy = mesh.position.y, ch = Hh + 0.1, R = DIST + 0.25, half = 37.5 * Math.PI / 180;
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, ch, 48, 1, true, Math.PI + half, 2 * Math.PI - 2 * half), shellMat); wall.position.y = cy; g.add(wall);
+  const capMat = shellMat.clone(); capMat.side = THREE.DoubleSide; g.userData.capMat = capMat;
+  for (const s of [-1, 1]) { const cap = new THREE.Mesh(new THREE.CircleGeometry(R, 48), capMat); cap.rotation.x = Math.PI / 2; cap.position.y = cy + s * ch / 2 + (s < 0 ? 0.1 : 0); g.add(cap); }     // the floor sits just above the ground so it covers it
+  const img = new Image(); img.onload = () => {
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+    const id = x.getImageData(0, 0, c.width, c.height), p = id.data;
+    { let r = 0, gg = 0, b = 0, n = 0; for (let j = (c.height - 6) * c.width * 4; j < p.length; j += 4) { r += p[j]; gg += p[j + 1]; b += p[j + 2]; n++; } shellMat.color.setRGB(r / n / 255 * 0.8, gg / n / 255 * 0.8, b / n / 255 * 0.8, THREE.SRGBColorSpace); capMat.color.copy(shellMat.color); }   // the shell matches the seat fabric
+    for (let i = 0; i < p.length; i += 4) {
+      const r = p[i], gr = p[i + 1], b = p[i + 2], over = gr - Math.max(r, b);
+      if (over > 70) p[i + 3] = 0;                                    // pure key colour: clear glass
+      else if (over > 25) { p[i + 3] = Math.round(255 * (70 - over) / 45); p[i + 1] = Math.max(r, b); }   // the soft edge: fade and remove the green fringe
+      else if (over > 8) p[i + 1] = Math.max(r, b) + 4;               // slight green spill on the frame
+    }
+    x.putImageData(id, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    mat.map = t; mat.needsUpdate = true;
+  };
+  img.src = new URL('../../assets/images/' + file, import.meta.url).href;
+  g.userData.dispose = () => { mat.map?.dispose(); mat.dispose(); mesh.geometry.dispose(); };
   return g;
 }
 
@@ -974,7 +976,7 @@ function terminalSign(label, arrow, onPick) {
 
 /* ------------------------------------------------------------------ 0b. the cab: board it, ride to the airport, choose your terminal */
 const cab = (d) => {
-  let phase = 'board', cabMesh, driver, interior, seatedDriver, facade; const signs = [];
+  let phase = 'board', cabMesh, driver, interior, facade; const signs = [];
   const api = {
     id: 'cab', scene: 'outdoor', roam: false, people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
     voice: 'Your cab is here.',
@@ -998,8 +1000,7 @@ const cab = (d) => {
       d.say('Off we go. Sit back. You stay seated while the cab takes you to the airport.');
       blink(d, () => {
         if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
-        interior = cabInterior(d); d.stage.props.add(interior);
-        seatedDriver = d.addStaff('driver', 'Cab driver', d.stage.props, [-0.4, -0.15, -1.12]); seatedDriver.noPush = true; seatedDriver.playClip(/drive/i);   // in the driver's seat, with the model's own seated "Drive car" animation
+        interior = cabPlate(d); d.stage.props.add(interior);                      // the real cab interior (the driver is in the photograph)
         facade = facadePlane(d, 34, 70);                                    // the airport, far ahead: it comes closer as you drive
         d.app.env.driveSpeed = 0.9;
         const sc = d.stage.scenery, dur = d.reduceMotion ? 0.6 : 9;

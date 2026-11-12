@@ -6,9 +6,10 @@ const FILES = [
   'tex-floor.jpg', 'tex-wall.jpg', 'tex-ceiling.jpg', 'tex-carpet.jpg', 'tex-seat.jpg', 'tex-counter.jpg',
   'view-tarmac-day.jpg', 'view-tarmac-golden.jpg', 'view-plane-window.jpg', 'view-kerb.jpg', 'view-hall-wide.jpg',
   'logo-practice-air.png', 'face-1.jpg', 'face-2.jpg', 'face-3.jpg', 'face-4.jpg',
-  'staff-checkin.png', 'staff-security.png', 'staff-gate.png', 'staff-crew.png', 'staff-guard.png',
+  'staff-checkin.png', 'staff-security.png', 'staff-gate.png', 'staff-crew.jpg', 'staff-guard.png',
   'cab-side.png', 'person-driver.png', 'view-cab-window.jpg', 'kerb-golden.jpg', 'xray-bag-lying.jpg',
   'home-street.jpg', 'side-left.jpg', 'side-right.jpg', 'cab-side-closed.jpg', 'cab-side-door-open.jpg', 'cab-rear-boot.jpg', 'security-hall.jpg', 'gate-lounge.jpg',
+  'aircraft-window-seat.jpg', 'sky-clouds.jpg', 'checkin-hall.jpg', 'aircraft-sidewall-texture.jpg', 'aircraft-ceiling-texture.jpg', 'overhead-bin-texture.jpg', 'checkin-counter-texture.jpg',
   'brushed-steel.jpg', 'conveyor-rubber.jpg', 'security-tray-plastic.jpg', 'white-counter-laminate.jpg', 'airport-floor-tile.jpg', 'blue-grey-carpet.jpg',
   'item-powerbank.jpg', 'item-tablet.jpg', 'item-pouch.jpg', 'item-charger.jpg', 'item-clothes.jpg', 'item-bottle.jpg',
 ];
@@ -126,7 +127,9 @@ export function cutoutTexture(name) {
   const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
   const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
   const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
-  if (isWhiteBacked(p, c.width)) keyWhite(p, c.width, c.height);
+  if (p[0] > 235 && p[1] < 40 && p[2] > 235) {                                   // photographed on flat magenta: key it out
+    for (let j = 0; j < p.length; j += 4) { const over = Math.min(p[j], p[j + 2]) - p[j + 1]; if (over > 90) p[j + 3] = 0; else if (over > 40) { p[j + 3] = Math.round(255 * (90 - over) / 50); p[j] = p[j + 2] = p[j + 1]; } }
+  } else if (isWhiteBacked(p, c.width)) keyWhite(p, c.width, c.height);
   for (let i = 0; i < p.length; i += 4) {
     const a = p[i + 3] / 255;
     const a2 = Math.min(1, Math.max(0, (a - 0.62) / 0.3));       // halo (alpha < ~0.6) disappears, body stays solid

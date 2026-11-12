@@ -8,9 +8,10 @@ const MESH_TEX = {
   'terminal-floor-module': { FloorSlab: ['airport-floor-tile', 3.6] },
   'terminal-wall-module': { Wall: ['tex-wall', 1.5] },
   'boarding-counter': { CounterTop: ['tex-counter', 0.9] },
-  'checkin-counter': { CounterTop: ['tex-counter', 0.9] },
   'information-desk': { CounterTop: ['tex-counter', 0.9] },
   'aircraft-cabin-section': { CabinFloor: ['blue-grey-carpet', 0.7] },
+  'overhead-bin': { BinBack: ['aircraft-sidewall-texture', 0.5], BinFloor: ['aircraft-sidewall-texture', 0.5], 'BinSide-061': ['aircraft-sidewall-texture', 0.5], BinSide061: ['aircraft-sidewall-texture', 0.5], BinRoof: ['aircraft-sidewall-texture', 0.5], BinDoor: ['overhead-bin-texture', 0.7] },
+  'checkin-counter': { CounterTop: ['tex-counter', 0.9], 'FrontPanel-052': ['checkin-counter-texture', 0.9], FrontPanel0: ['checkin-counter-texture', 0.9], FrontPanel052: ['checkin-counter-texture', 0.9] },
   'security-tray': { TrayBase: ['security-tray-plastic', 0.5], 'TraySide-0266': ['security-tray-plastic', 0.5], TraySide0266: ['security-tray-plastic', 0.5], 'TrayEnd-0196': ['security-tray-plastic', 0.5], TrayEnd0196: ['security-tray-plastic', 0.5] },
 };
 const MATERIAL_TEX = { 'Navy upholstery': ['tex-seat', 0.3], 'Satin stainless steel': ['brushed-steel', 0.6], 'Soft rubber': ['conveyor-rubber', 0.45], 'Warm mineral laminate': ['white-counter-laminate', 0.8] };

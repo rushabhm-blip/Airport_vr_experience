@@ -8,6 +8,7 @@ import { FONT, roundRect, wrapText, ease, lerp } from '../util.js';
 import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCanvas } from '../ui/documents.js';
 import { mergeStatic } from '../world/merge.js';
 import { RoadVideo } from '../world/roadvideo.js';
+import { tileTexture, boxUV } from '../world/images.js';
 import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop, keyedCrop } from '../world/images.js';
 
 /** A real photo as a distant backdrop (only in the virtual/immersive view; in passthrough it would float in the room). */
@@ -212,7 +213,7 @@ const checkin = (d) => {
       d.setStation({ point: new THREE.Vector3(0, 0, -1.5), label: 'the check-in counter', radius: 1.4 });
       agent = d.addStaff('checkin', 'Check-in agent · practice', desk, [-0.55, 0, -0.85]);
       agent.say('Good morning. Booking and photo ID, please.', 8);
-      photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.2]);
+      photoPlane(d, 'checkin-hall', 9.6, 3.2, [0, 1.6, -5.2]);
       const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.0, z: -0.9, ry: 0.3 });
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] });
       d.addScenery(sign, { x: 0, y: -0.19, z: -3.1 }); hangRods(d, sign);      // hangs from the ceiling on two rods
@@ -653,8 +654,8 @@ function cabinSide(d, { mirrored }) {
       if (sky) { planarUV(o.geometry, ['z', 'y']); o.material = new THREE.MeshBasicMaterial({ map: sky, toneMapped: false }); o.material.userData.owned = true; }
       else { o.material.color.set(0xcfeaff); if ('emissive' in o.material) { o.material.emissive.set(0x9dd2ff); o.material.emissiveIntensity = 1.25; } }
     }
-    else if (/^SidewallLower/.test(n)) o.material.color.set(0x8f9fb2);
-    else if (/^SidewallUpper|^Ceiling|^WindowFrame|^WindowPier/.test(n)) o.material.color.set(0xf1f3f4);
+    else if (/^SidewallLower/.test(n)) { o.material.color.set(0xb4c0cf); const t = tileTexture('aircraft-sidewall-texture'); if (t) { boxUV(o.geometry, 0.6); o.material.map = t; } }
+    else if (/^SidewallUpper|^Ceiling|^WindowFrame|^WindowPier/.test(n)) { o.material.color.set(0xf6f7f8); const t = /^Ceiling|^SidewallUpper/.test(n) ? tileTexture('aircraft-ceiling-texture') : null; if (t) { boxUV(o.geometry, 0.6); o.material.map = t; } }
     else if (n === 'CabinFloor') { if (!o.material.map) o.material.color.set(0x24364f); if (mirrored) o.position.y -= 0.003; }
     if (mirrored && n === 'Ceiling') o.position.y += 0.003;
   });
@@ -666,7 +667,7 @@ const seat = (d) => {
   const ROWS = [12, 13, 14, 15], TARGET = 2, PITCH = 2.2, ROW0 = -7.4;
   const LETTERS = { '-1': ['C', 'B', 'A'], '1': ['F', 'E', 'D'] };   // row-local seat index -> letter, per side
   const rowZ = (k) => ROW0 - k * PITCH, standZ = (k) => rowZ(k) + 1.0;
-  let crew, W, door, phase = 'bridge', userZ = 0, finished = false, prevMode = 'mixed';
+  let crew, W, door, phase = 'bridge', userZ = 0, finished = false, prevMode = 'mixed', seatView, skyTex;
   const rows = new RowTracker(ROWS, TARGET);
   const spots = [], rowsL = [];
   const walkTo = (zW, done) => d.moveWorld(0, userZ - zW, () => { userZ = zW; done?.(); });
@@ -715,7 +716,7 @@ const seat = (d) => {
       d.setStation({ point: new THREE.Vector3(0, 0, -6.1), label: 'the aircraft door', radius: 1.3, hint: 'Walk down the jet bridge.', onArrive: () => this.board() });
       d.setPanel({ eyebrow: 'Airport practice · 8 of 8', title: 'Walk to the aircraft.', body: 'Walk down the jet bridge to the door.', note: '', tone: 'normal', buttons: [] });
     },
-    exit() { d.app.env.setMode(prevMode); d.app.env.setHall(true); },
+    exit() { seatView?.userData.dispose?.(); seatView?.removeFromParent(); seatView = null; d.app.env.setMode(prevMode); d.app.env.setHall(true); },
     onButton(id) { if (id === 'show') d.startAssist(); },
     board() {   // you reached the aircraft door
       if (phase !== 'bridge') return; phase = 'aisle'; rows.at = -1; d.voice.beep();
@@ -732,7 +733,8 @@ const seat = (d) => {
       d.setPanel({ title: 'Find seat 14A.', body: 'Row 14 is here. A is the window seat, on the left side of the aircraft.', note: 'Point at the seat and pinch', buttons: [{ id: 'show', label: 'Show me' }] });
       d.say('This is row 14. Now find seat A, the window seat on your left.');
     },
-    update() {
+    update(dt) {
+      if (skyTex) skyTex.offset.x += dt * 0.004;                          // the clouds drift slowly past the window
       if (phase !== 'aisle' && phase !== 'seat') return;
       const uz = -d.stage.scenery.position.z - d.stage.pull;     // where you stand along the aircraft
       const before = rows.at; rows.syncFromPosition(uz, standZ);
@@ -754,7 +756,14 @@ const seat = (d) => {
       finished = true;
       const s = spots.find((q) => q.row === r && q.side === side && q.i === i); s.hot.flash(true);
       const a = rowsL[r].userData.actions; if (a) { a.toggle(4); a.toggle(5); } // recline + open the tray on the chosen seat
-      d.success('You found seat 14A.', 'Row 14, seat A: the window seat. You have rehearsed the whole journey, from booking to your seat.', 'Finish');
+      d.clearStation();
+      blink(d, () => {                                                  // you sit down: the view from the window seat
+        if (W) W.visible = false;
+        seatView = cabPlate(d, 'aircraft-window-seat.jpg'); d.stage.props.add(seatView);
+        const sky = photoTexture('sky-clouds');
+        if (sky) { skyTex = sky.clone(); skyTex.wrapS = THREE.RepeatWrapping; skyTex.needsUpdate = true; const m = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 7.6 * 1024 / 1536), new THREE.MeshBasicMaterial({ map: skyTex, toneMapped: false, depthWrite: false })); m.position.set(0, Math.max(1.0, d.h) + 0.1, -5); m.renderOrder = -2; seatView.add(m); }
+        d.success('You found seat 14A.', 'Row 14, seat A: the window seat. You have rehearsed the whole journey, from booking to your seat.', 'Finish');
+      });
     },
   };
   return api;

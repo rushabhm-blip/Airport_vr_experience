@@ -13,12 +13,13 @@ const HEIGHT = { checkin: 1.66, security: 1.76, gate: 1.66, crew: 1.66, guard: 1
  * little, and can "say" a line in a speech bubble. (Animated 3D characters can replace these later.)
  */
 export class Staff {
+  static enabled = true;    // 3D characters on/off (heavy: off by default in a headset until chosen)
   static library = null;   // Map kind -> { scene, clips } once assets/people/*.glb have loaded
 
   constructor(kind, role) {
     this.kind = kind; this.role = role;
     this.root = new THREE.Group(); this.root.name = 'Staff-' + kind;
-    const lib = Staff.library?.get(kind);
+    const lib = Staff.enabled ? Staff.library?.get(kind) : null;
     if (lib) this._buildCharacter(lib);
     const tex = lib ? null : cutoutTexture(kind === 'driver' ? 'person-driver' : 'staff-' + kind);
     const h = HEIGHT[kind] || 1.7, aspect = tex?.userData.aspect || 0.667;

@@ -29,6 +29,7 @@ class App {
     this.yaw = 0; this.pitch = 0;
     this.marks = [];
     this.fit = null;
+    this.peoplePref = (() => { try { return localStorage.getItem('saath.people3d'); } catch { return null; } })();   // 'on' | 'off' | null (default: on for desktop, off in a headset)
     this.comfort = (() => { try { return localStorage.getItem('saath.comfort') === 'glide' ? 'glide' : 'fade'; } catch { return 'fade'; } })();   // 'fade' (gentle, default) or 'glide' (smooth, opt-in) for seated travel
   }
 
@@ -357,6 +358,7 @@ class App {
       title = 'Your space';
       buttons = [
         { id: 'comfort', label: this.comfort === 'fade' ? 'Travel: gentle fade' : 'Travel: smooth (thumbstick)', kind: 'secondary' },
+        { id: 'people', label: this.people3d ? 'People: 3D (heavy)' : 'People: photos', kind: 'secondary' },
         { id: 'bring', label: 'Bring objects to me', kind: 'secondary' },
         { id: 'refit', label: 'Re-fit my space', kind: 'secondary' },
         { id: 'name', label: `Name: ${PRACTICE.hasName ? PRACTICE.passenger : 'not set'}`, kind: 'secondary' },
@@ -403,6 +405,7 @@ class App {
     if (id === 'comfort') { this.comfort = this.comfort === 'fade' ? 'glide' : 'fade'; try { localStorage.setItem('saath.comfort', this.comfort); } catch { /* private mode */ } return this.refreshMenu(); }
     if (id === 'dist') { const o = [1.5, 1.9, 2.4], k = o.indexOf(dr.cardDist); dr.setCardPrefs({ dist: o[(k + 1) % o.length] }); dr.snapPanelToGaze(); return this.refreshMenu(); }
     if (id === 'text') { const o = [0.85, 1, 1.4, 1.8], k = o.findIndex((v) => Math.abs(v - dr.textK) < 0.05); dr.setCardPrefs({ textK: o[(k + 1) % o.length] }); dr.snapPanelToGaze(); return this.refreshMenu(); }
+    if (id === 'people') { this.peoplePref = this.people3d ? 'off' : 'on'; try { localStorage.setItem('saath.people3d', this.peoplePref); } catch { /* private mode */ } this.closeMenu(); return dr.goto(dr.index); }
     if (id === 'recenter') { this.closeMenu(); return dr.recenter(); }
     if (id === 'walkstick') { dr.walkStick = !dr.walkStick; try { localStorage.setItem('saath.walk', dr.walkStick ? 'on' : 'off'); } catch { /* private mode */ } return this.refreshMenu(); }
     if (id === 'forget') { try { localStorage.removeItem('saath.name'); } catch { /* */ } setPassenger(''); return this.refreshMenu(); }
@@ -420,6 +423,9 @@ class App {
     if (id === 'restart') { this.closeMenu(); return dr.restart(); }
     if (id === 'exit') { this.closeMenu(); return this.exitSession(); }
   }
+
+  /** 3D characters are 6-9 MB each and untested on a Quest, so a headset starts with photo cut-outs unless you turn them on. */
+  get people3d() { const on = this.peoplePref ? this.peoplePref === 'on' : !this.xrPresenting; Staff.enabled = on; return on; }
 
   exitSession() { const sess = this.renderer.xr.getSession?.(); if (sess) sess.end(); else { this.director._teardown?.(); location.reload(); } }
 

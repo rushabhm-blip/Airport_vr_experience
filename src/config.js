@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-12 · v18 · roam with the thumbstick';
+export const BUILD = '2026-11-12 · v19 · headset fix: no heavy people wait';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

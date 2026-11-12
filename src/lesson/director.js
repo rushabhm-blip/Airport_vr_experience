@@ -393,7 +393,8 @@ export class Director {
     this.clearStation();
     this.panel.set({ progress: { i, n: STEPS.length }, chips: this._chips(), tone: 'normal', note: '', tasks: [], minimal: false });
     await this.assets.preload(step.assets || []);
-    await this.assets.loadPeople(step.people || []);   // only the people this station needs
+    // 3D people are big (6-9 MB each): never hold the station back for them. Wait a few seconds at most, then use the photo cut-out.
+    if (this.app.people3d) await Promise.race([this.assets.loadPeople(step.people || []), new Promise((r) => setTimeout(r, 4000))]);
     if (token !== this._token) return; // another goto superseded this one
     if (step.table !== false) this._buildMat();   // the lap table exists only where there are things to hold
     this.step = step;                  // only live once its scene exists

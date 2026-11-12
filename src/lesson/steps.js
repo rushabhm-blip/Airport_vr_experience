@@ -196,7 +196,7 @@ const checkin = (d) => {
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   return {
-    id: 'checkin', scene: 'hall-wall', panelOffset: 0.95, assets: ['checkin-counter', 'staff-workstation', 'boarding-pass-printer', 'boarding-pass', 'booking-document', 'practice-id', 'terminal-sign', 'queue-barrier'],
+    id: 'checkin', scene: 'hall-wall', people: ['checkin'], panelOffset: 0.95, assets: ['checkin-counter', 'staff-workstation', 'boarding-pass-printer', 'boarding-pass', 'booking-document', 'practice-id', 'terminal-sign', 'queue-barrier'],
     voice: 'Show your documents. Place your booking and your ID on the counter.',
     help: 'At check-in the airline staff need your booking and a photo ID. Put both on the counter, then wait for your boarding pass.',
     helpShort: 'Booking and ID on the counter',
@@ -321,7 +321,7 @@ const security = (d) => {
     d.tweens.add({ dur: 4.2, easing: (t) => t, update: (t) => { if (name === 'bag') obj.quaternion.slerpQuaternions(q0, q1, Math.min(1, t * 5)); obj.position.set(lerp(x0, xEnd, Math.min(1, t * 3)), y, lerp(z0, zEnd + (name === 'bag' ? 0.2 : 0), t)); }, done: () => { st.arrived.add(name); api.arrive(); } });
   };
   const api = {
-    id: 'security', scene: 'hall-wall', panelOffset: 0.85, assets: ['roller-table', 'security-xray-machine', 'security-tray', 'smartphone', 'cabin-suitcase', 'wallet', 'keys', 'walkthrough-detector'],
+    id: 'security', scene: 'hall-wall', people: ['security'], panelOffset: 0.85, assets: ['roller-table', 'security-xray-machine', 'security-tray', 'smartphone', 'cabin-suitcase', 'wallet', 'keys', 'walkthrough-detector'],
     voice: 'Security practice. Place your phone in the tray, then slide the tray and your bag onto the belt.',
     help: 'At security you put phones, keys and wallets in a tray, and bags on the belt. Take your time, and follow the officer.',
     helpShort: 'Phone in tray, then belt',
@@ -544,7 +544,7 @@ const boarding = (d) => {
   let gateAgent, desk, scanner, pass, scan, lastState = '', ghost = null, texs = {}, done = false, screen, jb;
   const S_V = new THREE.Vector3(), S_Q = new THREE.Quaternion(), S_Q2 = new THREE.Quaternion(), S_N = new THREE.Vector3();
   return {
-    id: 'boarding', scene: 'hall-apron', panelOffset: 0.95, assets: ['boarding-counter', 'boarding-scanner', 'staff-workstation', 'boarding-pass', 'gate-display', 'queue-barrier', 'jetbridge-section'],
+    id: 'boarding', scene: 'hall-apron', people: ['gate'], panelOffset: 0.95, assets: ['boarding-counter', 'boarding-scanner', 'staff-workstation', 'boarding-pass', 'gate-display', 'queue-barrier', 'jetbridge-section'],
     voice: 'Scan your boarding pass. Face the code towards the reader, and hold it steady.',
     help: 'Hold the boarding pass just above the glass, with the code facing down towards the reader. Keep it still for a moment until the screen turns green.',
     helpShort: 'Code faces the reader',
@@ -672,7 +672,7 @@ const seat = (d) => {
   const spots = [], rowsL = [];
   const walkTo = (zW, done) => d.moveWorld(0, userZ - zW, () => { userZ = zW; done?.(); });
   const api = {
-    id: 'seat', scene: 'hall-apron', enclosure: true, walkIn: false, noStick: true, assets: ['jetbridge-section', 'aircraft-entry-door', 'aircraft-cabin-section', 'aircraft-seat-row', 'overhead-bin', 'boarding-pass'],
+    id: 'seat', scene: 'hall-apron', enclosure: true, people: ['crew'], walkIn: false, noStick: true, assets: ['jetbridge-section', 'aircraft-entry-door', 'aircraft-cabin-section', 'aircraft-seat-row', 'overhead-bin', 'boarding-pass'],
     voice: 'Walk down the jet bridge to the aircraft. Then find row 14, and seat A.',
     help: 'Your pass says seat 14A. The number is the row, and the letter is the seat. Row numbers hang above the aisle. Seat A is the window seat on the left.',
     helpShort: 'Row 14, window seat A',
@@ -968,7 +968,7 @@ function terminalSign(label, arrow, onPick) {
 const cab = (d) => {
   let phase = 'board', cabMesh, driver, inside, facade; const signs = [];
   const api = {
-    id: 'cab', scene: 'outdoor', table: false, panelOffset: 0.8, walkIn: false, assets: [],
+    id: 'cab', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
     voice: 'Your cab is here.',
     help: 'Your cab is waiting. Choose Get in. Later, look for the terminal on your booking: it says Terminal 2. Point at that sign.',
     enter() {
@@ -1034,7 +1034,7 @@ const kerb = (d) => {
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.castShadow = true; return b; };
   const api = {
-    id: 'kerb', scene: 'outdoor', table: false, panelOffset: 0.8, walkIn: false, assets: ['terminal-sliding-doors', 'terminal-sign', 'luggage-trolley'],
+    id: 'kerb', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: ['terminal-sliding-doors', 'terminal-sign', 'luggage-trolley'],
     voice: 'You have arrived at the airport. Step out of the cab.',
     help: 'The cab has stopped at the terminal. Tap Get out, and the entrance is straight ahead.',
     enter() {
@@ -1071,7 +1071,7 @@ const arrival = (d) => {
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   const api = {
-    id: 'arrival', scene: 'outdoor', panelOffset: 0.95, walkDist: 1.0, assets: ['terminal-sliding-doors', 'terminal-sign', 'information-desk', 'booking-document', 'practice-id', 'luggage-trolley'],
+    id: 'arrival', scene: 'outdoor', people: ['guard'], panelOffset: 0.95, walkDist: 1.0, assets: ['terminal-sliding-doors', 'terminal-sign', 'information-desk', 'booking-document', 'practice-id', 'luggage-trolley'],
     voice: 'You have arrived at the airport. You already know your terminal from your booking. Check that the sign matches, then show your ticket and photo I D to the guard at the entrance.',
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',

@@ -70,12 +70,16 @@ export class Assets {
    * Optional rigged characters: assets/people/<role>.glb for driver, guard, checkin, security, gate, crew. Animation clips are kept.
    * A missing file is fine: that role keeps its photo cut-out.
    */
-  async loadPeople(kinds = ['driver', 'guard', 'checkin', 'security', 'gate', 'crew']) {
+  async loadPeople(kinds = []) {
     this.people = this.people || new Map();
-    try { const r = await fetch(this.base + 'people/manifest.json'); if (!r.ok) return this.people; const m = await r.json(); kinds = kinds.filter((k) => m[k]); } catch { return this.people; }   // no manifest = no characters supplied yet
-    await Promise.all(kinds.map(async (k) => {
-      try { const g = await this.loader.loadAsync(`${this.base}people/${k}.glb`); this.people.set(k, { scene: g.scene, clips: g.animations }); }
-      catch { /* not supplied yet */ }
+    if (this._peopleManifest === undefined) {
+      try { const r = await fetch(this.base + 'people/manifest.json'); this._peopleManifest = r.ok ? await r.json() : null; } catch { this._peopleManifest = null; }   // no manifest = no characters supplied
+    }
+    const m = this._peopleManifest; if (!m) return this.people;
+    this._peopleLoading = this._peopleLoading || new Map();
+    await Promise.all(kinds.filter((k) => m[k] && !this.people.has(k)).map((k) => {
+      if (!this._peopleLoading.has(k)) this._peopleLoading.set(k, this.loader.loadAsync(`${this.base}people/${k}.glb`).then((g) => { this.people.set(k, { scene: g.scene, clips: g.animations }); }).catch(() => { /* keep the cut-out */ }));
+      return this._peopleLoading.get(k);        // one in-flight request per character
     }));
     return this.people;
   }

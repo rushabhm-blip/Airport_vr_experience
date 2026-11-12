@@ -60,7 +60,7 @@ class App {
     this.assets = new Assets('./assets/');
     this.voice = new Voice();
     await this.assets.init();
-    this.assets.loadPeople().then((p) => { Staff.library = p; });   // optional rigged characters (assets/people/*.glb)
+    this.assets.people = new Map(); Staff.library = this.assets.people;   // rigged characters load per station (assets/people/*.glb)
     await loadImages('./assets/images/', (n, total) => { $('loading').textContent = `Loading Saath airport practice… ${Math.round((n / total) * 100)}%`; });
     this.stage = new Stage(this.scene);
     this.input = new Interactions({ renderer: r, scene: this.scene, camera: this.camera, domElement: r.domElement });

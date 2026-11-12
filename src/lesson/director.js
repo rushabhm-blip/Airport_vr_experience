@@ -384,6 +384,7 @@ export class Director {
     const token = this._token = (this._token || 0) + 1;
     this.panel.set({ progress: { i, n: STEPS.length }, chips: this._chips(), tone: 'normal', note: '', tasks: [] });
     await this.assets.preload(step.assets || []);
+    await this.assets.loadPeople(step.people || []);   // only the people this station needs
     if (token !== this._token) return; // another goto superseded this one
     if (step.table !== false) this._buildMat();   // the lap table exists only where there are things to hold
     this.step = step;                  // only live once its scene exists

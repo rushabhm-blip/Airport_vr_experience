@@ -74,6 +74,7 @@ export class Staff {
   _updateCharacter(dt, dx, dz, pyaw) {
     this.mixer?.update(dt);
     const want = Math.atan2(dx, dz) - pyaw;
+    if (this._faced === undefined) { this.bodyYaw = want; this._faced = true; }     // start by facing you, then turn only deliberately
     let diff = Math.atan2(Math.sin(want - this.bodyYaw), Math.cos(want - this.bodyYaw));
     if (Math.abs(diff) > 1.05) this.bodyYaw += diff * Math.min(1, dt * 2.2);     // an intentional body turn, not constant billboarding
     this.root.rotation.y = this.bodyYaw;

@@ -918,6 +918,45 @@ function facadePlane(d, w, dist) {
   m.position.set(-(0.78 - 0.5) * w, 0.23 * h, -dist); m.name = 'Facade'; d.stage.scenery.add(m); return m;
 }
 
+/** The inside of the cab, built around the seated learner: floor, roof lining, doors with open windows, pillars, the back of the front seats and the dashboard. */
+function cabInterior(d) {
+  const g = new THREE.Group(); g.name = 'CabInterior';
+  const H = Math.max(1.0, d.h);
+  const lit = (c, r = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0.05 });
+  const dark = lit(0x2a2f35), leather = lit(0x464a50, 0.5), liner = lit(0xc9cbc8, 0.95), trim = lit(0x14161a, 0.6), carpet = lit(0x2b2e32, 1);
+  const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.receiveShadow = true; g.add(b); return b; };
+  box(1.5, 0.04, 2.9, carpet, 0, 0.02, -0.5);                       // floor
+  box(1.58, 0.05, 2.7, liner, 0, H + 0.34, -0.45);                  // roof lining
+  const sill = H - 0.2;
+  for (const s of [-1, 1]) {
+    box(0.07, sill, 2.7, dark, s * 0.77, sill / 2, -0.45);             // door panel (below the window)
+    box(0.1, 0.05, 2.7, trim, s * 0.77, sill + 0.02, -0.45);           // window sill
+    box(0.07, H + 0.34 - sill, 0.1, trim, s * 0.77, (sill + H + 0.34) / 2, 0.88);     // rear pillar
+    box(0.07, H + 0.34 - sill, 0.12, trim, s * 0.77, (sill + H + 0.34) / 2, -0.35);   // middle pillar
+    box(0.07, H + 0.34 - sill, 0.1, trim, s * 0.75, (sill + H + 0.34) / 2, -1.55);    // front pillar
+  }
+  box(1.52, 0.5, 0.12, dark, 0, H - 0.0, 0.95);                      // rear shelf under the back window
+  box(1.4, 0.14, 0.6, leather, 0, 0.36, 0.15);                       // rear bench: seat
+  box(1.4, 0.72, 0.13, leather, 0, 0.78, 0.5);                       // rear bench: back
+  for (const s of [-1, 1]) {
+    box(0.42, 0.6, 0.14, leather, s * 0.4, 0.5, -0.95);              // front seat backs
+    box(0.22, 0.16, 0.1, leather, s * 0.4, 0.9, -0.95);               // headrests
+  }
+  box(0.26, 0.32, 0.55, dark, 0, 0.24, -1.1);                       // centre console
+  box(1.5, 0.3, 0.5, dark, 0, 0.66, -1.95);                         // dashboard
+  const sw = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.018, 10, 28), trim); sw.position.set(-0.4, 0.98, -1.78); sw.rotation.x = -1.0; g.add(sw);
+  return g;
+}
+
+/** A quick dark blink, so a change of place never pops. */
+function blink(d, change) {
+  const env = d.app.env; env.veil.visible = true;
+  d.tweens.add({ dur: d.reduceMotion ? 0.05 : 0.3, update: (e) => { env.veil.material.opacity = e; }, done: () => {
+    change();
+    d.tweens.add({ dur: d.reduceMotion ? 0.05 : 0.5, update: (e) => { env.veil.material.opacity = 1 - e; }, done: () => { env.veil.visible = false; } });
+  } });
+}
+
 /** A roadside sign you can point at. */
 function terminalSign(label, arrow, onPick) {
   const s = new Surface({ width: 1.5, pxW: 900, pxH: 540 });
@@ -933,7 +972,7 @@ function terminalSign(label, arrow, onPick) {
 
 /* ------------------------------------------------------------------ 0b. the cab: board it, ride to the airport, choose your terminal */
 const cab = (d) => {
-  let phase = 'board', cabMesh, driver, inside, facade; const signs = [];
+  let phase = 'board', cabMesh, driver, interior, seatedDriver, facade; const signs = [];
   const api = {
     id: 'cab', scene: 'outdoor', roam: false, people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
     voice: 'Your cab is here.',
@@ -953,25 +992,25 @@ const cab = (d) => {
     onButton(b) { if (b === 'in') this.board(); if (b === 'cont' && phase === 'rideDone') this.terminal(); },
     board() {
       if (phase !== 'board') return; phase = 'ride'; d.voice.success();
-      if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
-      const t = photoTexture('view-cab-window');
-      if (t) {   // the view from the back seat, drifting closer as the cab drives
-        inside = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 2.0), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
-        inside.position.set(0, d.h - 0.05, -1.9); d.stage.props.add(inside);
-        d.tweens.add({ dur: d.reduceMotion ? 0.5 : 9, update: (e) => { inside.position.z = -1.9 + e * 0.5; inside.scale.setScalar(0.94 + e * 0.08); } });
-      }
       d.setPanel({ title: 'On the way to the airport.', body: 'Sit back. You stay seated.', note: '', tone: 'normal', buttons: [] });
       d.say('Off we go. Sit back. You stay seated while the cab takes you to the airport.');
-      d.tweens.add({ delay: d.reduceMotion ? 0.6 : 9.5, dur: 0.01, done: () => {
-        if (phase !== 'ride') return; phase = 'rideDone';
-        d.setPanel({ title: 'You are at the airport.', body: 'Continue to choose your terminal.', note: '', tone: 'normal', buttons: [{ id: 'cont', label: 'Continue' }] }); d.say('You are at the airport.');
-      } });
+      blink(d, () => {
+        if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
+        interior = cabInterior(d); d.stage.props.add(interior);
+        seatedDriver = d.addStaff('driver', 'Cab driver', d.stage.props, [-0.4, -0.42, -1.12]); seatedDriver.noPush = true;   // in the driver's seat
+        facade = facadePlane(d, 34, 70);                                    // the airport, far ahead: it comes closer as you drive
+        d.app.env.driveSpeed = 0.9;
+        const sc = d.stage.scenery, dur = d.reduceMotion ? 0.6 : 9;
+        d.tweens.add({ dur, update: (e) => { sc.position.z = 44 * (1 - Math.pow(1 - e, 2)); }, done: () => {
+          d.app.env.driveSpeed = 0;
+          if (phase !== 'ride') return; phase = 'rideDone';
+          d.setPanel({ title: 'You are at the airport.', body: 'Continue to choose your terminal.', note: '', tone: 'normal', buttons: [{ id: 'cont', label: 'Continue' }] }); d.say('You are at the airport.');
+        } });
+      });
     },
     terminal() {
       phase = 'terminal';
-      if (inside) { inside.parent?.remove(inside); inside = null; }
-      facade = facadePlane(d, 34, 26);       // the airport, far ahead and big
-      const mk = (label, arrow, x, n) => { const s = terminalSign(label, arrow, () => this.pick(n)); d.addSurface(s, { pos: [x, 1.55, -3.6], ry: 0, parent: d.stage.scenery }); signs.push(s); };
+      const mk = (label, arrow, x, n) => { const s = terminalSign(label, arrow, () => this.pick(n)); d.addSurface(s, { pos: [x, 1.55, -3.6 - d.stage.scenery.position.z], ry: 0, parent: d.stage.scenery }); signs.push(s); };   // the road has moved on: place them 3.6 m ahead of the cab now
       mk('Terminal 1', '←', -1.1, 1); mk('Terminal 2', '→', 1.1, 2);
       d.setPanel({ title: 'Which terminal is yours?', body: 'Check your booking on the phone, then point at the sign.', note: '', tone: 'normal', buttons: [] });
       d.say('We are at the airport. Which terminal is yours? Check your booking on the phone, then point at the sign.');
@@ -984,7 +1023,8 @@ const cab = (d) => {
       for (const s of signs) s.mesh.visible = false;
       d.setPanel({ title: 'Terminal 2.', body: 'The cab takes you to the entrance.', note: '', tone: 'normal', buttons: [] });
       d.say('Terminal two. The driver takes you to the entrance.');
-      d.moveWorld(0, 18.5, () => d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'), { route: false, min: 3, speed: 3 });
+      d.app.env.driveSpeed = 0.6;
+      d.moveWorld(0, 18.5, () => { d.app.env.driveSpeed = 0; d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'); }, { route: false, min: 3, speed: 3 });
     },
     demo() {
       if (phase === 'board') { const to = d.surfacePoint(d.panel, 'in', 0.03), near = d.surfacePoint(d.panel, 'in', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.1 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Choose Get in, like this.', apply: () => this.board() }); }

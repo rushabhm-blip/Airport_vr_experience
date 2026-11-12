@@ -124,7 +124,7 @@ export class Staff {
     if (this.character) this._updateCharacter(dt, dx, dz, pyaw); else this.root.rotation.y = Math.atan2(dx, dz) - pyaw;   // cut-outs face the learner; characters turn deliberately
     // personal space: nobody stands closer than 1.3 m to the learner (the scenery glides, so people can drift near)
     const dist = Math.hypot(dx, dz);
-    if (dist < 1.3 && dist > 0.01 && this.root.parent) {
+    if (dist < 1.3 && dist > 0.01 && this.root.parent && !this.noPush) {
       const away = new THREE.Vector3(-dx / dist, 0, -dz / dist).multiplyScalar(1.3 - dist);
       const wp = this.root.getWorldPosition(new THREE.Vector3()).add(away);
       this.root.position.copy(this.root.parent.worldToLocal(wp));

@@ -84,8 +84,21 @@ export class Environment {
   _outdoorGroup() {
     if (this.outdoor) return this.outdoor;
     const g = this.outdoor = new THREE.Group(); g.name = 'Outdoor'; g.visible = false;
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x70767a, roughness: 1 }));
+    const speckle = (base, dots, repeat, lines = null) => {   // a small repeating ground texture, drawn here so there is nothing to download
+      const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+      x.fillStyle = base; x.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 2600; i++) { const v = Math.random(); x.fillStyle = dots[(v * dots.length) | 0]; x.globalAlpha = 0.25 + Math.random() * 0.45; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2.5, 1 + Math.random() * 2.5); }
+      x.globalAlpha = 1; if (lines) { x.strokeStyle = lines; x.lineWidth = 2; x.strokeRect(1, 1, 254, 254); }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+    };
+    this.roadTex = speckle('#575b5f', ['#3f4347', '#6c7075', '#4b4f53'], 70);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: this.roadTex, roughness: 1 }));
     ground.position.y = -0.02; g.add(ground);
+    // the forecourt in front of the terminal: lighter paving, with a kerb where the road ends (z = -1.2)
+    const pave = new THREE.Mesh(new THREE.PlaneGeometry(160, 80).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: speckle('#b4b4ae', ['#a2a29c', '#c6c6c0'], 60, 'rgba(90,90,85,0.35)'), roughness: 0.95 }));
+    pave.position.set(0, 0.01, -41.2); g.add(pave);
+    const kerb = new THREE.Mesh(new THREE.BoxGeometry(160, 0.14, 0.22), new THREE.MeshStandardMaterial({ color: 0xcfcfc8, roughness: 0.9 }));
+    kerb.position.set(0, 0.06, -1.2); g.add(kerb);
     const sky = new THREE.Mesh(new THREE.SphereGeometry(70, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, toneMapped: false,
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
       fragmentShader: 'varying vec3 vP; void main(){ float h = clamp(vP.y*1.5+0.1,0.,1.); vec3 c = mix(vec3(0.86,0.90,0.93), vec3(0.42,0.68,0.92), pow(h,0.65)); gl_FragColor = vec4(c,1.0);}' }));
@@ -184,6 +197,7 @@ export class Environment {
   /** Called every frame with the head position in stage-local coordinates. Returns true if state changed. */
   update(dt, headLocal, camera) {
     this.tweens.step(dt);
+    if (this.driveSpeed && this.roadTex) this.roadTex.offset.y += this.driveSpeed * dt;     // the road streams past while the cab drives
     const a = this.vig.material.uniforms.amt;
     a.value += (this.vigTarget - a.value) * Math.min(1, dt * 5);
     this.vig.visible = a.value > 0.01;

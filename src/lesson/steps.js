@@ -273,7 +273,7 @@ const checkin = (d) => {
           d.tweens.add({ dur: 1.0, update: (e) => pass.position.lerpVectors(start, end, e), done: () => {
             d.stage.props.attach(pass);
             d.input.addGrabbable(pass, { home: d.stage.props, radius: 0.22, onGrab: () => this.collected() });
-            phase = 'collect'; d.voice.beep(); agent?.say(`Here you go, ${P.passenger.split(' ')[0]}. Gate ${P.gateOriginal}, seat ${P.seat}.`, 8);
+            phase = 'collect'; d.voice.beep(); agent?.say(`Here you go. Gate ${P.gateOriginal}, seat ${P.seat}.`, 8);
             d.setPanel({ eyebrow: 'Airport practice · 3 of 8', title: 'Collect your boarding pass.', body: 'Pick it up from the counter. Then check your name and flight.', note: '', buttons: [{ id: 'show', label: 'Show me', kind: 'secondary' }] });
             d.say('Your boarding pass is ready. Pick it up from the counter.');
           } });
@@ -519,7 +519,7 @@ const gatechange = (d) => {
       if (finished) return;
       signs[1].glow = true; ov[1].redraw();
       d.runDemo([{ p: d.surfacePoint(ov[1], 'sel', 0.3).toArray(), dur: 1.5 }, { p: d.surfacePoint(ov[1], 'sel', 0.03).toArray(), dur: 0.7, press: true }],
-        { say: 'The screen says gate 18. That is between gates 16 and 20. Tap that sign, like this. Then we walk to it.', apply: () => this.pick(1) });
+        { say: 'The screen says gate 18. That is between gates 16 and 20. Tap that sign, like this.', apply: () => this.pick(1) });
     },
     onButton(id) {
       if (id === 'show') d.startAssist();
@@ -864,7 +864,7 @@ const packing = (d) => {
     weigh() {
       if (all) return; all = true;
       const cab = (2.6 + 1.8 + 0.5 + 0.3 + 0.2 + 0.3 + 0.7).toFixed(1), chk = (3.5 + 7.2 + 0.5).toFixed(1);
-      d.success('Packed and weighed.', `Cabin bag ${cab} kg (limit 7) and checked bag ${chk} kg (limit 15). Your electronics are in one pouch: at security you pull out just that.`);
+      d.success('Packed and weighed.', `Cabin bag ${cab} kg (limit 7) and checked bag ${chk} kg (limit 15). Your electronics are in one pouch: at security you pull out just that.`, 'Continue', 'Packed and weighed. Your electronics are in one pouch: at security you pull out just that.');
     },
     demo() {
       if (all) return;

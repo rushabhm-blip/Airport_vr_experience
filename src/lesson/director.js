@@ -643,12 +643,13 @@ export class Director {
     this.panel.set({ chips: this._chips(), ...p }); this.snapshot = JSON.parse(JSON.stringify(this.panel.state)); this._tourAuto(p.buttons); }
 
   /** Calm positive state; the learner moves on with the Continue button (never automatically). */
-  success(title, body, label = 'Continue') {
+  success(title, body, label = 'Continue', spoken = null) {
+    const line = spoken ?? title + ' ' + body;      // one fixed sentence per success, the same in every mode (so it can be recorded once)
     const assisted = this.assisting; this.assisting = false; this.helper = null;
     this.completed.add(this.index);
     this.log.complete(this.stepId);
     if (this.tour) {
-      this.setPanel({ title, body, note: '', tone: 'normal', buttons: [] }); this.say(title + ' ' + body);
+      this.setPanel({ title, body, note: '', tone: 'normal', buttons: [] }); this.say(line);
       const idx = this.index; this.tweens.add({ delay: 3.2, dur: 0.01, done: () => { if (this.tour && this.index === idx) this.next(); } });
       return;
     }
@@ -656,11 +657,11 @@ export class Director {
     this.app.haptic?.(0.6, 80);
     if (assisted) {
       this.setPanel({ title, body, note: 'We did this one together. You can try it yourself later.', tone: 'normal', buttons: [{ id: 'next', label }, { id: 'retry', label: 'Try it myself', kind: 'secondary' }] });
-      this.say(title);
+      this.say(line);
       return;
     }
     this.setPanel({ title, body, note: '', tone: 'normal', buttons: [{ id: 'next', label }] });
-    this.say(title + ' ' + body);
+    this.say(line);
   }
 
   /** Gentle correction (never a penalty). */

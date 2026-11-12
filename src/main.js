@@ -137,7 +137,7 @@ class App {
     kb.mesh.visible = true; dr._follow(kb.mesh, dr.followers.get(kb.mesh), 0, true); this.input.addInteractive(kb.mesh);
     dr.panel.mesh.visible = false; this.input.removeInteractive(dr.panel.mesh);
     const close = () => { kb.mesh.visible = false; this.input.removeInteractive(kb.mesh); dr.panel.mesh.visible = true; this.input.addInteractive(dr.panel.mesh); };
-    kb.onDone = (txt) => { setPassenger(txt); this.voice.say(PRACTICE.hasName ? `Nice to meet you, ${PRACTICE.passenger}.` : ''); close(); done?.(); };
+    kb.onDone = (txt) => { setPassenger(txt); this.voice.say(PRACTICE.hasName ? 'Nice to meet you.' : ''); close(); done?.(); };
     kb.onCancel = () => { close(); done?.(); };
   }
 
@@ -278,7 +278,7 @@ class App {
     else note += ` · ${this.spaceFit.planes.size} surfaces · ${['alpha-blend', 'additive'].includes(this.blend) ? 'passthrough ok' : this.blend === 'opaque' ? 'no passthrough (VR)' : 'passthrough unknown'}`;
     this.director.setPanel({ eyebrow: 'Space setup', title, body, note, tone: usedDefault ? 'warn' : 'normal', tasks: [], buttons, progress: null, chips: [] });
     this.director.snapPanelToGaze();
-    this.voice.say(`${title} ${body}`);
+    this.voice.say(small || usedDefault ? `${title} ${body}` : 'Your clear space is ready. The area in front of you is free.');
   }
 
   onSetup(id) {

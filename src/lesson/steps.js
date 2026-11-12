@@ -1014,7 +1014,8 @@ const cab = (d) => {
         d.app.env.setOutdoorTheme('airport');
         if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
         interior = cabPlate(d); d.stage.props.add(interior);                      // the real cab interior (the driver is in the photograph)
-        road = new RoadVideo(d.stage.props, Math.max(1.0, d.h)); road.preload('road-arrival'); road.play('road-drive', true);     // the road moves past the windscreen; the side windows slide
+        road = new RoadVideo(d.stage.props, Math.max(1.0, d.h)); road.preload('road-arrival'); road.play('road-drive', false, 0.86);      // slowed a little so the one clip lasts the whole ride, with no loop jump
+            // the road moves past the windscreen; the side windows slide
         d.app.env.driveSpeed = 0;
         const sc = d.stage.scenery, dur = d.reduceMotion ? 0.6 : 9;
         d.tweens.add({ dur, update: (e) => { sc.position.z = 44 * (1 - Math.pow(1 - e, 2)); }, done: () => {
@@ -1054,19 +1055,19 @@ const cab = (d) => {
 
 /* ------------------------------------------------------------------ 1. at the kerb: the driver stops at the entrance; step out */
 const kerb = (d) => {
-  let doors, cab, driver, phase = 'cab';
+  let doors, cab, driver, phase = 'cab', alive = false, rmCab;
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.castShadow = true; return b; };
   const api = {
-    id: 'kerb', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, bounds: { x0: -3, x1: 3, z0: -3.2, z1: 3 }, assets: ['terminal-sliding-doors', 'terminal-sign', 'luggage-trolley'],
+    id: 'kerb', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, bounds: { x0: -3, x1: 3, z0: -3.2, z1: 3 }, assets: ['terminal-sliding-doors', 'terminal-sign', 'luggage-trolley', 'cabin-suitcase'],
     voice: 'You have arrived at the airport. Step out of the cab.',
     help: 'The cab has stopped at the terminal. Tap Get out, and the entrance is straight ahead.',
     enter() {
       // the taxi you arrived in, parked beside you with its rear door open (a real photo, background removed)
       d.app.env.setOutdoorTheme('airport');
       cab = taxiBillboard('open');
-      if (cab) { d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); d.obstacle(cab); }
-      driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-0.7, 0, -1.3]);
+      if (cab) { d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); rmCab = d.obstacle(cab); }
+      driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-1.0, 0, 1.2]); driver.noPush = true; alive = true;
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 });
       d.track(screenOverlay(ksign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures', arrow: '↑', state: { glow: false } }) }), false);
@@ -1074,9 +1075,39 @@ const kerb = (d) => {
       facadePlane(d, 17, 8.5);
       d.setPanel({ title: 'You have arrived.', body: 'Step out of the cab.', note: '', tone: 'normal', buttons: [{ id: 'out', label: 'Get out' }] });
     },
+    exit() { alive = false; },
+    /** The driver gets your bag out of the boot, puts it on the trolley, gets back in, and the cab drives away. */
+    unload() {
+      const sc = d.stage.scenery, T = d.tweens, quick = d.reduceMotion;
+      const bag = d.assets.make('cabin-suitcase', { actions: false }); bag.visible = false; sc.add(bag);
+      const lift = (() => { const b = new THREE.Box3().setFromObject(bag); return -b.min.y; })();
+      const P = (x, z) => new THREE.Vector3(x, 0, z);
+      const walk = (from, to, t0, dur, carry) => T.add({ delay: t0, dur, update: (e) => {
+        if (!alive || !driver) return;
+        const p = from.clone().lerp(to, e); driver.root.position.set(p.x, 0, p.z); driver.heading = Math.atan2(to.x - from.x, to.z - from.z);
+        if (carry) { const h = driver.heading; bag.position.set(p.x + Math.cos(h) * 0.3 + Math.sin(h) * 0.12, lift, p.z - Math.sin(h) * 0.3 + Math.cos(h) * 0.12); bag.rotation.y = h; }
+      } });
+      const say = (t0, f) => T.add({ delay: t0, dur: 0.01, done: () => { if (alive) f(); } });
+      const k = quick ? 0.25 : 1;
+      const A = P(-1.0, 1.2), B = P(-1.05, -2.2), C = P(0.4, -1.35), D = P(-1.5, 0.1);
+      say(0.8 * k, () => driver.playClip(/walk/i));
+      walk(A, B, 0.8 * k, 3.4 * k);
+      say(4.2 * k, () => { driver.playClip(/idle/i); driver.heading = Math.PI; bag.visible = true; bag.position.set(-1.45, lift, -2.15); });      // at the boot
+      say(5.7 * k, () => driver.playClip(/walk/i));
+      walk(B, C, 5.7 * k, 3.0 * k, true);
+      say(8.7 * k, () => { driver.playClip(/idle/i); bag.position.set(0.9, 0.3 + lift, -1.2); bag.rotation.y = 0.4; driver.say('Your bag is on the trolley.', 5); });
+      say(10.6 * k, () => driver.playClip(/walk/i));
+      walk(C, D, 10.6 * k, 2.6 * k);
+      say(13.2 * k, () => {
+        driver.root.visible = false;                                         // back in the driver's seat, hidden behind the cab
+        if (cab?.userData.closed) cab.material.map = cab.userData.closed;    // the door shuts
+        T.add({ dur: quick ? 0.4 : 4.5, update: (e) => { if (alive && cab) cab.position.z = 0.35 + 18 * e * e; }, done: () => { if (cab) cab.visible = false; rmCab?.(); } });   // and the cab drives away
+      });
+    },
     onButton(b) { if (b === 'out') this.out(); },
     out() {
       if (phase !== 'cab') return; phase = 'walk'; d.voice.success();
+      this.unload();                                                    // the driver gets your bag while you step out
       d.setPanel({ title: 'Walk to the entrance.', body: 'Walk up to the doors.', buttons: [] });
       d.say('Thank you, and have a good flight. Now walk to the entrance.'); driver?.say('Have a good flight!', 6);
       d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance', radius: 1.5, onArrive: () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue') });

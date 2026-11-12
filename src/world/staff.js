@@ -87,7 +87,7 @@ export class Staff {
     if (this._faced === undefined) { this.bodyYaw = want; this._faced = true; }     // start by facing you, then turn only deliberately
     let diff = Math.atan2(Math.sin(want - this.bodyYaw), Math.cos(want - this.bodyYaw));
     if (Math.abs(diff) > 1.05) this.bodyYaw += diff * Math.min(1, dt * 2.2);     // an intentional body turn, not constant billboarding
-    this.root.rotation.y = this.bodyYaw;
+    this.root.rotation.y = this.heading != null ? this.heading : this.bodyYaw;       // heading: set while the person is walking somewhere, so they face where they go
     diff = Math.atan2(Math.sin(want - this.bodyYaw), Math.cos(want - this.bodyYaw));
     if (this.headBone) this.headBone.rotation.y = THREE.MathUtils.clamp(diff, -0.6, 0.6) * 0.6;
     if (this.blinkTargets) {

@@ -36,10 +36,11 @@ export class RoadVideo {
   preload(name, loop = false) { this.vids[name] ??= this._load(name, loop); return this.vids[name]; }
 
   /** Show a clip from the start. */
-  play(name, loop = false) {
+  play(name, loop = false, rate = 1) {
     this.current?.el.pause();
     const v = this.current = this.preload(name, loop);
     this.mat.map = v.t; this.mat.color.set(0xffffff); this.mat.needsUpdate = true;
+    v.el.playbackRate = rate;
     try { v.el.currentTime = 0; } catch { /* not ready yet: it starts at 0 anyway */ }
     v.el.play().catch(() => {});
     this.speed = 0.3;

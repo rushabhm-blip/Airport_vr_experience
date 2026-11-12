@@ -1,0 +1,1681 @@
+{
+  "version": "1.0",
+  "units": "metres",
+  "up": "+Y",
+  "front": "+Z",
+  "assets": [
+    {
+      "id": "boarding-counter",
+      "category": "Terminal furniture",
+      "file": "models/boarding-counter.glb",
+      "dimensions_m": [
+        1.6900000000000002,
+        1.0245,
+        0.79
+      ],
+      "triangles": 2448,
+      "meshes": 12,
+      "actions": [
+        {
+          "label": "Open cabinet 1",
+          "node": "CabinetDoorPivot0",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.3,
+          "duration": 0.8
+        },
+        {
+          "label": "Open cabinet 2",
+          "node": "CabinetDoorPivot1",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.3,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "ScannerMount",
+          "kind": "mount",
+          "local_position": [
+            0.45,
+            1.027,
+            0.12
+          ]
+        },
+        {
+          "node": "StaffMonitorMount",
+          "kind": "mount",
+          "local_position": [
+            -0.4,
+            1.027,
+            -0.16
+          ]
+        }
+      ],
+      "notes": "Countertop 1.025 m. Adjust scene placement for seated reach. Interior shelves not modelled."
+    },
+    {
+      "id": "checkin-counter",
+      "category": "Terminal furniture",
+      "file": "models/checkin-counter.glb",
+      "dimensions_m": [
+        1.6900000000000002,
+        1.0245,
+        0.79
+      ],
+      "triangles": 2448,
+      "meshes": 12,
+      "actions": [
+        {
+          "label": "Open cabinet 1",
+          "node": "CabinetDoorPivot0",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.3,
+          "duration": 0.8
+        },
+        {
+          "label": "Open cabinet 2",
+          "node": "CabinetDoorPivot1",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.3,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "ScannerMount",
+          "kind": "mount",
+          "local_position": [
+            0.45,
+            1.027,
+            0.12
+          ]
+        },
+        {
+          "node": "StaffMonitorMount",
+          "kind": "mount",
+          "local_position": [
+            -0.4,
+            1.027,
+            -0.16
+          ]
+        },
+        {
+          "node": "BagDropMount",
+          "kind": "mount",
+          "local_position": [
+            -1.2,
+            0,
+            0
+          ]
+        }
+      ],
+      "notes": "Countertop 1.025 m. Adjust scene placement for seated reach. Interior shelves not modelled."
+    },
+    {
+      "id": "information-desk",
+      "category": "Terminal furniture",
+      "file": "models/information-desk.glb",
+      "dimensions_m": [
+        1.6900000000000002,
+        1.0245,
+        0.79
+      ],
+      "triangles": 2450,
+      "meshes": 13,
+      "actions": [
+        {
+          "label": "Open cabinet 1",
+          "node": "CabinetDoorPivot0",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.3,
+          "duration": 0.8
+        },
+        {
+          "label": "Open cabinet 2",
+          "node": "CabinetDoorPivot1",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.3,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "ScannerMount",
+          "kind": "mount",
+          "local_position": [
+            0.45,
+            1.027,
+            0.12
+          ]
+        },
+        {
+          "node": "StaffMonitorMount",
+          "kind": "mount",
+          "local_position": [
+            -0.4,
+            1.027,
+            -0.16
+          ]
+        }
+      ],
+      "notes": "Countertop 1.025 m. Adjust scene placement for seated reach. Interior shelves not modelled."
+    },
+    {
+      "id": "boarding-scanner",
+      "category": "Boarding",
+      "file": "models/boarding-scanner.glb",
+      "dimensions_m": [
+        0.24250000715255737,
+        0.15000000596046448,
+        0.3026999980211258
+      ],
+      "triangles": 22828,
+      "meshes": 52,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ScanTarget",
+          "kind": "scanner",
+          "local_position": [
+            0,
+            0.165,
+            -0.015
+          ]
+        }
+      ],
+      "notes": "Recovered v1 scanner. Opaque dark optical surface. Use runtime scanning module."
+    },
+    {
+      "id": "gate-display",
+      "category": "Navigation",
+      "file": "models/gate-display.glb",
+      "dimensions_m": [
+        0.775,
+        1.9024999999999999,
+        0.4
+      ],
+      "triangles": 506,
+      "meshes": 4,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ScreenTarget",
+          "kind": "screen",
+          "local_position": [
+            0,
+            1.65,
+            0.05
+          ]
+        }
+      ],
+      "notes": "Replace screen texture or overlay runtime text; flight data is fictional."
+    },
+    {
+      "id": "departures-display",
+      "category": "Navigation",
+      "file": "models/departures-display.glb",
+      "dimensions_m": [
+        1.555,
+        2.3024999999999998,
+        0.4
+      ],
+      "triangles": 506,
+      "meshes": 4,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ScreenTarget",
+          "kind": "screen",
+          "local_position": [
+            0,
+            1.9,
+            0.05
+          ]
+        }
+      ],
+      "notes": "Replace screen texture or overlay runtime text; flight data is fictional."
+    },
+    {
+      "id": "wayfinding-sign",
+      "category": "Navigation",
+      "file": "models/wayfinding-sign.glb",
+      "dimensions_m": [
+        1.555,
+        0.6274999999999995,
+        0.07100000000000001
+      ],
+      "triangles": 398,
+      "meshes": 4,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ScreenTarget",
+          "kind": "screen",
+          "local_position": [
+            0,
+            2.3,
+            0.05
+          ]
+        }
+      ],
+      "notes": "Replace screen texture or overlay runtime text; flight data is fictional."
+    },
+    {
+      "id": "terminal-sign",
+      "category": "Navigation",
+      "file": "models/terminal-sign.glb",
+      "dimensions_m": [
+        1.755,
+        0.6574999999999998,
+        0.07100000000000001
+      ],
+      "triangles": 398,
+      "meshes": 4,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ScreenTarget",
+          "kind": "screen",
+          "local_position": [
+            0,
+            2.3,
+            0.05
+          ]
+        }
+      ],
+      "notes": "Replace screen texture or overlay runtime text; flight data is fictional."
+    },
+    {
+      "id": "queue-barrier",
+      "category": "Terminal furniture",
+      "file": "models/queue-barrier.glb",
+      "dimensions_m": [
+        1.5599999999999998,
+        0.9945,
+        0.32
+      ],
+      "triangles": 492,
+      "meshes": 4,
+      "actions": [
+        {
+          "label": "Retract belt",
+          "node": "BeltPivot",
+          "kind": "scale",
+          "axis": "x",
+          "end": 0.04,
+          "duration": 0.8
+        }
+      ],
+      "targets": [],
+      "notes": "Single post with 1.4 m belt. Place another instance at its endpoint."
+    },
+    {
+      "id": "terminal-seating",
+      "category": "Terminal furniture",
+      "file": "models/terminal-seating.glb",
+      "dimensions_m": [
+        1.85,
+        0.9557716352022382,
+        0.58
+      ],
+      "triangles": 4796,
+      "meshes": 29,
+      "actions": [],
+      "targets": [],
+      "notes": ""
+    },
+    {
+      "id": "staff-workstation",
+      "category": "Check-in",
+      "file": "models/staff-workstation.glb",
+      "dimensions_m": [
+        0.5800000000000001,
+        0.515,
+        0.433
+      ],
+      "triangles": 11726,
+      "meshes": 59,
+      "actions": [
+        {
+          "label": "Tilt monitor",
+          "node": "MonitorTilt",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.22,
+          "duration": 0.8
+        }
+      ],
+      "targets": [],
+      "notes": ""
+    },
+    {
+      "id": "terminal-floor-module",
+      "category": "Architecture",
+      "file": "models/terminal-floor-module.glb",
+      "dimensions_m": [
+        4.0,
+        0.0615,
+        4.0
+      ],
+      "triangles": 3060,
+      "meshes": 15,
+      "actions": [],
+      "targets": [],
+      "notes": "4 \u00d7 4 m repeatable floor module."
+    },
+    {
+      "id": "terminal-wall-module",
+      "category": "Architecture",
+      "file": "models/terminal-wall-module.glb",
+      "dimensions_m": [
+        3.0,
+        2.8,
+        0.119
+      ],
+      "triangles": 1020,
+      "meshes": 5,
+      "actions": [],
+      "targets": [],
+      "notes": ""
+    },
+    {
+      "id": "terminal-window-module",
+      "category": "Architecture",
+      "file": "models/terminal-window-module.glb",
+      "dimensions_m": [
+        3.065,
+        2.8,
+        0.12
+      ],
+      "triangles": 1428,
+      "meshes": 7,
+      "actions": [],
+      "targets": [],
+      "notes": "Glass uses opaque tinted material. Runtime may replace with transparent material after occlusion review."
+    },
+    {
+      "id": "terminal-column",
+      "category": "Architecture",
+      "file": "models/terminal-column.glb",
+      "dimensions_m": [
+        0.4,
+        2.8,
+        0.4
+      ],
+      "triangles": 384,
+      "meshes": 3,
+      "actions": [],
+      "targets": [],
+      "notes": ""
+    },
+    {
+      "id": "terminal-sliding-doors",
+      "category": "Architecture",
+      "file": "models/terminal-sliding-doors.glb",
+      "dimensions_m": [
+        2.58,
+        2.4899999999999998,
+        0.18
+      ],
+      "triangles": 2244,
+      "meshes": 11,
+      "actions": [
+        {
+          "label": "Open door 1",
+          "node": "DoorSlide0",
+          "kind": "position",
+          "axis": "x",
+          "end": -0.95,
+          "duration": 0.8
+        },
+        {
+          "label": "Open door 2",
+          "node": "DoorSlide1",
+          "kind": "position",
+          "axis": "x",
+          "end": 0.95,
+          "duration": 0.8
+        }
+      ],
+      "targets": [],
+      "notes": "Door actions are offsets relative to the closed position."
+    },
+    {
+      "id": "lift-door-module",
+      "category": "Architecture",
+      "file": "models/lift-door-module.glb",
+      "dimensions_m": [
+        1.8250000000000002,
+        2.4250000000000003,
+        0.16
+      ],
+      "triangles": 1320,
+      "meshes": 7,
+      "actions": [
+        {
+          "label": "Open lift door 1",
+          "node": "LiftDoorSlide0",
+          "kind": "position",
+          "axis": "x",
+          "end": -0.65,
+          "duration": 0.8
+        },
+        {
+          "label": "Open lift door 2",
+          "node": "LiftDoorSlide1",
+          "kind": "position",
+          "axis": "x",
+          "end": 0.65,
+          "duration": 0.8
+        }
+      ],
+      "targets": [],
+      "notes": "Door module only; no lift shaft or cabin."
+    },
+    {
+      "id": "checkin-kiosk",
+      "category": "Check-in",
+      "file": "models/checkin-kiosk.glb",
+      "dimensions_m": [
+        0.57,
+        1.474267388888595,
+        0.5249999999999999
+      ],
+      "triangles": 1022,
+      "meshes": 6,
+      "actions": [],
+      "targets": [
+        {
+          "node": "PrintExit",
+          "kind": "printer",
+          "local_position": [
+            0,
+            0.88,
+            0.2
+          ]
+        },
+        {
+          "node": "TouchTarget",
+          "kind": "screen",
+          "local_position": [
+            0,
+            1.26,
+            0.08
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "baggage-scale",
+      "category": "Check-in",
+      "file": "models/baggage-scale.glb",
+      "dimensions_m": [
+        0.8,
+        0.865,
+        0.58
+      ],
+      "triangles": 1094,
+      "meshes": 9,
+      "actions": [],
+      "targets": [
+        {
+          "node": "WeighZone",
+          "kind": "placement",
+          "local_position": [
+            0,
+            0.15,
+            0
+          ]
+        }
+      ],
+      "notes": "Weight is scenario data, not inferred from mesh dimensions."
+    },
+    {
+      "id": "baggage-conveyor",
+      "category": "Check-in",
+      "file": "models/baggage-conveyor.glb",
+      "dimensions_m": [
+        0.8450000000000001,
+        0.7304999999999999,
+        1.5
+      ],
+      "triangles": 5304,
+      "meshes": 26,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ConveyorStart",
+          "kind": "path",
+          "local_position": [
+            0,
+            0.75,
+            0.65
+          ]
+        },
+        {
+          "node": "ConveyorEnd",
+          "kind": "path",
+          "local_position": [
+            0,
+            0.75,
+            -0.65
+          ]
+        }
+      ],
+      "notes": "Translate baggage along target path. Belt geometry is static; use runtime UV animation if desired."
+    },
+    {
+      "id": "roller-table",
+      "category": "Security",
+      "file": "models/roller-table.glb",
+      "dimensions_m": [
+        0.8450000000000001,
+        0.7304999999999999,
+        1.5
+      ],
+      "triangles": 3960,
+      "meshes": 30,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ConveyorStart",
+          "kind": "path",
+          "local_position": [
+            0,
+            0.75,
+            0.65
+          ]
+        },
+        {
+          "node": "ConveyorEnd",
+          "kind": "path",
+          "local_position": [
+            0,
+            0.75,
+            -0.65
+          ]
+        }
+      ],
+      "notes": "Translate baggage along target path. Belt geometry is static; use runtime UV animation if desired."
+    },
+    {
+      "id": "boarding-pass-printer",
+      "category": "Check-in",
+      "file": "models/boarding-pass-printer.glb",
+      "dimensions_m": [
+        0.28,
+        0.18,
+        0.31
+      ],
+      "triangles": 1020,
+      "meshes": 5,
+      "actions": [
+        {
+          "label": "Feed paper",
+          "node": "PaperFeed",
+          "kind": "position",
+          "axis": "z",
+          "end": 0.12,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "PrintExit",
+          "kind": "printer",
+          "local_position": [
+            0,
+            0.1,
+            0.16
+          ]
+        }
+      ],
+      "notes": "PaperFeed is a demonstration; spawn the complete document after printing."
+    },
+    {
+      "id": "baggage-tag-printer",
+      "category": "Check-in",
+      "file": "models/baggage-tag-printer.glb",
+      "dimensions_m": [
+        0.28,
+        0.18,
+        0.31
+      ],
+      "triangles": 1020,
+      "meshes": 5,
+      "actions": [
+        {
+          "label": "Feed paper",
+          "node": "PaperFeed",
+          "kind": "position",
+          "axis": "z",
+          "end": 0.12,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "PrintExit",
+          "kind": "printer",
+          "local_position": [
+            0,
+            0.1,
+            0.16
+          ]
+        }
+      ],
+      "notes": "PaperFeed is a demonstration; spawn the complete document after printing."
+    },
+    {
+      "id": "checked-suitcase",
+      "category": "Baggage",
+      "file": "models/checked-suitcase.glb",
+      "dimensions_m": [
+        0.466,
+        0.972,
+        0.303
+      ],
+      "triangles": 3432,
+      "meshes": 20,
+      "actions": [
+        {
+          "label": "Extend handle",
+          "node": "HandleExtension",
+          "kind": "position",
+          "axis": "y",
+          "end": 0.19,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "GrabHandle",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0.7999999999999999,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "cabin-suitcase",
+      "category": "Baggage",
+      "file": "models/cabin-suitcase.glb",
+      "dimensions_m": [
+        0.366,
+        0.792,
+        0.24300000000000002
+      ],
+      "triangles": 3432,
+      "meshes": 20,
+      "actions": [
+        {
+          "label": "Extend handle",
+          "node": "HandleExtension",
+          "kind": "position",
+          "axis": "y",
+          "end": 0.19,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "GrabHandle",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0.62,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "travel-backpack",
+      "category": "Baggage",
+      "file": "models/travel-backpack.glb",
+      "dimensions_m": [
+        0.31,
+        0.489,
+        0.3052720950622248
+      ],
+      "triangles": 1060,
+      "meshes": 10,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabHandle",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0.49,
+            0
+          ]
+        }
+      ],
+      "notes": "Rigid fabric representation; no cloth simulation."
+    },
+    {
+      "id": "security-xray-machine",
+      "category": "Security",
+      "file": "models/security-xray-machine.glb",
+      "dimensions_m": [
+        1.12,
+        1.58,
+        2.25
+      ],
+      "triangles": 5496,
+      "meshes": 28,
+      "actions": [
+        {
+          "label": "Lift curtain -0.65 0",
+          "node": "CurtainPivot-0.65_0",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 1",
+          "node": "CurtainPivot-0.65_1",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 2",
+          "node": "CurtainPivot-0.65_2",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 3",
+          "node": "CurtainPivot-0.65_3",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 4",
+          "node": "CurtainPivot-0.65_4",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 5",
+          "node": "CurtainPivot-0.65_5",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 6",
+          "node": "CurtainPivot-0.65_6",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 7",
+          "node": "CurtainPivot-0.65_7",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 8",
+          "node": "CurtainPivot-0.65_8",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain -0.65 9",
+          "node": "CurtainPivot-0.65_9",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 0",
+          "node": "CurtainPivot0.65_0",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 1",
+          "node": "CurtainPivot0.65_1",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 2",
+          "node": "CurtainPivot0.65_2",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 3",
+          "node": "CurtainPivot0.65_3",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 4",
+          "node": "CurtainPivot0.65_4",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 5",
+          "node": "CurtainPivot0.65_5",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 6",
+          "node": "CurtainPivot0.65_6",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 7",
+          "node": "CurtainPivot0.65_7",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 8",
+          "node": "CurtainPivot0.65_8",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        },
+        {
+          "label": "Lift curtain 0.65 9",
+          "node": "CurtainPivot0.65_9",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.6,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "TrayEntry",
+          "kind": "path",
+          "local_position": [
+            0,
+            0.7,
+            1.0
+          ]
+        },
+        {
+          "node": "TrayExit",
+          "kind": "path",
+          "local_position": [
+            0,
+            0.7,
+            -1.0
+          ]
+        }
+      ],
+      "notes": "No radiation simulation. Curtains are independent rigid flaps."
+    },
+    {
+      "id": "security-tray",
+      "category": "Security",
+      "file": "models/security-tray.glb",
+      "dimensions_m": [
+        0.55362,
+        0.0895,
+        0.40800000000000003
+      ],
+      "triangles": 1428,
+      "meshes": 7,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ContentsZone",
+          "kind": "container",
+          "local_position": [
+            0,
+            0.03,
+            0
+          ]
+        },
+        {
+          "node": "GrabRim",
+          "kind": "grab",
+          "local_position": [
+            0.26,
+            0.08,
+            0
+          ]
+        }
+      ],
+      "notes": "Open container geometry; handles are visual insets."
+    },
+    {
+      "id": "walkthrough-detector",
+      "category": "Security",
+      "file": "models/walkthrough-detector.glb",
+      "dimensions_m": [
+        1.06,
+        2.2550000000000003,
+        0.459
+      ],
+      "triangles": 1020,
+      "meshes": 5,
+      "actions": [],
+      "targets": [
+        {
+          "node": "WalkthroughZone",
+          "kind": "checkpoint",
+          "local_position": [
+            0,
+            1.0,
+            0
+          ]
+        }
+      ],
+      "notes": "Use checkpoint transition; do not require physical walking at home."
+    },
+    {
+      "id": "inspection-table",
+      "category": "Security",
+      "file": "models/inspection-table.glb",
+      "dimensions_m": [
+        1.3,
+        0.87,
+        0.7
+      ],
+      "triangles": 1020,
+      "meshes": 5,
+      "actions": [],
+      "targets": [
+        {
+          "node": "InspectionSurface",
+          "kind": "placement",
+          "local_position": [
+            0,
+            0.88,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "smartphone",
+      "category": "Personal items",
+      "file": "models/smartphone.glb",
+      "dimensions_m": [
+        0.074,
+        0.153,
+        0.009600000000000001
+      ],
+      "triangles": 614,
+      "meshes": 4,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "notes": "Screen upright in XY plane, front +Z."
+    },
+    {
+      "id": "laptop",
+      "category": "Personal items",
+      "file": "models/laptop.glb",
+      "dimensions_m": [
+        0.34,
+        0.23149999999999998,
+        0.23450000000000001
+      ],
+      "triangles": 10406,
+      "meshes": 52,
+      "actions": [
+        {
+          "label": "Close laptop",
+          "node": "LidPivot",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 1.5707963267948966,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0.03,
+            0
+          ]
+        }
+      ],
+      "notes": "Initially open; lid rotates around its hinge."
+    },
+    {
+      "id": "wallet",
+      "category": "Personal items",
+      "file": "models/wallet.glb",
+      "dimensions_m": [
+        0.11,
+        0.085,
+        0.016
+      ],
+      "triangles": 612,
+      "meshes": 3,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "keys",
+      "category": "Personal items",
+      "file": "models/keys.glb",
+      "dimensions_m": [
+        0.043,
+        0.077,
+        0.002
+      ],
+      "triangles": 1888,
+      "meshes": 9,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "watch",
+      "category": "Personal items",
+      "file": "models/watch.glb",
+      "dimensions_m": [
+        0.039,
+        0.222,
+        0.011
+      ],
+      "triangles": 1224,
+      "meshes": 6,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "boarding-pass",
+      "category": "Documents",
+      "file": "models/boarding-pass.glb",
+      "dimensions_m": [
+        0.21,
+        0.093,
+        0.0007
+      ],
+      "triangles": 206,
+      "meshes": 2,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": "CodeFace",
+          "kind": "document-face",
+          "local_position": [
+            0.0819,
+            0,
+            0.001
+          ]
+        }
+      ],
+      "notes": "Fictional training document. +Z is printed face. App must mark document identity; no valid boarding code."
+    },
+    {
+      "id": "booking-document",
+      "category": "Documents",
+      "file": "models/booking-document.glb",
+      "dimensions_m": [
+        0.21,
+        0.297,
+        0.0007
+      ],
+      "triangles": 206,
+      "meshes": 2,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": "CodeFace",
+          "kind": "document-face",
+          "local_position": [
+            0.0819,
+            0,
+            0.001
+          ]
+        }
+      ],
+      "notes": "Fictional training document. +Z is printed face. App must mark document identity; no valid boarding code."
+    },
+    {
+      "id": "practice-id",
+      "category": "Documents",
+      "file": "models/practice-id.glb",
+      "dimensions_m": [
+        0.086,
+        0.054,
+        0.0007
+      ],
+      "triangles": 206,
+      "meshes": 2,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": "CodeFace",
+          "kind": "document-face",
+          "local_position": [
+            0.03354,
+            0,
+            0.001
+          ]
+        }
+      ],
+      "notes": "Fictional training document. +Z is printed face. App must mark document identity; no valid boarding code."
+    },
+    {
+      "id": "baggage-tag",
+      "category": "Documents",
+      "file": "models/baggage-tag.glb",
+      "dimensions_m": [
+        0.045,
+        0.15,
+        0.0007
+      ],
+      "triangles": 206,
+      "meshes": 2,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": "CodeFace",
+          "kind": "document-face",
+          "local_position": [
+            0.01755,
+            0,
+            0.001
+          ]
+        }
+      ],
+      "notes": "Fictional training document. +Z is printed face. App must mark document identity; no valid boarding code."
+    },
+    {
+      "id": "baggage-receipt",
+      "category": "Documents",
+      "file": "models/baggage-receipt.glb",
+      "dimensions_m": [
+        0.08,
+        0.12,
+        0.0007
+      ],
+      "triangles": 206,
+      "meshes": 2,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabPoint",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "node": "CodeFace",
+          "kind": "document-face",
+          "local_position": [
+            0.031200000000000002,
+            0,
+            0.001
+          ]
+        }
+      ],
+      "notes": "Fictional training document. +Z is printed face. App must mark document identity; no valid boarding code."
+    },
+    {
+      "id": "overhead-bin",
+      "category": "Aircraft",
+      "file": "models/overhead-bin.glb",
+      "dimensions_m": [
+        1.25,
+        0.465,
+        0.5355000000000001
+      ],
+      "triangles": 1428,
+      "meshes": 7,
+      "actions": [
+        {
+          "label": "Open baggage bin",
+          "node": "BinDoorHinge",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -1.2,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "BagStorage",
+          "kind": "container",
+          "local_position": [
+            0,
+            0.12,
+            0
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "aircraft-seat-row",
+      "category": "Aircraft",
+      "file": "models/aircraft-seat-row.glb",
+      "dimensions_m": [
+        1.635,
+        1.079333245564592,
+        0.5657903217044014
+      ],
+      "triangles": 7862,
+      "meshes": 47,
+      "actions": [
+        {
+          "label": "Recline seat 1",
+          "node": "SeatRecline0",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.12,
+          "duration": 0.8
+        },
+        {
+          "label": "Open tray 1",
+          "node": "TrayHinge0",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 1.5707963267948966,
+          "duration": 0.8
+        },
+        {
+          "label": "Recline seat 2",
+          "node": "SeatRecline1",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.12,
+          "duration": 0.8
+        },
+        {
+          "label": "Open tray 2",
+          "node": "TrayHinge1",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 1.5707963267948966,
+          "duration": 0.8
+        },
+        {
+          "label": "Recline seat 3",
+          "node": "SeatRecline2",
+          "kind": "rotation",
+          "axis": "x",
+          "end": -0.12,
+          "duration": 0.8
+        },
+        {
+          "label": "Open tray 3",
+          "node": "TrayHinge2",
+          "kind": "rotation",
+          "axis": "x",
+          "end": 1.5707963267948966,
+          "duration": 0.8
+        }
+      ],
+      "targets": [
+        {
+          "node": "Seat14A",
+          "kind": "seat-selection",
+          "local_position": [
+            0.53,
+            0.52,
+            0.02
+          ]
+        }
+      ],
+      "notes": "Select the virtual seat; never instruct users to sit on unsupported virtual furniture."
+    },
+    {
+      "id": "aircraft-cabin-section",
+      "category": "Aircraft",
+      "file": "models/aircraft-cabin-section.glb",
+      "dimensions_m": [
+        3.2600000000000002,
+        2.44,
+        2.2
+      ],
+      "triangles": 6120,
+      "meshes": 30,
+      "actions": [],
+      "targets": [
+        {
+          "node": "SeatRowMount",
+          "kind": "mount",
+          "local_position": [
+            0.78,
+            0,
+            0
+          ]
+        }
+      ],
+      "notes": "Partial cabin cutaway, not a replica of a specific aircraft."
+    },
+    {
+      "id": "aircraft-entry-door",
+      "category": "Aircraft",
+      "file": "models/aircraft-entry-door.glb",
+      "dimensions_m": [
+        1.2800000000000002,
+        2.1399999999999997,
+        0.22
+      ],
+      "triangles": 1224,
+      "meshes": 6,
+      "actions": [
+        {
+          "label": "Open aircraft door",
+          "node": "DoorHinge",
+          "kind": "rotation",
+          "axis": "y",
+          "end": -1.4,
+          "duration": 0.8
+        }
+      ],
+      "targets": [],
+      "notes": "Simplified training-door motion, not a real aircraft operating procedure."
+    },
+    {
+      "id": "jetbridge-section",
+      "category": "Boarding",
+      "file": "models/jetbridge-section.glb",
+      "dimensions_m": [
+        2.3,
+        2.5,
+        3.0
+      ],
+      "triangles": 2780,
+      "meshes": 15,
+      "actions": [],
+      "targets": [
+        {
+          "node": "ExitCheckpoint",
+          "kind": "checkpoint",
+          "local_position": [
+            0,
+            0.1,
+            -1.3
+          ]
+        }
+      ],
+      "notes": "Tinted windows are opaque proxies. Room movement should use checkpoints."
+    },
+    {
+      "id": "luggage-trolley",
+      "category": "Accessibility",
+      "file": "models/luggage-trolley.glb",
+      "dimensions_m": [
+        0.62,
+        0.986,
+        0.7
+      ],
+      "triangles": 1420,
+      "meshes": 18,
+      "actions": [],
+      "targets": [
+        {
+          "node": "GrabHandle",
+          "kind": "grab",
+          "local_position": [
+            0,
+            0.96,
+            -0.28
+          ]
+        },
+        {
+          "node": "BaggageZone",
+          "kind": "container",
+          "local_position": [
+            0,
+            0.2,
+            0.1
+          ]
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "wheelchair",
+      "category": "Accessibility",
+      "file": "models/wheelchair.glb",
+      "dimensions_m": [
+        0.642,
+        0.9284034513836242,
+        0.895
+      ],
+      "triangles": 5384,
+      "meshes": 54,
+      "actions": [],
+      "targets": [
+        {
+          "node": "SeatZone",
+          "kind": "selection",
+          "local_position": [
+            0,
+            0.52,
+            0
+          ]
+        }
+      ],
+      "notes": "Static mobility-aid prop; no rider or physics rig."
+    },
+    {
+      "id": "boarding-stairs",
+      "category": "Optional transport",
+      "file": "models/boarding-stairs.glb",
+      "dimensions_m": [
+        1.1092043273855388,
+        2.7406948105460485,
+        3.5200000000000005
+      ],
+      "triangles": 4496,
+      "meshes": 42,
+      "actions": [],
+      "targets": [],
+      "notes": "Fixed-height illustrative stairs. No physical climbing in MR."
+    },
+    {
+      "id": "escalator-section",
+      "category": "Optional transport",
+      "file": "models/escalator-section.glb",
+      "dimensions_m": [
+        1.1591553134625707,
+        2.6114660402946295,
+        3.2700000000000005
+      ],
+      "triangles": 5152,
+      "meshes": 28,
+      "actions": [],
+      "targets": [],
+      "notes": "Static route-choice prop, no continuous mechanical step animation."
+    },
+    {
+      "id": "baggage-carousel",
+      "category": "Arrivals",
+      "file": "models/baggage-carousel.glb",
+      "dimensions_m": [
+        3.8,
+        0.5850000000000001,
+        1.5899999999999999
+      ],
+      "triangles": 18360,
+      "meshes": 90,
+      "actions": [],
+      "targets": [
+        {
+          "node": "CollectBagZone",
+          "kind": "container",
+          "local_position": [
+            0,
+            0.62,
+            0.65
+          ]
+        }
+      ],
+      "notes": "Static slats. Animate bags along the carousel path; do not rotate whole oval geometry."
+    },
+    {
+      "id": "apron-bus",
+      "category": "Optional transport",
+      "file": "models/apron-bus.glb",
+      "dimensions_m": [
+        2.66,
+        2.8899999999999997,
+        7.432500000000001
+      ],
+      "triangles": 8036,
+      "meshes": 43,
+      "actions": [
+        {
+          "label": "Open bus door",
+          "node": "BusDoorSlide",
+          "kind": "position",
+          "axis": "z",
+          "end": -0.95,
+          "duration": 0.8
+        }
+      ],
+      "targets": [],
+      "notes": "Exterior teaching prop. No interior, driving simulation or manufacturer-specific details."
+    }
+  ],
+  "not_included": [
+    "Realistic rigged airline staff",
+    "Realistic rigged security officer",
+    "Realistic rigged cabin crew",
+    "Tracked hand integration",
+    "Complete airport navigation or live travel data"
+  ],
+  "quality": "Detailed procedural first-version props; actual render previews supplied. No Quest 3 performance certification."
+}

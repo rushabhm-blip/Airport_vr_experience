@@ -19,6 +19,13 @@ function hangRods(d, obj, ceilingY = 2.9) {
   }
 }
 
+/** A free-standing information board becomes a ceiling-hung one: the stand is removed and two rods reach the ceiling. Returns the y to place it at. */
+function hangBoardY(obj) {
+  obj.traverse((o) => { if (o.name === 'Base' || o.name === 'DisplayPost') o.visible = false; });
+  const hb = new THREE.Box3().setFromObject(obj.getObjectByName('DisplayHousing'));
+  return 2.6 - hb.max.y;      // the top of the board sits 0.3 m under the 2.9 m ceiling; rods bridge the gap
+}
+
 function photoPlane(d, name, w, h, pos) {
   if (d.app.env.mode !== 'immersive') return null;
   const t = photoTexture(name); if (!t) return null;
@@ -436,7 +443,7 @@ const gate = (d) => {
     helpShort: 'Match PA101, read the gate',
     enter() {
       const disp = d.assets.make('departures-display', { unique: ['EditableScreen'] });
-      d.addScenery(disp, { x: 0.25, z: -1.9 });
+      d.addScenery(disp, { x: 0.25, y: hangBoardY(disp), z: -1.9 }); hangRods(d, disp);
       board = screenOverlay(disp, { pxW: 1024, paint: paintBoard(state, rows) });
       board.onSelect = (id) => this.pick(id); d.track(board);
       const way = d.assets.make('wayfinding-sign', { unique: ['EditableScreen'] });
@@ -495,7 +502,7 @@ const gatechange = (d) => {
     enter() {
       d.flight.currentGate = P.gateChanged; flash = 4;
       info = d.assets.make('gate-display', { unique: ['EditableScreen'] });
-      d.addScenery(info, { x: -1.0, z: -1.8 });
+      d.addScenery(info, { x: -1.0, y: hangBoardY(info), z: -1.8 }); hangRods(d, info);
       infoS = screenOverlay(info, { pxW: 1024, paint: draw }); d.track(infoS, false);
       [['Gates 10–15', '→', 0.65, 0], ['Gates 16–20', '→', 1.6, 1]].forEach(([t, ar, x, i]) => {
         const w = d.assets.make('wayfinding-sign', { unique: ['EditableScreen'] });
@@ -554,7 +561,7 @@ const boarding = (d) => {
       d.addSupport(-0.25 - 0.85, -0.25 + 0.85, -1.0 - 0.38, -1.0 + 0.38, 1.027);
       const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -1.7, z: -0.8, ry: 0.3 });
       const gd = d.assets.make('gate-display', { unique: ['EditableScreen'] });
-      d.addScenery(gd, { x: 1.05, z: -1.6 });
+      d.addScenery(gd, { x: 1.05, y: hangBoardY(gd), z: -1.6 }); hangRods(d, gd);
       const gs = screenOverlay(gd, { pxW: 800, paint: (ctx, s) => { ctx.fillStyle = '#0b1f33'; roundRect(ctx, 0, 0, s.pxW, s.pxH, 24); ctx.fill(); ctx.fillStyle = COLORS.yellow; ctx.font = `800 220px ${FONT}`; ctx.fillText('18', 50, s.pxH * 0.52); ctx.fillStyle = '#fff'; ctx.font = `700 54px ${FONT}`; ctx.fillText(`${P.flight} · ${P.to.city}`, 50, s.pxH * 0.72); ctx.fillStyle = '#9fb6c8'; ctx.font = `600 40px ${FONT}`; ctx.fillText(`Boarding ${P.boarding}`, 50, s.pxH * 0.88); } });
       d.track(gs, false);
       jb = d.assets.make('jetbridge-section'); d.addScenery(jb, { x: -0.2, z: -4.2, ry: 0 });

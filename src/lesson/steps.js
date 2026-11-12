@@ -210,9 +210,9 @@ const checkin = (d) => {
       agent = d.addStaff('checkin', 'Check-in agent · practice', desk, [-0.55, 0, -0.85]);
       agent.say('Good morning. Booking and photo ID, please.', 8);
       photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.2]);
-      const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -1.4, z: -0.9, ry: 0.3 });
+      const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.0, z: -0.9, ry: 0.3 });
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] });
-      d.addScenery(sign, { x: 0, y: -0.19, z: -2.6 }); hangRods(d, sign);      // hangs from the ceiling on two rods
+      d.addScenery(sign, { x: 0, y: -0.19, z: -3.1 }); hangRods(d, sign);      // hangs from the ceiling on two rods
       screenOverlay(sign, { pxW: 1024, paint: paintSign({ lines: ['Check-in'], sub: 'Practice Air · ' + P.checkin, arrow: '', state: {} }) });
       // pulsing drop area
       zoneMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: COLORS.tealGlow, transparent: true, opacity: 0.35, depthWrite: false, toneMapped: false }));
@@ -559,9 +559,9 @@ const boarding = (d) => {
       gateAgent = d.addStaff('gate', 'Gate agent · practice', desk, [0.55, 0, -0.9]);
       gateAgent.say('Boarding pass, please. Hold it over the reader.', 9);
       d.addSupport(-0.25 - 0.85, -0.25 + 0.85, -1.0 - 0.38, -1.0 + 0.38, 1.027);
-      const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -1.7, z: -0.8, ry: 0.3 });
+      const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.1, z: -0.8, ry: 0.3 });
       const gd = d.assets.make('gate-display', { unique: ['EditableScreen'] });
-      d.addScenery(gd, { x: 1.05, y: hangBoardY(gd), z: -1.6 }); hangRods(d, gd);
+      d.addScenery(gd, { x: 1.7, y: hangBoardY(gd), z: -2.0 }); hangRods(d, gd);
       const gs = screenOverlay(gd, { pxW: 800, paint: (ctx, s) => { ctx.fillStyle = '#0b1f33'; roundRect(ctx, 0, 0, s.pxW, s.pxH, 24); ctx.fill(); ctx.fillStyle = COLORS.yellow; ctx.font = `800 220px ${FONT}`; ctx.fillText('18', 50, s.pxH * 0.52); ctx.fillStyle = '#fff'; ctx.font = `700 54px ${FONT}`; ctx.fillText(`${P.flight} · ${P.to.city}`, 50, s.pxH * 0.72); ctx.fillStyle = '#9fb6c8'; ctx.font = `600 40px ${FONT}`; ctx.fillText(`Boarding ${P.boarding}`, 50, s.pxH * 0.88); } });
       d.track(gs, false);
       jb = d.assets.make('jetbridge-section'); d.addScenery(jb, { x: -0.2, z: -4.2, ry: 0 });
@@ -672,7 +672,7 @@ const seat = (d) => {
   const spots = [], rowsL = [];
   const walkTo = (zW, done) => d.moveWorld(0, userZ - zW, () => { userZ = zW; done?.(); });
   const api = {
-    id: 'seat', scene: 'hall-apron', walkIn: false, noStick: true, assets: ['jetbridge-section', 'aircraft-entry-door', 'aircraft-cabin-section', 'aircraft-seat-row', 'overhead-bin', 'boarding-pass'],
+    id: 'seat', scene: 'hall-apron', enclosure: true, walkIn: false, noStick: true, assets: ['jetbridge-section', 'aircraft-entry-door', 'aircraft-cabin-section', 'aircraft-seat-row', 'overhead-bin', 'boarding-pass'],
     voice: 'Walk down the jet bridge to the aircraft. Then find row 14, and seat A.',
     help: 'Your pass says seat 14A. The number is the row, and the letter is the seat. Row numbers hang above the aisle. Seat A is the window seat on the left.',
     helpShort: 'Row 14, window seat A',
@@ -929,10 +929,8 @@ const phone = (d) => {
     phoneGrabbed() { d.panel.set({ note: 'Nicely done. Let go and the phone settles back.', tone: 'normal' }); },
     phoneReady() {
       if (phase !== 'read') return; phase = 'go'; d.voice.success();
-      d.setPanel({ title: 'Your cab is waiting.', body: 'You stay seated. We travel together.', note: '', tone: 'normal', buttons: [] });
-      d.say('Your cab is waiting outside. You stay seated, and we travel together.');
       d.phone.putAway();
-      d.tweens.add({ delay: 1.6, dur: 0.01, done: () => { d.log.complete('phone'); d.goto(STEP_IDS.indexOf('cab')); } });
+      d.success('Your cab is waiting.', 'You stay seated. Continue when you are ready.', 'Go to the cab');
     },
     demo() {
       if (phase !== 'read') return;
@@ -985,7 +983,7 @@ const cab = (d) => {
       d.setPanel({ title: 'Your cab is here.', body: 'Get in when you are ready.', note: '', tone: 'normal', buttons: [{ id: 'in', label: 'Get in' }] });
     },
     staffLine() { return phase === 'terminal' ? 'Which terminal, please? Your booking will tell you.' : 'Take your time. Get in whenever you are ready.'; },
-    onButton(b) { if (b === 'in') this.board(); },
+    onButton(b) { if (b === 'in') this.board(); if (b === 'cont' && phase === 'rideDone') this.terminal(); },
     board() {
       if (phase !== 'board') return; phase = 'ride'; d.voice.success();
       if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
@@ -997,7 +995,10 @@ const cab = (d) => {
       }
       d.setPanel({ title: 'On the way to the airport.', body: 'Sit back. You stay seated.', note: '', tone: 'normal', buttons: [] });
       d.say('Off we go. Sit back. You stay seated while the cab takes you to the airport.');
-      d.tweens.add({ delay: d.reduceMotion ? 0.6 : 9.5, dur: 0.01, done: () => this.terminal() });
+      d.tweens.add({ delay: d.reduceMotion ? 0.6 : 9.5, dur: 0.01, done: () => {
+        if (phase !== 'ride') return; phase = 'rideDone';
+        d.setPanel({ title: 'You are at the airport.', body: 'Continue to choose your terminal.', note: '', tone: 'normal', buttons: [{ id: 'cont', label: 'Continue' }] }); d.say('You are at the airport.');
+      } });
     },
     terminal() {
       phase = 'terminal';
@@ -1016,10 +1017,11 @@ const cab = (d) => {
       for (const s of signs) s.mesh.visible = false;
       d.setPanel({ title: 'Terminal 2.', body: 'The cab takes you to the entrance.', note: '', tone: 'normal', buttons: [] });
       d.say('Terminal two. The driver takes you to the entrance.');
-      d.moveWorld(0, 18.5, () => d.next(), { route: false, min: 3, speed: 3 });
+      d.moveWorld(0, 18.5, () => d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'), { route: false, min: 3, speed: 3 });
     },
     demo() {
       if (phase === 'board') { const to = d.surfacePoint(d.panel, 'in', 0.03), near = d.surfacePoint(d.panel, 'in', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.1 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Choose Get in, like this.', apply: () => this.board() }); }
+      else if (phase === 'rideDone') { const to = d.surfacePoint(d.panel, 'cont', 0.03), near = d.surfacePoint(d.panel, 'cont', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.0 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Choose Continue when you are ready.', apply: () => this.terminal() }); }
       else if (phase === 'terminal') { const s = signs[1]; const to = d.surfacePoint(s, 'sel', 0.05), near = d.surfacePoint(s, 'sel', 0.3); d.runDemo([{ p: near.toArray(), dur: 1.2 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Your booking says Terminal 2. Point at that sign, like this.', apply: () => this.pick(2) }); }
     },
   };
@@ -1056,7 +1058,7 @@ const kerb = (d) => {
       if (phase !== 'cab') return; phase = 'walk'; d.voice.success();
       d.setPanel({ title: 'Walk to the entrance.', body: '', buttons: [] });
       d.say('Thank you, and have a good flight. Now walk to the entrance.'); driver?.say('Have a good flight!', 6);
-      d.walkToward(d.worldToStage(doors.getWorldPosition(new THREE.Vector3())), 0.5, () => d.next());
+      d.walkToward(d.worldToStage(doors.getWorldPosition(new THREE.Vector3())), 0.5, () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue'));
     },
     demo() { if (phase !== 'cab') return; d.runDemo([{ p: [0, d.h - 0.2, -0.9], dur: 1.0 }, { p: [0, d.h - 0.2, -1.3], dur: 0.6, press: true }], { say: 'Tap Get out, like this.', apply: () => this.out() }); },
   };
@@ -1084,7 +1086,7 @@ const arrival = (d) => {
       guard = d.addStaff('guard', 'Entry guard · practice', desk, [0.15, 0, -0.75]);
       photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.6]);
       d.addSupport(-0.8, 0.8, -1.3 - 0.38, -1.3 + 0.38, 1.027);
-      d.addScenery(d.assets.make('luggage-trolley'), { x: -1.1, z: -1.0, ry: 0.4 });
+      d.addScenery(d.assets.make('luggage-trolley'), { x: -1.8, z: -1.0, ry: 0.4 });
       zoneMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: COLORS.tealGlow, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
       zoneMesh.position.set(0, 1.032, 0.03); desk.add(zoneMesh);
       this.matched();   // you already know your terminal: go straight to the guard

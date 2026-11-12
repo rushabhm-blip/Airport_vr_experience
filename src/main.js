@@ -13,6 +13,7 @@ import { CARD } from './lesson/rules.mjs';
 document.getElementById('build')?.append('Version ' + BUILD);
 import { KeyboardCard } from './ui/keyboard.js';
 import { loadImages } from './world/images.js';
+import { Staff } from './world/staff.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -59,6 +60,7 @@ class App {
     this.assets = new Assets('./assets/');
     this.voice = new Voice();
     await this.assets.init();
+    this.assets.loadPeople().then((p) => { Staff.library = p; });   // optional rigged characters (assets/people/*.glb)
     await loadImages('./assets/images/', (n, total) => { $('loading').textContent = `Loading Saath airport practice… ${Math.round((n / total) * 100)}%`; });
     this.stage = new Stage(this.scene);
     this.input = new Interactions({ renderer: r, scene: this.scene, camera: this.camera, domElement: r.domElement });
@@ -95,7 +97,8 @@ class App {
     }[kind] || 'Something went wrong while starting.';
     $('err').textContent = msg + (e?.message ? ' (' + e.message + ')' : '');
     $('cap').textContent = 'Not started';
-    for (const id of ['btn-mr', 'btn-vr', 'btn-webcam', 'btn-desktop']) { const b = $(id); if (b) { b.disabled = true; b.classList.add('off'); } }
+    const why = { graphics: 'Needs 3D graphics, which this browser could not start.', assets: 'Needs the practice files, which did not load.' }[kind] || 'Unavailable right now.';
+    for (const id of ['btn-mr', 'btn-vr', 'btn-webcam', 'btn-desktop', 'btn-tour']) { const b = $(id); if (b) { b.disabled = true; b.classList.add('off'); b.title = why; b.onclick = () => { $('err').textContent = why + ' Use Try again.'; }; } }
     if (!$('btn-retry')) { const b = document.createElement('button'); b.id = 'btn-retry'; b.className = 'primary'; b.textContent = 'Try again'; b.onclick = () => location.reload(); $('err').after(b); }
   }
 
@@ -343,7 +346,7 @@ class App {
       buttons = [
         ...(forced ? [] : [{ id: 'mode', label: this.env.mode === 'mixed' ? (this._modeConfirm ? 'Hide my room? Tap again' : 'Switch to full VR') : 'Switch to mixed reality', kind: 'secondary' }]),
         { id: 'voice', label: this.voice.enabled ? 'Voice: on' : 'Voice: off', kind: 'secondary' },
-        { id: 'comfort', label: this.comfort === 'fade' ? 'Travel: gentle fade' : 'Travel: smooth (thumbstick)', kind: 'secondary' },
+        { id: 'recenter', label: 'Recenter cards', kind: 'secondary' },
         { id: 'dist', label: 'Card distance: ' + dl, kind: 'secondary' },
         { id: 'text', label: 'Text size: ' + tl, kind: 'secondary' },
         { id: 'page1', label: 'More  ›', kind: 'secondary' },
@@ -352,7 +355,7 @@ class App {
     } else if (this.menuPage === 1) {
       title = 'Your space';
       buttons = [
-        { id: 'recenter', label: 'Recenter cards', kind: 'secondary' },
+        { id: 'comfort', label: this.comfort === 'fade' ? 'Travel: gentle fade' : 'Travel: smooth (thumbstick)', kind: 'secondary' },
         { id: 'bring', label: 'Bring objects to me', kind: 'secondary' },
         { id: 'refit', label: 'Re-fit my space', kind: 'secondary' },
         { id: 'name', label: `Name: ${PRACTICE.hasName ? PRACTICE.passenger : 'not set'}`, kind: 'secondary' },
@@ -363,6 +366,7 @@ class App {
       title = 'Practice';
       buttons = [
         { id: 'tourplay', label: 'Watch the whole journey', kind: 'secondary' },
+        { id: 'prevstep', label: 'Previous step', kind: 'secondary' },
         { id: 'skipstep', label: 'Skip this step', kind: 'secondary' },
         { id: 'restart', label: 'Restart practice', kind: 'secondary' },
         { id: 'forget', label: 'Forget my saved name', kind: 'secondary' },
@@ -409,6 +413,7 @@ class App {
     }
     if (id === 'refit') { this.closeMenu(); dr._teardown(); if (this.mode === 'desktop') { this.startDesktop(0); return; } return this.beginFit(); }
     if (id === 'tourplay') { this.closeMenu(); return dr.startTour(); }
+    if (id === 'prevstep') { this.closeMenu(); return dr.previousStep(); }
     if (id === 'skipstep') { this.closeMenu(); return dr.skipStep(); }
     if (id === 'restart') { this.closeMenu(); return dr.restart(); }
     if (id === 'exit') { this.closeMenu(); return this.exitSession(); }

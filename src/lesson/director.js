@@ -8,6 +8,8 @@ import { Phone } from '../world/phone.js';
 import { Presentation } from './presentation.mjs';
 import { JourneyLog } from './journey-log.mjs';
 import { cardScale, CARD } from './rules.mjs';
+import { Stage } from '../world/stage.js';
+const Stage_VIEWER = Stage.VIEWER;
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 const store = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : Number(v) || d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, String(v)); } catch { /* private mode */ } } };
@@ -50,9 +52,9 @@ export class Director {
     this.log = new JourneyLog(STEP_IDS);
     this.tour = false;   // "Watch" mode: the whole journey plays itself, narrated
     this.pres = new Presentation(() => this._applyPresentation());
-    this.follow(this.panel.mesh, { yaw: () => this.panelOffset, dy: -0.26 });
+    this.follow(this.panel.mesh, { yaw: () => this.panelOffset, dy: -0.26, scale: () => cardScale(this.cardDist, this.textK) * (this._intro ? 1 : 0.88) });
     this.input.on('carddrag', (e) => this._dragCard(e));
-    for (const evt of ['grab', 'release', 'ui']) this.input.on(evt, () => { this.idle = 0; });
+    for (const evt of ['grab', 'release', 'ui']) this.input.on(evt, () => { this.idle = 0; this._endIntro(); });
     this.phone = new Phone(this);
     this.phone.onEvent = (n) => this._onPhone(n);
   }
@@ -60,7 +62,7 @@ export class Director {
   // ---------------------------------------------------------------- staff and help: one caption region, never a second card
   /** Put a staff cut-out into a scene group (so it travels with the scenery). */
   addStaff(kind, role, parent, pos) {
-    const s = new Staff(kind, role); s.root.position.set(...pos); parent.add(s.root);
+    const s = new Staff(kind, role); s.root.position.set(...pos); parent.add(s.root); s.quiet = () => this.pres.mode === 'staff' || this.pres.mode === 'demo';
     this.staffList.push(s); this.surfaces.push(s.tag);
     if (s.body) { this.input.addInteractive(s.body); s.onTap = (st) => this.askStaff(st); }
     return s;
@@ -371,6 +373,7 @@ export class Director {
     this._token = (this._token || 0) + 1;
     this._teardown();
     this.index = i;
+    this._intro = true; this._introT = 0;
     this.attempts = 0; this.idle = 0; this.assisting = false; this._offered = false; this.demoOnly = false; this._convSnapshot = null; this._taskSnap = null;
     this.completed.delete(i);
     // Authoritative flight state persists through the run; the printed pass keeps the old gate.
@@ -406,6 +409,42 @@ export class Director {
     if (n < STEPS.length) this.goto(n); else this.finish();
   }
   skipStep() { this.next({ skipped: true }); }
+  /** Return to the previous step (optional steps are not part of "back"). */
+  previousStep() { let n = this.index - 1; while (n > 0 && OPTIONAL_STEPS.has(STEP_IDS[n])) n--; if (n >= 0) this.goto(n); }
+
+  /** In a watch tour a lone Continue-style button is pressed for you after a pause. Practice mode never does this. */
+  _tourAuto(buttons) {
+    if (!this.tour || !buttons || buttons.length !== 1 || !['go', 'cont'].includes(buttons[0].id)) return;
+    const id = buttons[0].id, idx = this.index;
+    this.tweens.add({ delay: 2.6, dur: 0.01, done: () => { if (this.tour && this.index === idx && this.panel.state.buttons[0]?.id === id) this.onPanel(id); } });
+  }
+
+  /** Protected volume: a physical headset is never moved. Scenery that comes within 0.35 m of the head is hidden until it clears. */
+  _guard(dt) {
+    this._guardT = (this._guardT || 0) + dt; if (this._guardT < 0.15) return; this._guardT = 0;
+    const h = this.headLocal, M = 0.35;
+    const check = (o, b) => { if (!b || !o) return; const inside = h.x > b.min.x - M && h.x < b.max.x + M && h.z > b.min.z - M && h.z < b.max.z + M && h.y > b.min.y - 0.1 && h.y < b.max.y + 0.2; if (o.userData.guardHidden !== inside) { o.userData.guardHidden = inside; o.visible = !inside; } };
+    for (const o of this.obstacles) check(o, this.stage.localBox(o));
+    for (const st of this.staffList) check(st.root, this.stage.localBox(st.root));
+  }
+
+  /** Development check: every pair of unrelated objects in the current station, and anything inside the viewer's space. */
+  auditLayout() {
+    const items = [...this.stage.scenery.children].filter((o) => o.visible && !(o.geometry?.type === 'PlaneGeometry' && (o.geometry.parameters.width > 6)) && o.name !== 'Facade');
+    const label = (o) => { const kids = []; o.traverse((c) => { if (c !== o && c.name && kids.length < 2 && !c.isMesh) kids.push(c.name); }); const p = o.position; return (o.name || kids.join('/') || o.type) + '@' + p.x.toFixed(1) + ',' + p.z.toFixed(1); };
+    const boxes = items.map((o) => ({ o, name: label(o), b: this.stage.localBox(o) })).filter((e) => e.b);
+    const out = [], V = Stage_VIEWER;
+    for (const e of boxes) {
+      if (e.b.max.x - e.b.min.x > 9 || this.step?.enclosure) continue;      // an aircraft or jet bridge deliberately surrounds the learner
+      if (e.b.max.x > -V.x && e.b.min.x < V.x && e.b.max.z > V.z0 && e.b.min.z < V.z1 && e.b.max.y > V.y0 && e.b.min.y < V.y1) out.push('VIEWER: ' + e.name);
+    }
+    const shrink = (b, m) => new THREE.Box3(b.min.clone().addScalar(m), b.max.clone().subScalar(m));
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      if (boxes[i].b.max.x - boxes[i].b.min.x > 9 || boxes[j].b.max.x - boxes[j].b.min.x > 9) continue;
+      if (shrink(boxes[i].b, 0.03).intersectsBox(shrink(boxes[j].b, 0.03))) out.push(boxes[i].name + ' x ' + boxes[j].name);
+    }
+    return out;
+  }
   restart() { this.completed.clear(); this.assistedSteps.clear(); this.log = new JourneyLog(STEP_IDS); this.goto(0); }
   retryNeeded() { const first = this.log.retryable()[0]; const i = STEP_IDS.indexOf(first); this.log = new JourneyLog(STEP_IDS); if (i >= 0) this.goto(i); else this.goto(0); }
 
@@ -586,7 +625,7 @@ export class Director {
 
   setPanel(p) {
     if (p.buttons) p = { ...p, buttons: p.buttons.filter((b) => b.id !== 'help') };   // Help lives in the utility row; no duplicate button
-    this.panel.set({ chips: this._chips(), ...p }); this.snapshot = JSON.parse(JSON.stringify(this.panel.state)); }
+    this.panel.set({ chips: this._chips(), ...p }); this.snapshot = JSON.parse(JSON.stringify(this.panel.state)); this._tourAuto(p.buttons); }
 
   /** Calm positive state; the learner moves on with the Continue button (never automatically). */
   success(title, body, label = 'Continue') {
@@ -638,7 +677,8 @@ export class Director {
   onCleanup(fn) { this.cleanups.push(fn); }
   addSupport(minX, maxX, minZ, maxZ, y, fixed = false) {
     const s0 = fixed ? null : this.stage.scenery.position.clone();
-    this.input.supports.push((p) => { const dx = s0 ? this.stage.scenery.position.x - s0.x : 0, dz = s0 ? this.stage.scenery.position.z - s0.z : 0; return p.x >= minX + dx && p.x <= maxX + dx && p.z >= minZ + dz && p.z <= maxZ + dz ? y : null; });
+    const pull = fixed ? 0 : this.stage.pull;     // station pieces are placed with the same pull as their supports
+    this.input.supports.push((p) => { const dx = s0 ? this.stage.scenery.position.x - s0.x : 0, dz = (s0 ? this.stage.scenery.position.z - s0.z : 0) + pull; return p.x >= minX + dx && p.x <= maxX + dx && p.z >= minZ + dz && p.z <= maxZ + dz ? y : null; });
   }
   local(obj) { return this.stage.root.worldToLocal(obj.getWorldPosition(new THREE.Vector3())); }
 
@@ -651,10 +691,9 @@ export class Director {
 
   // ---------------------------------------------------------------- per frame
   /** How far left of the gaze the guide panel sits (a narrower desktop window needs less). */
-  get panelOffset() {
-    const o = (this.step?.panelOffset ?? 0.55) * 0.75; // counter scenes push the guide further left so it never clips the furniture
-    return this.app.mode === 'desktop' ? Math.min(o, 0.4) : o;
-  }
+  /** Centred (0°) while it introduces a step, then about 12° left of the gaze so the task stays in front of you. */
+  get panelOffset() { return this._intro ? 0 : 0.21; }
+  _endIntro() { if (!this._intro) return; this._intro = false; const fo = this.followers.get(this.panel.mesh); if (fo) fo.moving = true; }
 
   update(dt, time) {
     const frozen = this.paused || ['safety', 'settings'].includes(this.pres.mode);   // settings, pause and safety suspend everything that moves or changes
@@ -672,6 +711,8 @@ export class Director {
     for (const [mesh, fo] of this.followers) if (mesh.visible) this._follow(mesh, fo, dt);
 
     if (frozen) return;
+    if (this._intro && (this._introT += dt) > 9) this._endIntro();
+    this._guard(dt);
     if (this.noteTimer > 0 && (this.noteTimer -= dt) <= 0 && this.panel.state.tone === 'warn') this.panel.set({ note: '', tone: 'normal' });
     this._pulseT = (this._pulseT || 0) + dt;
     if (this._pulseT > 0.09) { this._pulseT = 0; for (const s of this.surfaces) s.tick?.(); }

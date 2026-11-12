@@ -29,6 +29,22 @@ function retexture(id, root) {
   });
 }
 
+/** Clone a skinned model so each copy has its own skeleton (a plain scene.clone(true) would share the source bones). */
+export function cloneSkinned(source) {
+  const clone = source.clone(true);
+  const src = [], dst = [];
+  source.traverse((o) => { if (o.isSkinnedMesh) src.push(o); });
+  clone.traverse((o) => { if (o.isSkinnedMesh) dst.push(o); });
+  src.forEach((s, i) => {
+    const c = dst[i];
+    const bones = s.skeleton.bones.map((b) => clone.getObjectByName(b.name));
+    c.skeleton = new THREE.Skeleton(bones, s.skeleton.boneInverses);
+    c.bind(c.skeleton, s.bindMatrix);
+    if (s.morphTargetInfluences) c.morphTargetInfluences = s.morphTargetInfluences.slice();
+  });
+  return clone;
+}
+
 /** Loads the Saath airport GLBs once and hands out clones that keep node names/hierarchy. */
 export class Assets {
   constructor(base = './assets/') {
@@ -48,6 +64,20 @@ export class Assets {
     ]);
     this.catalog = cat; this.layouts = lay;
     for (const a of cat.assets) this.byId.set(a.id, a);
+  }
+
+  /**
+   * Optional rigged characters: assets/people/<role>.glb for driver, guard, checkin, security, gate, crew. Animation clips are kept.
+   * A missing file is fine: that role keeps its photo cut-out.
+   */
+  async loadPeople(kinds = ['driver', 'guard', 'checkin', 'security', 'gate', 'crew']) {
+    this.people = this.people || new Map();
+    try { const r = await fetch(this.base + 'people/manifest.json'); if (!r.ok) return this.people; const m = await r.json(); kinds = kinds.filter((k) => m[k]); } catch { return this.people; }   // no manifest = no characters supplied yet
+    await Promise.all(kinds.map(async (k) => {
+      try { const g = await this.loader.loadAsync(`${this.base}people/${k}.glb`); this.people.set(k, { scene: g.scene, clips: g.animations }); }
+      catch { /* not supplied yet */ }
+    }));
+    return this.people;
   }
 
   async preload(ids, onProgress) {

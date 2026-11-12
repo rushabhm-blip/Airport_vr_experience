@@ -33,20 +33,40 @@ export class Stage {
     this.root.updateMatrixWorld(true);
   }
 
-  /** Place a set piece. x right, z forward-negative (so z=-2 is 2 m ahead), distances compressed by k. */
-  place(obj, { x = 0, y = 0, z = 0, ry = 0, scale = 1, compress = true, fixed = false } = {}) {
-    if (fixed) { // arm's-reach assemblies keep real size and position
-      obj.position.set(x, y, z); obj.rotation.y = ry; obj.scale.setScalar(scale);
-      this.scenery.add(obj); return obj;
-    }
-    const k = compress ? this.k : 1;
-    // Arm's-reach zone (first 1.2 m) is never compressed; only deeper scenery is pulled in for small rooms.
-    const zc = z > -1.2 ? z : -1.2 + (z + 1.2) * k;
-    obj.position.set(x * k, y, zc);
+  /** How far the whole station is moved nearer in a small space (a translation, never a squash). */
+  get pull() { return (1 - this.k) * 0.4; }
+
+  /**
+   * Place a set piece. x right, z forward-negative (so z=-2 is 2 m ahead). Every room size uses the SAME designed layout, so
+   * objects that do not overlap by design never overlap; a small space only moves the whole station slightly nearer.
+   * Anything that would intrude into the learner's own space is pushed forward out of it.
+   */
+  place(obj, { x = 0, y = 0, z = 0, ry = 0, scale = 1, fixed = false } = {}) {
+    obj.position.set(x, y, z + this.pull);
     obj.rotation.y = ry;
-    obj.scale.setScalar(this.sizeK * scale);
+    obj.scale.setScalar((fixed ? 1 : this.sizeK) * scale);
     this.scenery.add(obj);
+    this.keepClearOfViewer(obj);
     return obj;
+  }
+
+  /** The protected volume around the seated learner (stage-local, metres). */
+  static VIEWER = { x: 0.6, z0: -0.5, z1: 0.7, y0: 0.2, y1: 2.1 };
+
+  /** Stage-local bounding box of an object (all eight corners, so rotated objects are measured correctly). */
+  localBox(obj) {
+    const b = new THREE.Box3().setFromObject(obj); if (b.isEmpty()) return null;
+    const out = new THREE.Box3(); const v = new THREE.Vector3();
+    for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) out.expandByPoint(this.root.worldToLocal(v.set(x, y, z)));
+    return out;
+  }
+
+  keepClearOfViewer(obj) {
+    obj.updateMatrixWorld(true); this.root.updateMatrixWorld(true);
+    const b = this.localBox(obj), V = Stage.VIEWER; if (!b) return;
+    if (b.max.x - b.min.x > 9) return;                      // backdrops and floors surround the viewer by design
+    const hit = b.max.x > -V.x && b.min.x < V.x && b.max.z > V.z0 && b.min.z < V.z1 && b.max.y > V.y0 && b.min.y < V.y1;
+    if (hit) { obj.position.z += V.z0 - b.max.z; obj.updateMatrixWorld(true); }
   }
 
   clearScenery() {

@@ -184,6 +184,7 @@ export class Interactions {
     const near = this._nearestGrabbable(p.controller.getWorldPosition(new THREE.Vector3()));
     const far = near ? null : this._pickGrabbable(this.raycaster, 2.6);
     const target = near || far?.root;
+    if (target?.userData.grab?.onTap) { target.userData.grab.onTap(target, p); this._haptic(p, 0.4, 30); this.emit('tap', target); return; }     // a simple click does the whole job (no dragging needed)
     if (target) this._grab(p, target, kind);
     else if (!grabOnly) this.emit('empty', { ray: this.raycaster.ray.clone(), pointer: p });
   }

@@ -225,9 +225,18 @@ const checkin = (d) => {
 
       booking = makeDoc(d, 'booking-document'); booking.scale.setScalar(0.85); booking.rotation.x = -0.5;
       id = makeDoc(d, 'practice-id'); id.scale.setScalar(1.6); id.rotation.x = -0.5;
-      d.addProp(booking, { radius: 0.2 }, [-0.18, d.h - 0.42, -0.45]);
-      d.addProp(id, { radius: 0.15 }, [0.2, d.h - 0.42, -0.45]);
-      d.setPanel({ eyebrow: 'Airport practice · 3 of 8', title: 'Show your documents.', body: 'Place your booking and ID on the counter.', note: 'Booking ☐   ID ☐', tone: 'normal', buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
+      // one click on a document puts it on the counter (it still can be picked up and dragged by hand)
+      d.addProp(booking, { radius: 0.2, onTap: (o) => this.placeDoc(o, 0) }, [-0.18, d.h - 0.42, -0.45]);
+      d.addProp(id, { radius: 0.15, onTap: (o) => this.placeDoc(o, 1) }, [0.2, d.h - 0.42, -0.45]);
+      d.setPanel({ eyebrow: 'Airport practice · 3 of 8', title: 'Show your documents.', body: 'Click your booking and your ID to put them on the counter.', note: 'Booking ☐   ID ☐', tone: 'normal', buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
+    },
+    /** Slide a document from where it floats to its place on the counter. */
+    placeDoc(o, k) {
+      if (phase !== 'drop' || o.userData.placed) return;
+      o.userData.placed = true; d.input.removeGrabbable(o); d.voice.soft();
+      const from = o.position.clone(), to = d.worldToStage(desk.localToWorld(new THREE.Vector3(k ? 0.22 : -0.22, 1.036, 0.03)));
+      const r0 = o.rotation.x, T = d.reduceMotion ? 0.05 : 0.7;
+      d.tweens.add({ dur: T, update: (e) => { o.position.lerpVectors(from, to, e); o.position.y += Math.sin(e * Math.PI) * 0.12; o.rotation.x = r0 + (FLAT_X - r0) * e; }, done: () => { o.position.copy(to); o.rotation.set(FLAT_X, 0, 0); d.voice.beep(); } });
     },
     demo() {
       const toStage = (v) => d.worldToStage(desk.localToWorld(v));
@@ -344,22 +353,26 @@ const security = (d) => {
       tray = d.assets.make('security-tray', { actions: false });
       d.addProp(tray, { radius: 0.28, rest: 'upright', restOffset: 0, inScenery: true }, [-0.05, 0.73, -0.78]);
       tray.userData.grab.onRelease = (o) => this.trayReleased(o);
+      tray.userData.grab.onTap = (o) => this.tapTray(o);
       phone = d.assets.make('smartphone', { actions: false }); phone.scale.setScalar(1.25); phone.rotation.x = -0.5;
       d.addProp(phone, { radius: 0.17, rest: 'flat', restOffset: 0.006 }, [0.22, d.h - 0.4, -0.45]);
       phone.userData.grab.onRelease = (o) => this.phoneReleased(o);
+      phone.userData.grab.onTap = (o) => this.tapToTray(o);
       phone.userData.tag = 'phone';
       phone.userData.grab.onGrab = () => { st.inTray.delete('phone'); st.phoneIn = false; if (phase === 'collect') this.gotItem('phone'); };
       pouch = labelBox(0.24, 0.05, 0.16, '#1f8a86', 'ELECTRONICS\nPOUCH', 30, 'item-pouch'); pouch.userData.tag = 'pouch';
       d.addProp(pouch, { radius: 0.17, rest: 'upright', restOffset: 0.025 }, [-0.2, d.h - 0.4, -0.45]);
       pouch.userData.grab.onRelease = (o) => this.phoneReleased(o);
+      pouch.userData.grab.onTap = (o) => this.tapToTray(o);
       pouch.userData.grab.onGrab = () => { st.inTray.delete('pouch'); st.phoneIn = false; if (phase === 'collect') this.gotItem('pouch'); };
       bag = d.assets.make('cabin-suitcase', { actions: false });
       bag.userData.grabCenter = new THREE.Vector3(0, 0.45, 0);
       bag.scale.setScalar(0.9);
       d.addProp(bag, { radius: 0.34, rest: 'upright', restOffset: 0, inScenery: true }, [0.3, 0.73, -1.45]);
       bag.userData.grab.onRelease = (o) => this.bagReleased(o);
+      bag.userData.grab.onTap = (o) => this.tapBag(o);
       bag.userData.grab.onGrab = () => { if (phase === 'collect') this.gotItem('bag'); };
-      d.setPanel({ eyebrow: 'Airport practice · 4 of 8', title: 'Phone and pouch in the tray.', body: 'Pick each one up and put it in the tray.', note: 'Follow the security officer\'s instructions', tone: 'normal', tasks: tasks(), buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
+      d.setPanel({ eyebrow: 'Airport practice · 4 of 8', title: 'Phone and pouch in the tray.', body: 'Click your phone and your pouch to put them in the tray.', note: 'Follow the security officer\'s instructions', tone: 'normal', tasks: tasks(), buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
     },
     demo() {
       const here = (o) => d.stage.props.worldToLocal(o.getWorldPosition(new THREE.Vector3()));
@@ -376,6 +389,26 @@ const security = (d) => {
       // otherwise the belt is still moving: nothing to show yet
     },
     onButton(id) { if (id === 'show') d.startAssist(); if (id === 'help') d.help(); },
+    // One click does the move (the same result as dragging it by hand).
+    tapGlide(o, to, done) {
+      const from = o.position.clone(); d.voice.soft();
+      d.tweens.add({ dur: d.reduceMotion ? 0.05 : 0.6, update: (e) => { o.position.lerpVectors(from, to, e); o.position.y += Math.sin(e * Math.PI) * 0.1; }, done: () => { o.position.copy(to); o.updateMatrixWorld(true); done?.(); } });
+    },
+    tapToTray(o) {
+      if (o.userData.tapping || !tray || phase !== 'phone') return; o.userData.tapping = true;
+      const t = d.stage.props.worldToLocal(tray.getWorldPosition(new THREE.Vector3()));
+      this.tapGlide(o, new THREE.Vector3(t.x, t.y + 0.07, t.z), () => { o.userData.tapping = false; this.phoneReleased(o); });
+    },
+    tapTray(o) {
+      if (o.userData.tapping) return;
+      if (!st.phoneIn) { d.nudge('First put your phone and pouch in the tray.'); return; }
+      if (st.traySent) return; o.userData.tapping = true;
+      this.tapGlide(o, o.parent.worldToLocal(lane.localToWorld(new THREE.Vector3(0, 0.8, 0.1))), () => { o.userData.tapping = false; this.trayReleased(o); });
+    },
+    tapBag(o) {
+      if (o.userData.tapping || st.bagSent) return; o.userData.tapping = true;
+      this.tapGlide(o, o.parent.worldToLocal(lane.localToWorld(new THREE.Vector3(0, 0.8, 0.1))), () => { o.userData.tapping = false; this.bagReleased(o); });
+    },
     phoneReleased(o) {
       const p = tray.worldToLocal(o.getWorldPosition(new THREE.Vector3()));
       if (Math.abs(p.x) < 0.27 && Math.abs(p.z) < 0.2 && p.y > -0.05 && p.y < 0.35) {
@@ -383,7 +416,7 @@ const security = (d) => {
         tray.attach(o); o.position.set(tag === 'pouch' ? 0.1 : -0.12, tag === 'pouch' ? 0.045 : 0.034, THREE.MathUtils.clamp(p.z, -0.06, 0.06));
         o.quaternion.setFromEuler(new THREE.Euler(tag === 'pouch' ? 0 : FLAT_X, 0, 0)); st.inTray.add(tag); bel.put(tag);
         st.phoneIn = st.inTray.has('phone') && st.inTray.has('pouch'); d.voice.beep();
-        if (st.phoneIn) { refresh({ title: 'Now slide the tray onto the belt.', body: 'Pick up the tray and release it on the belt.' }); d.say('Phone and electronics in the tray. Now slide the tray onto the belt.'); }
+        if (st.phoneIn) { refresh({ title: 'Now slide the tray onto the belt.', body: 'Click the tray to put it on the belt.' }); d.say('Phone and electronics in the tray. Now slide the tray onto the belt.'); }
         else { refresh({ title: st.inTray.has('phone') ? 'Now the electronics pouch.' : 'Now your phone.', body: 'Both go in the tray.' }); d.say(st.inTray.has('phone') ? 'Good. Now take out your electronics pouch.' : 'Good. Now your phone.'); }
         return true;
       }
@@ -393,7 +426,7 @@ const security = (d) => {
       if (!inBelt(o)) return false;
       if (!st.phoneIn) { d.nudge('Put your phone and your electronics pouch in the tray first.'); return false; }
       st.traySent = true; phase = 'bag'; rideBelt(o, 'tray');
-      refresh({ title: 'Place your bag on the belt.', body: 'Lift your cabin bag and release it on the belt.' });
+      refresh({ title: 'Place your bag on the belt.', body: 'Click your cabin bag to put it on the belt.' });
       d.say('Good. Now place your bag on the belt.');
       return true;
     },

@@ -7,6 +7,7 @@ import { bookingCard, passCard, screenOverlay, Hotspot, labelSurface, setLabelTe
 import { FONT, roundRect, wrapText, ease, lerp } from '../util.js';
 import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCanvas } from '../ui/documents.js';
 import { mergeStatic } from '../world/merge.js';
+import { RoadVideo } from '../world/roadvideo.js';
 import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop, keyedCrop } from '../world/images.js';
 
 /** A real photo as a distant backdrop (only in the virtual/immersive view; in passthrough it would float in the room). */
@@ -984,7 +985,7 @@ function terminalSign(label, arrow, onPick) {
 
 /* ------------------------------------------------------------------ 0b. the cab: board it, ride to the airport, choose your terminal */
 const cab = (d) => {
-  let phase = 'board', cabMesh, driver, interior, facade; const signs = [];
+  let phase = 'board', cabMesh, driver, interior, road; const signs = [];
   const api = {
     id: 'cab', scene: 'outdoor', roam: false, people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
     voice: 'Your cab is here.',
@@ -1000,6 +1001,8 @@ const cab = (d) => {
       } else driver.say('Good morning! Airport?', 7);
       d.setPanel({ title: 'Your cab is here.', body: 'Get in when you are ready.', note: '', tone: 'normal', buttons: [{ id: 'in', label: 'Get in' }] });
     },
+    update(dt) { road?.update(dt); },
+    exit() { road?.dispose(); road = null; },
     staffLine() { return phase === 'terminal' ? 'Which terminal, please? Your booking will tell you.' : 'Take your time. Get in whenever you are ready.'; },
     onButton(b) { if (b === 'in') this.board(); if (b === 'cont' && phase === 'rideDone') this.terminal(); },
     board() {
@@ -1011,11 +1014,11 @@ const cab = (d) => {
         d.app.env.setOutdoorTheme('airport');
         if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
         interior = cabPlate(d); d.stage.props.add(interior);                      // the real cab interior (the driver is in the photograph)
-        facade = facadePlane(d, 34, 70);                                    // the airport, far ahead: it comes closer as you drive
-        d.app.env.driveSpeed = 0.9;
+        road = new RoadVideo(d.stage.props, Math.max(1.0, d.h)); road.preload('road-arrival'); road.play('road-drive', true);     // the road moves past the windscreen; the side windows slide
+        d.app.env.driveSpeed = 0;
         const sc = d.stage.scenery, dur = d.reduceMotion ? 0.6 : 9;
         d.tweens.add({ dur, update: (e) => { sc.position.z = 44 * (1 - Math.pow(1 - e, 2)); }, done: () => {
-          d.app.env.driveSpeed = 0;
+          d.app.env.driveSpeed = 0; road?.stop();
           if (phase !== 'ride') return; phase = 'rideDone';
           d.setPanel({ title: 'You are at the airport.', body: 'Continue to choose your terminal.', note: '', tone: 'normal', buttons: [{ id: 'cont', label: 'Continue' }] }); d.say('You are at the airport.');
         } });
@@ -1036,8 +1039,9 @@ const cab = (d) => {
       for (const s of signs) s.mesh.visible = false;
       d.setPanel({ title: 'Terminal 2.', body: 'The cab takes you to the entrance.', note: '', tone: 'normal', buttons: [] });
       d.say('Terminal two. The driver takes you to the entrance.');
-      d.app.env.driveSpeed = 0.6;
-      d.moveWorld(0, 18.5, () => { d.app.env.driveSpeed = 0; d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'); }, { route: false, min: 3, speed: 3 });
+      d.app.env.driveSpeed = 0; road?.play('road-arrival', false);                  // the second clip: along the road and up to the terminal
+      const arrive = () => d.moveWorld(0, 18.5, () => { road?.stop(); d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'); }, { route: false, min: 9.8, speed: 1.9 });
+      if (road && d.app.comfort === 'fade') d.tweens.add({ delay: 9.0, dur: 0.01, done: arrive }); else arrive();      // with the blink comfort option, let the whole clip play before the jump
     },
     demo() {
       if (phase === 'board') { const to = d.surfacePoint(d.panel, 'in', 0.03), near = d.surfacePoint(d.panel, 'in', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.1 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Choose Get in, like this.', apply: () => this.board() }); }

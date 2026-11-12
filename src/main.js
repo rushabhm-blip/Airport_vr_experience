@@ -347,6 +347,7 @@ class App {
         ...(forced ? [] : [{ id: 'mode', label: this.env.mode === 'mixed' ? (this._modeConfirm ? 'Hide my room? Tap again' : 'Switch to full VR') : 'Switch to mixed reality', kind: 'secondary' }]),
         { id: 'voice', label: this.voice.enabled ? 'Voice: on' : 'Voice: off', kind: 'secondary' },
         { id: 'recenter', label: 'Recenter cards', kind: 'secondary' },
+        { id: 'walkstick', label: this.director.walkStick ? 'Walking: thumbstick on' : 'Walking: thumbstick off', kind: 'secondary' },
         { id: 'dist', label: 'Card distance: ' + dl, kind: 'secondary' },
         { id: 'text', label: 'Text size: ' + tl, kind: 'secondary' },
         { id: 'page1', label: 'More  ›', kind: 'secondary' },
@@ -403,6 +404,7 @@ class App {
     if (id === 'dist') { const o = [1.5, 1.9, 2.4], k = o.indexOf(dr.cardDist); dr.setCardPrefs({ dist: o[(k + 1) % o.length] }); dr.snapPanelToGaze(); return this.refreshMenu(); }
     if (id === 'text') { const o = [0.85, 1, 1.4, 1.8], k = o.findIndex((v) => Math.abs(v - dr.textK) < 0.05); dr.setCardPrefs({ textK: o[(k + 1) % o.length] }); dr.snapPanelToGaze(); return this.refreshMenu(); }
     if (id === 'recenter') { this.closeMenu(); return dr.recenter(); }
+    if (id === 'walkstick') { dr.walkStick = !dr.walkStick; try { localStorage.setItem('saath.walk', dr.walkStick ? 'on' : 'off'); } catch { /* private mode */ } return this.refreshMenu(); }
     if (id === 'forget') { try { localStorage.removeItem('saath.name'); } catch { /* */ } setPassenger(''); return this.refreshMenu(); }
     if (id === 'name') { this.closeMenu(); return this.askName(() => { if (dr.index >= 0 && dr.index < dr.count) dr.goto(dr.index); }); }
     if (id === 'bring') { // rescue: put the whole scene right in front of the learner, close and small (state is kept)

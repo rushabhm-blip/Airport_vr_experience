@@ -25,7 +25,7 @@ const ICONS = {
 export class Panel extends Surface {
   constructor({ width = 0.58, pxW = 1024 } = {}) {
     super({ width, pxW, pxH: 900 });
-    this.state = { eyebrow: '', title: '', body: '', note: '', buttons: [], chips: [], progress: null, tone: 'normal' };
+    this.state = { eyebrow: '', title: '', body: '', note: '', buttons: [], chips: [], progress: null, tone: 'normal', minimal: false };
     this.painter = (ctx) => this.paint(ctx);
     this.mesh.renderOrder = 10;
     this.material.depthTest = false; // the guide must never hide behind scenery or furniture
@@ -56,10 +56,16 @@ export class Panel extends Surface {
     return out;
   }
 
+  /** While you are away from the task, only a slim bar shows: where to walk, plus the quiet controls. */
+  _view() {
+    const st = this.state;
+    return st.minimal ? { ...st, title: st.minimalTitle || 'Walk', body: st.minimalHint || '', note: '', tasks: [], buttons: [], progress: null } : st;
+  }
+
   layoutAndRedraw() {
     // First pass measures, second paints (height depends on content).
     const ctx = this.ctx;
-    const s = this.state;
+    const s = this._view();
     const P = 64, W = this.pxW;
     let y = 64;
     y += 44; // brand
@@ -82,7 +88,7 @@ export class Panel extends Surface {
   }
 
   paint(ctx) {
-    const s = this.state, W = this.pxW, P = 64;
+    const s = this._view(), W = this.pxW, P = 64;
     this.hot = [];
     ctx.clearRect(0, 0, W, this.pxH);
     // shadow + glass

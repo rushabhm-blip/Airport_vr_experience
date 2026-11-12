@@ -48,6 +48,8 @@ export class Director {
     this.assisting = false; this.assistedSteps = new Set(); this.walking = false;
     this.staffList = []; this.helper = null; this.convStaff = null;
     this.locks = new Set();
+    this.station = null; this.near = true;   // where the current task is; the full card shows only when you are near it
+    this.walkStick = (() => { try { return localStorage.getItem('saath.walk') !== 'off'; } catch { return true; } })();
     this.reduceMotion = !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     this.log = new JourneyLog(STEP_IDS);
     this.tour = false;   // "Watch" mode: the whole journey plays itself, narrated
@@ -251,6 +253,7 @@ export class Director {
 
   /** Every frame: drives an explicit assist. A quiet offer of help appears after a long pause; nothing starts by itself. */
   _assist(dt) {
+    if (this.tour && this.station && !this.near) return;      // in the watch tour the demonstrations start once it has walked up to the task
     if (this.tour && this.step && !this.step.demo && !this.paused && this.pres.mode === 'scene' && (this._tourWait += dt) > 7) { this._tourWait = 0; return this.next(); }
     if (!this.step?.demo || this.paused || this.completed.has(this.index) || this.app.phase !== 'lesson' || this.walking) return;
     if (this.assisting) {
@@ -312,7 +315,11 @@ export class Director {
   }
 
   /** Register furniture the learner must walk around (an Object3D inside the scenery). */
-  obstacle(obj) { this.obstacles.push(obj); this.cleanups.push(() => { const i = this.obstacles.indexOf(obj); if (i >= 0) this.obstacles.splice(i, 1); }); }
+  obstacle(obj) {
+    this.obstacles.push(obj);
+    const remove = () => { const i = this.obstacles.indexOf(obj); if (i >= 0) this.obstacles.splice(i, 1); };
+    this.cleanups.push(remove); return remove;
+  }
 
   _boxes(M = 0.4) {
     const out = [], root = this.stage.root;
@@ -345,11 +352,12 @@ export class Director {
     return legs.filter((l) => Math.hypot(l[0], l[1]) > 0.02);
   }
 
-  /** Start each location a few metres away and walk up to it. */
-  arrive(dist = 2.0) {
-    const sc = this.stage.scenery, hall = this.app.env.virtual;
+  /** Start each station a few metres from you (a soft fade in); you walk up to it yourself. */
+  arrive(dist = 3.0) {
+    const sc = this.stage.scenery, hall = this.app.env.virtual, env = this.app.env;
     sc.position.set(0, 0, -dist); hall.position.set(0, 0, -dist);
-    this.moveWorld(0, dist, null, { route: false });
+    env.veil.visible = true; env.veil.material.opacity = 1;
+    this.tweens.add({ dur: this.reduceMotion ? 0.2 : 0.7, update: (e) => { env.veil.material.opacity = 1 - e; }, done: () => { env.veil.visible = false; } });
   }
 
   resetWorld() {
@@ -382,7 +390,8 @@ export class Director {
     if (!def) return;
     const step = def(this);
     const token = this._token = (this._token || 0) + 1;
-    this.panel.set({ progress: { i, n: STEPS.length }, chips: this._chips(), tone: 'normal', note: '', tasks: [] });
+    this.clearStation();
+    this.panel.set({ progress: { i, n: STEPS.length }, chips: this._chips(), tone: 'normal', note: '', tasks: [], minimal: false });
     await this.assets.preload(step.assets || []);
     await this.assets.loadPeople(step.people || []);   // only the people this station needs
     if (token !== this._token) return; // another goto superseded this one
@@ -399,7 +408,7 @@ export class Director {
     this.snapshot = JSON.parse(JSON.stringify(this.panel.state));
     this.say(this.step.voice || '');
     this.snapPanelToGaze();
-    if (step.walkIn !== false && i > 0 && this.app.phase === 'lesson') this.arrive(step.walkDist ?? 2.0);
+    if (step.walkIn !== false && i > 0 && this.app.phase === 'lesson') this.arrive(step.walkDist ?? 3.0);
   }
 
   next({ skipped = false } = {}) {
@@ -497,7 +506,7 @@ export class Director {
     this.step?.exit?.();
     this.tweens.clear();
     this.endDemo();
-    this.helper = null; this.convStaff = null;
+    this.helper = null; this.convStaff = null; this.station = null; this.near = true; this._tourWalking = false;
     this.staffList.length = 0;
     this.locks.clear();
     this.resetWorld();
@@ -519,7 +528,10 @@ export class Director {
   }
 
   _chips() {
-    const c = [{ id: 'repeat', label: 'Repeat', icon: 'repeat' }, this.tour ? { id: 'stoptour', label: 'Stop', icon: 'pause' } : { id: 'help', label: 'Help', icon: 'help' }];
+    const far = !!this.station && !this.near && !this.tour;
+    const c = far ? [] : [{ id: 'repeat', label: 'Repeat', icon: 'repeat' }];
+    c.push(this.tour ? { id: 'stoptour', label: 'Stop', icon: 'pause' } : { id: 'help', label: 'Help', icon: 'help' });
+    if (far) c.push({ id: 'gostation', label: 'Take me', icon: 'play' });
     if (this.phone?.opened && this.phone.isAway) c.push({ id: 'phone', label: 'Phone', icon: 'phone' });
     c.push(this.paused ? { id: 'resume', label: 'Resume', icon: 'play' } : { id: 'pause', label: 'Pause', icon: 'pause' }, { id: 'menu', label: 'Menu', icon: 'menu' });
     return c;
@@ -569,6 +581,7 @@ export class Director {
       case 'help': return this.help();
       case 'menu': return this.app.openMenu();
       case 'phone': return this.recallPhone();
+      case 'gostation': return this.walkToStation();
       case 'stoptour': return this.stopTour();
       case 'tourplay': return this.startTour();
       case 'tourpractise': return this.stopTour(true);
@@ -661,6 +674,10 @@ export class Director {
   // ---------------------------------------------------------------- scene-building helpers
   addScenery(obj, opts) { return this.stage.place(obj, opts); }
   addProp(obj, grab = {}, pos = null) {
+    if (grab.inScenery) {   // sits on something in the station (a tray on its table), so it stays there as you walk
+      if (pos) obj.position.set(pos[0], pos[1], pos[2] + this.stage.pull);
+      this.stage.scenery.add(obj); this.input.addGrabbable(obj, { home: this.stage.scenery, ...grab }); return obj;
+    }
     if (pos) obj.position.set(...pos);
     this.stage.props.add(obj);
     this.input.addGrabbable(obj, { home: this.stage.props, ...grab });
@@ -718,26 +735,86 @@ export class Director {
     this._pulseT = (this._pulseT || 0) + dt;
     if (this._pulseT > 0.09) { this._pulseT = 0; for (const s of this.surfaces) s.tick?.(); }
     this.phone.update(dt);
+    this._updateStation(dt);
     this._stickWalk(dt);
     this.step?.update?.(dt, time);
   }
 
+  // ---------------------------------------------------------------- stations: you roam, the instructions meet you at the task
+  /**
+   * The place where the current task happens. Far away you see only a slim "Walk to…" bar and a glowing ring on the floor;
+   * the full card appears when you are close. point is in the station's own coordinates (as designed, before the small-space pull).
+   */
+  setStation({ point, label, radius = 1.4, hint = null, onArrive = null }) {
+    this.clearStation();
+    const marker = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x38e1d2, transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false }));
+    marker.position.set(point.x, 0.015, point.z + this.stage.pull); this.stage.scenery.add(marker);
+    this.station = { point, label, r: radius, hint, onArrive, fired: false, marker };
+    this.near = true; this._updateStation(0, true);
+  }
+  clearStation() {
+    if (this.station?.marker) { this.station.marker.parent?.remove(this.station.marker); }
+    this.station = null; this.near = true; this._stationUI();
+  }
+  /** Distance from you to the station, horizontally, in metres. */
+  stationDistance() {
+    const s = this.station; if (!s) return 0;
+    const sc = this.stage.scenery.position;
+    return Math.hypot(s.point.x + sc.x, s.point.z + this.stage.pull + sc.z);
+  }
+  _updateStation(dt, first = false) {
+    const s = this.station; if (!s) return;
+    const dist = this.stationDistance();
+    if (this.tour && !this.walking && dist > s.r && !this._tourWalking) { this._tourWalking = true; this.walkToStation(() => { this._tourWalking = false; }); }
+    const was = this.near;
+    if (!this.near && dist < s.r) this.near = true;
+    else if (this.near && dist > s.r + 0.9 && !this.tour) this.near = false;
+    if (first) this.near = dist < s.r;
+    if (s.marker) { s.marker.visible = !this.near; s.marker.material.opacity = 0.35 + 0.3 * Math.sin(performance.now() / 380); }
+    if (first || this.near !== was) {
+      this._stationUI();
+      if (this.near) { this._intro = true; this._introT = 0; this.snapPanelToGaze(); }
+      if (this.near && s.onArrive && !s.fired) { s.fired = true; s.onArrive(); }
+    }
+  }
+  _stationUI() {
+    const s = this.station, far = !!s && !this.near && !this.tour;
+    const keys = this.app.xrPresenting ? 'Use the left thumbstick, or choose Take me.' : 'W A S D to walk, or choose Take me.';
+    this.panel.set({ minimal: far, minimalTitle: s ? 'Walk to ' + s.label : '', minimalHint: s?.hint ?? keys, chips: this._chips() });
+  }
+  /** Walk there for the learner: for hand-only users, and for the watch tour. */
+  walkToStation(done) {
+    const s = this.station; if (!s) return done?.();
+    const sc = this.stage.scenery.position;
+    this.walkToward(new THREE.Vector3(s.point.x + sc.x, 0, s.point.z + this.stage.pull + sc.z), s.r * 0.55, done);
+  }
+  _bounds() {
+    if (this.step?.bounds) return this.step.bounds;
+    const k = this.app.env.sceneKind;
+    if (k === 'outdoor') return { x0: -7, x1: 7, z0: -6.5, z1: 3.5 };
+    if (k === 'hall-wall' || k === 'hall-apron') return { x0: -5.2, x1: 5.2, z0: -6.0, z1: 4.5 };
+    return null;
+  }
+
   /** Optional smooth walking with the left thumbstick. Off unless the learner chose "smooth" in Settings. Counters are solid. */
   _stickWalk(dt) {
-    if (this.app.comfort !== 'glide' || this.step?.noStick) return;
-    if (this.app.phase !== 'lesson' || this.walking || this.paused || this.pres.mode !== 'scene' || this.demoing || !this.app.xrPresenting) return;
-    const s = this.input.stick('left'), mag = Math.hypot(s.x, s.y);
+    if (!this.walkStick || this.step?.roam === false) return;
+    if (this.app.phase !== 'lesson' || this.walking || this.paused || !['scene', 'phone'].includes(this.pres.mode) || this.demoing || this.tour) return;
+    const s = this.input.walkAxes(), mag = Math.hypot(s.x, s.y);
     if (mag < 0.2) { if (this._stickOn) { this._stickOn = false; this.app.env.vigTarget = 0; } return; }
-    this._stickOn = true; this.app.env.vigTarget = 0.5;
-    const sp = 1.1 * Math.min(1, (mag - 0.2) / 0.8) * dt, yaw = this.headYaw;
+    this._stickOn = true; this.app.env.vigTarget = this.reduceMotion ? 0.3 : 0.5;
+    const sp = 1.3 * Math.min(1, (mag - 0.2) / 0.8) * dt, yaw = this.headYaw;
     // stick up = forward along the gaze, in stage space (x right, -z forward)
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
     let mx = (fx * -s.y + rx * s.x) * sp, mz = (fz * -s.y + rz * s.x) * sp;
+    this.stage.root.updateMatrixWorld(true);          // measure the furniture where it is now
     const boxes = this._boxes(0.28), blocked = (x, z) => boxes.some((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1);
     if (blocked(mx, mz)) { if (!blocked(mx, 0)) mz = 0; else if (!blocked(0, mz)) mx = 0; else { mx = 0; mz = 0; } }
-    const sc = this.stage.scenery, hall = this.app.env.virtual;
-    const nx = sc.position.x - mx, nz = sc.position.z - mz;
-    if (Math.abs(nx) > 6 || nz > 5 || nz < -8) return;
+    const sc = this.stage.scenery, hall = this.app.env.virtual, pull = this.stage.pull;
+    let nx = sc.position.x - mx, nz = sc.position.z - mz;
+    const b = this._bounds();
+    if (b) { const lx = Math.min(b.x1, Math.max(b.x0, -nx)), lz = Math.min(b.z1, Math.max(b.z0, -nz - pull)); nx = -lx; nz = -lz - pull; }   // walls: you can not leave the building or the aircraft
+    else if (Math.abs(nx) > 6 || nz > 5 || nz < -8) return;
     sc.position.set(nx, 0, nz); hall.position.set(nx, 0, nz);
   }
 

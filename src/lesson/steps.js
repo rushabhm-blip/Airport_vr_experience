@@ -207,6 +207,7 @@ const checkin = (d) => {
       d.track(staffScreen(ws, ['PRACTICE AIR · CHECK-IN', P.passengerUpper, 'PA101  BLR → BOM', 'Documents: waiting']), false);
       printer = d.assets.make('boarding-pass-printer'); printer.position.set(0.5, 1.027, 0.1); desk.add(printer);
       d.addScenery(desk, { x: 0, z: -1.5, fixed: true }); d.obstacle(desk);
+      d.setStation({ point: new THREE.Vector3(0, 0, -1.5), label: 'the check-in counter', radius: 1.4 });
       agent = d.addStaff('checkin', 'Check-in agent · practice', desk, [-0.55, 0, -0.85]);
       agent.say('Good morning. Booking and photo ID, please.', 8);
       photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.2]);
@@ -332,11 +333,13 @@ const security = (d) => {
       tableB = d.assets.make('roller-table'); tableB.position.set(0, 0, -3.5); tableB.rotation.y = Math.PI; lane.add(tableB);
       const detector = d.assets.make('walkthrough-detector'); detector.position.set(-1.3, 0, -1.75); lane.add(detector);
       d.addScenery(lane, { x: 0, z: -1.25, fixed: true });
+      d.obstacle(tableA); d.obstacle(xray); d.obstacle(tableB);      // the belt and the machine are solid; the detector frame is a doorway
+      d.setStation({ point: new THREE.Vector3(0, 0, -1.25), label: 'the security lane', radius: 1.7 });
       officer = d.addStaff('security', 'Security officer · practice', lane, [1.05, 0, -0.9]);
       officer.say('Phone and electronics in the tray, please. Bag on the belt.', 9);
       d.addSupport(-0.42, 0.42, -2.0, -0.5, 0.73);
       tray = d.assets.make('security-tray', { actions: false });
-      d.addProp(tray, { radius: 0.28, rest: 'upright', restOffset: 0 }, [-0.05, 0.73, -0.78]);
+      d.addProp(tray, { radius: 0.28, rest: 'upright', restOffset: 0, inScenery: true }, [-0.05, 0.73, -0.78]);
       tray.userData.grab.onRelease = (o) => this.trayReleased(o);
       phone = d.assets.make('smartphone', { actions: false }); phone.scale.setScalar(1.25); phone.rotation.x = -0.5;
       d.addProp(phone, { radius: 0.17, rest: 'flat', restOffset: 0.006 }, [0.22, d.h - 0.4, -0.45]);
@@ -350,7 +353,7 @@ const security = (d) => {
       bag = d.assets.make('cabin-suitcase', { actions: false });
       bag.userData.grabCenter = new THREE.Vector3(0, 0.45, 0);
       bag.scale.setScalar(0.9);
-      d.addProp(bag, { radius: 0.34, rest: 'upright', restOffset: 0 }, [0.3, 0.73, -1.45]);
+      d.addProp(bag, { radius: 0.34, rest: 'upright', restOffset: 0, inScenery: true }, [0.3, 0.73, -1.45]);
       bag.userData.grab.onRelease = (o) => this.bagReleased(o);
       bag.userData.grab.onGrab = () => { if (phase === 'collect') this.gotItem('bag'); };
       d.setPanel({ eyebrow: 'Airport practice · 4 of 8', title: 'Phone and pouch in the tray.', body: 'Pick each one up and put it in the tray.', note: 'Follow the security officer\'s instructions', tone: 'normal', tasks: tasks(), buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
@@ -399,23 +402,17 @@ const security = (d) => {
       return true;
     },
     arrive() {
-      if (!(st.arrived.has('tray') && st.arrived.has('bag')) || phase === 'collect' || phase === 'done') return;
-      phase = 'collect';
-      officer?.say('Please walk through the detector.'); refresh({ title: 'Walk through the detector.', body: 'Wait. We walk you there.', note: 'You stay seated', tasks: tasks() });
-      d.say('Your things are through. Now walk through the metal detector.');
-      const env = d.app.env, sc = d.stage.scenery;
-      // 1) step across to the detector, 2) walk through it, 3) at the exit the lane turns to face you (seated hop).
-      d.moveWorld(1.3, 0, () => d.moveWorld(0, 3.1, () => {
-        env.veil.visible = true;
-        d.tweens.add({ dur: 0.35, update: (e) => { env.veil.material.opacity = e; }, done: () => {
-          sc.position.set(0, 0, 0); env.virtual.position.set(0, 0, 0);
-          lane.rotation.y = Math.PI; lane.position.set(0, 0, -1.25 - 3.5);
-          d.tweens.add({ dur: 0.5, update: (e) => { env.veil.material.opacity = 1 - e; }, done: () => { env.veil.visible = false; } });
-          for (const o of [tray, bag]) { d.input.grabbables.add(o); }   // belongings sit on the near table now
-          refresh({ title: 'Collect your belongings.', body: 'Take your phone and pouch from the tray, then pick up your bag.', note: 'Phone · pouch · bag' });
-          d.say('You are through. Collect your belongings: take your phone from the tray, and pick up your bag.');
-        } });
-      }));
+      if (!(st.arrived.has('tray') && st.arrived.has('bag')) || phase === 'collect' || phase === 'walkthrough' || phase === 'done') return;
+      phase = 'walkthrough';
+      officer?.say('Please walk through the detector.'); refresh({ title: 'Walk through the detector.', body: 'Walk past the machine to collect your things.', note: '', tasks: tasks() });
+      d.say('Your things are through. Now walk through the metal detector, to the end of the belt.');
+      // you walk it yourself: round the machine and through the detector frame to the end of the belt
+      d.setStation({ point: new THREE.Vector3(0, 0, -1.25 - 3.3), label: 'the end of the belt', radius: 1.5, onArrive: () => {
+        phase = 'collect';
+        for (const o of [tray, bag]) { d.input.grabbables.add(o); }
+        refresh({ title: 'Collect your belongings.', body: 'Take your phone and pouch from the tray, then pick up your bag.', note: 'Phone · pouch · bag' });
+        d.say('You are through. Collect your belongings: take your phone and pouch from the tray, and pick up your bag.');
+      } });
     },
     gotItem(k) {
       st.collected.add(k); bel.retrieve(k);
@@ -452,6 +449,7 @@ const gate = (d) => {
       pass = makeDoc(d, 'boarding-pass'); pass.scale.setScalar(1.3); pass.rotation.x = -0.5;
       pass.userData.doc = { type: 'boarding-pass', flight: P.flight, date: P.date, printedGate: P.gateOriginal };
       d.addProp(pass, { radius: 0.2 }, [-0.12, d.h - 0.42, -0.45]);
+      d.setStation({ point: new THREE.Vector3(0.25, 0, -1.9), label: 'the departures board', radius: 3.0 });
       d.setPanel({ eyebrow: 'Airport practice · 5 of 8', title: 'Find your flight.', body: 'Match PA101, then check the gate.', note: 'Your pass shows gate ' + P.gateOriginal, tone: 'normal', buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
     },
     demo() {
@@ -467,8 +465,7 @@ const gate = (d) => {
       state.selected = id; state.highlight = null;
       if (id === 'PA101') {
         finished = true; state.status = 'ok'; board.redraw(); d.voice.beep();
-        d.setPanel({ title: 'Gate 12. Let us walk there.', body: 'Walking towards the gates…', note: 'You stay seated', buttons: [] });
-        d.walkToward(d.surfacePoint(board, 'PA101'), 1.1, () => d.success('Your gate is 12.', 'PA101 to Mumbai leaves from gate 12. Remember: gates can change, so check the screens again.'));
+        d.success('Your gate is 12.', 'PA101 to Mumbai leaves from gate 12. Remember: gates can change, so check the screens again.');
       }
       else { state.status = 'bad'; board.redraw(); d.tweens.add({ dur: 1.4, done: () => { if (!finished) { state.selected = null; state.status = 'idle'; board.redraw(); } } }); d.nudge(`That is ${rows.find((r) => r.id === id).dest}. Your flight is PA101 to Mumbai.`); }
     },
@@ -513,6 +510,7 @@ const gatechange = (d) => {
       pass = makeDoc(d, 'boarding-pass'); pass.scale.setScalar(1.3); pass.rotation.x = -0.5;
       pass.userData.doc = { type: 'boarding-pass', flight: P.flight, date: P.date, printedGate: P.gateOriginal };
       d.addProp(pass, { radius: 0.2 }, [-0.1, d.h - 0.42, -0.45]);
+      d.setStation({ point: new THREE.Vector3(0.4, 0, -2.2), label: 'the gate information', radius: 3.0 });
       d.setPanel({ eyebrow: 'Airport practice · 6 of 8', title: 'Your gate has changed.', body: 'Find gate 18 on the screen.', note: 'Simulated update', tone: 'normal', buttons: [{ id: 'show', label: 'Find gate 18' }, { id: 'help', label: 'Ask airport staff', kind: 'secondary' }] });
       d.voice.beep(); setTimeout(() => d.voice.beep(), 260);
     },
@@ -531,8 +529,7 @@ const gatechange = (d) => {
       if (finished) return;
       if (i === 1) {
         finished = true; signs[1].status = 'ok'; signs[1].glow = false; ov[1].redraw(); d.voice.beep();
-        d.setPanel({ title: 'Gate 18. Let us walk there.', body: 'Following the signs to gate 18…', note: 'You stay seated', buttons: [] });
-        d.walkToward(d.surfacePoint(ov[1], 'sel'), 1.3, () => d.success('Gate 18 is this way.', 'Good catch. Your printed pass says gate 12, but the screen shows the latest gate: 18.'));
+        d.success('Gate 18 is this way.', 'Good catch. Your printed pass says gate 12, but the screen shows the latest gate: 18.');
       }
       else { signs[0].status = 'bad'; ov[0].redraw(); d.tweens.add({ dur: 1.4, done: () => { signs[0].status = 'idle'; ov[0].redraw(); } }); d.nudge('Gate 18 is not between 10 and 15.'); }
     },
@@ -559,7 +556,7 @@ const boarding = (d) => {
       gateAgent = d.addStaff('gate', 'Gate agent · practice', desk, [0.55, 0, -0.9]);
       gateAgent.say('Boarding pass, please. Hold it over the reader.', 9);
       d.addSupport(-0.25 - 0.85, -0.25 + 0.85, -1.0 - 0.38, -1.0 + 0.38, 1.027);
-      const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.1, z: -0.8, ry: 0.3 });
+      const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.1, z: -0.8, ry: 0.3 }); d.obstacle(barrier);
       const gd = d.assets.make('gate-display', { unique: ['EditableScreen'] });
       d.addScenery(gd, { x: 1.7, y: hangBoardY(gd), z: -2.0 }); hangRods(d, gd);
       const gs = screenOverlay(gd, { pxW: 800, paint: (ctx, s) => { ctx.fillStyle = '#0b1f33'; roundRect(ctx, 0, 0, s.pxW, s.pxH, 24); ctx.fill(); ctx.fillStyle = COLORS.yellow; ctx.font = `800 220px ${FONT}`; ctx.fillText('18', 50, s.pxH * 0.52); ctx.fillStyle = '#fff'; ctx.font = `700 54px ${FONT}`; ctx.fillText(`${P.flight} · ${P.to.city}`, 50, s.pxH * 0.72); ctx.fillStyle = '#9fb6c8'; ctx.font = `600 40px ${FONT}`; ctx.fillText(`Boarding ${P.boarding}`, 50, s.pxH * 0.88); } });
@@ -571,15 +568,15 @@ const boarding = (d) => {
       pass.userData.doc = { type: 'boarding-pass', flight: P.flight, date: P.date, printedGate: P.gateOriginal };
       d.addProp(pass, { radius: 0.22, restOffset: 0.004 }, [0.0, d.h - 0.42, -0.45]);
       scan = new PracticeScanner({ flight: P.flight, date: P.date, gate: P.gateChanged });
+      d.setStation({ point: new THREE.Vector3(-0.25, 0, -1.0), label: 'the boarding desk', radius: 1.4 });
       d.setPanel({ eyebrow: 'Airport practice · 7 of 8', title: 'Scan your boarding pass.', body: 'Face the code towards the reader. Hold it steady.', note: 'Gate 18 · PA101', tone: 'normal', buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
     },
     onButton(id) { if (id === 'show') d.startAssist(); if (id === 'help') d.help(); },
     accept() {
       if (done) return;
       done = true; d.voice.success(); d.app.haptic?.(0.7, 120); gateAgent?.say('Thank you. Enjoy your flight!');
-      d.setPanel({ eyebrow: 'Airport practice · 7 of 8', title: 'Boarding pass accepted.', body: 'The reader showed green. Walking down the jet bridge to the aircraft…', note: 'You stay seated', buttons: [], tasks: [] });
-      const exit = d.worldToStage(jb.localToWorld(new THREE.Vector3(0, 0.1, -1.3)));
-      d.walkToward(exit, 0.4, () => d.success('You are on your way.', 'The reader showed green and you may board. Next, walk down the jet bridge and find your seat on the aircraft.'));
+      d.setPanel({ eyebrow: 'Airport practice · 7 of 8', title: 'Boarding pass accepted.', body: 'Walk down the jet bridge.', note: '', buttons: [], tasks: [] });
+      d.setStation({ point: new THREE.Vector3(-0.2, 0, -5.3), label: 'the jet bridge', radius: 1.3, onArrive: () => d.success('You are on your way.', 'The reader showed green and you may board. Next, walk down the jet bridge and find your seat on the aircraft.') });
     },
     demo() {
       if (done) return;
@@ -672,7 +669,7 @@ const seat = (d) => {
   const spots = [], rowsL = [];
   const walkTo = (zW, done) => d.moveWorld(0, userZ - zW, () => { userZ = zW; done?.(); });
   const api = {
-    id: 'seat', scene: 'hall-apron', enclosure: true, people: ['crew'], walkIn: false, noStick: true, assets: ['jetbridge-section', 'aircraft-entry-door', 'aircraft-cabin-section', 'aircraft-seat-row', 'overhead-bin', 'boarding-pass'],
+    id: 'seat', scene: 'hall-apron', enclosure: true, people: ['crew'], walkIn: false, bounds: { x0: -0.95, x1: 0.95, z0: -6.4, z1: 0.6 }, assets: ['jetbridge-section', 'aircraft-entry-door', 'aircraft-cabin-section', 'aircraft-seat-row', 'overhead-bin', 'boarding-pass'],
     voice: 'Walk down the jet bridge to the aircraft. Then find row 14, and seat A.',
     help: 'Your pass says seat 14A. The number is the row, and the letter is the seat. Row numbers hang above the aisle. Seat A is the window seat on the left.',
     helpShort: 'Row 14, window seat A',
@@ -712,69 +709,39 @@ const seat = (d) => {
 
       const pass = makeDoc(d, 'boarding-pass'); pass.scale.setScalar(1.3); pass.rotation.x = -0.5;
       d.addProp(pass, { radius: 0.2 }, [-0.1, d.h - 0.42, -0.45]);
-      d.setPanel({ eyebrow: 'Airport practice · 8 of 8', title: 'Walk to the aircraft.', body: 'Follow the jet bridge to the aircraft door.', note: 'You stay seated · comfort mode in Menu', tone: 'normal', buttons: [{ id: 'walk', label: 'Walk forward' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
+      d.setStation({ point: new THREE.Vector3(0, 0, -6.1), label: 'the aircraft door', radius: 1.3, hint: 'Walk down the jet bridge.', onArrive: () => this.board() });
+      d.setPanel({ eyebrow: 'Airport practice · 8 of 8', title: 'Walk to the aircraft.', body: 'Walk down the jet bridge to the door.', note: '', tone: 'normal', buttons: [] });
     },
     exit() { d.app.env.setMode(prevMode); d.app.env.setHall(true); },
-    onButton(id) {
-      if (id === 'help') return d.help();
-      if (phase === 'bridge' && id === 'walk') return this.walkBridge();
-      if (phase === 'aisle') {
-        if (id === 'walk') return this.walkRow();
-        if (id === 'prev') return this.prevRow();
-        if (id === 'myrow') return this.thisRow();
-      }
-      if (phase === 'seat' && id === 'show') d.startAssist();
-    },
-    walkBridge() {
-      if (phase !== 'bridge') return;
-      phase = 'walking';
-      d.setPanel({ title: 'Walking to the aircraft…', body: 'Down the jet bridge, to the door.', note: 'You stay seated', buttons: [] });
+    onButton(id) { if (id === 'show') d.startAssist(); },
+    board() {   // you reached the aircraft door
+      if (phase !== 'bridge') return; phase = 'aisle'; rows.at = -1; d.voice.beep();
       door.userData.actions?.toggle(0);
-      walkTo(-6.6, () => {
-        phase = 'aisle'; rows.at = -1; d.voice.beep(); crew?.say('Welcome aboard! Row numbers are above the seats.', 8);
-        d.setPanel({ title: 'You are on board.', body: 'Find row 14. Row numbers hang above the aisle.', note: 'Next row takes you forward. Previous row takes you back.', buttons: [{ id: 'walk', label: 'Next row' }, { id: 'myrow', label: 'This is my row', kind: 'secondary' }] });
-        d.say('You are on board. Walk down the aisle and look for row 14. The row numbers hang above the seats.');
-      });
+      crew?.say('Welcome aboard! Row numbers are above the seats.', 8);
+      api.bounds = { x0: -0.4, x1: 0.4, z0: rowZ(3) - 0.9, z1: -4.5 };      // the aisle: you can not walk through the seats or the walls
+      d.setPanel({ title: 'You are on board.', body: 'Find row 14. Row numbers hang above the aisle.', note: '', tone: 'normal', buttons: [] });
+      d.say('You are on board. Walk down the aisle and look for row 14. The row numbers hang above the seats.');
+      d.setStation({ point: new THREE.Vector3(0, 0, standZ(TARGET)), label: 'row 14', radius: 0.9, hint: 'Row numbers hang above the aisle.', onArrive: () => this.atMyRow() });
     },
-    aisleButtons() { return [{ id: 'walk', label: 'Next row' }, ...(rows.atStart ? [] : [{ id: 'prev', label: 'Previous row', kind: 'secondary' }]), { id: 'myrow', label: 'This is my row', kind: 'secondary' }]; },
-    arrivedAtRow() {
-      phase = 'aisle'; const r = rows.current();
-      d.setPanel({ title: r ? `You are at row ${r}.` : 'You are at the door.', body: r ? 'Is this your row?' : 'Find row 14. The numbers hang above the aisle.', note: '', tone: 'normal', buttons: this.aisleButtons() });
-      d.say(r ? `Row ${r}.` : 'You are at the aircraft door.');
-    },
-    walkRow() {
+    atMyRow() {
       if (phase !== 'aisle') return;
-      if (!rows.forward()) { d.nudge('That is the end of the cabin. Choose Previous row to go back.'); return; }
-      phase = 'walking'; walkTo(standZ(rows.at), () => this.arrivedAtRow());
-    },
-    prevRow() {
-      if (phase !== 'aisle') return;
-      if (!rows.back()) { d.nudge('You are at the aircraft door.'); return; }
-      phase = 'walking'; walkTo(rows.at < 0 ? -6.6 : standZ(rows.at), () => this.arrivedAtRow());
-    },
-    thisRow() {
-      if (phase !== 'aisle') return;
-      if (rows.at < 0) { d.nudge(rows.hint()); return; }
-      if (!rows.isTarget()) { d.nudge(rows.hint()); return; }
-      phase = 'seat'; d.voice.success();
+      phase = 'seat'; rows.at = TARGET; d.voice.success();
       d.setPanel({ title: 'Find seat 14A.', body: 'Row 14 is here. A is the window seat, on the left side of the aircraft.', note: 'Point at the seat and pinch', buttons: [{ id: 'show', label: 'Show me' }] });
       d.say('This is row 14. Now find seat A, the window seat on your left.');
     },
+    update() {
+      if (phase !== 'aisle' && phase !== 'seat') return;
+      const uz = -d.stage.scenery.position.z - d.stage.pull;     // where you stand along the aircraft
+      const before = rows.at; rows.syncFromPosition(uz, standZ);
+      if (rows.at !== before && phase === 'aisle') { const r = rows.current(); d.panel.set({ minimalHint: r ? `You are at row ${r}. ${rows.at > TARGET ? 'Row 14 is behind you.' : 'Keep going to row 14.'}` : 'Find row 14.' }); }
+    },
     demo() {
-      const hand = (p, say, apply, dur = 1.4) => d.runDemo([{ p, dur }, { p: [p[0], p[1], p[2] - 0.5], dur: 0.7, press: true }], { say, apply });
-      if (finished || d.walking) return;
-      if (phase === 'bridge') hand([0, d.h - 0.15, -0.8], 'We walk down the jet bridge to the aircraft door.', () => this.walkBridge());
-      else if (phase === 'aisle') {
-        if (rows.at < TARGET) hand([0, d.h - 0.15, -0.8], 'We walk along the aisle and read the row numbers. You are looking for row 14.', () => this.walkRow());
-        else if (rows.at > TARGET) hand([0, d.h - 0.15, -0.8], 'Row 14 is behind us. We go back one row.', () => this.prevRow());
-        else hand([0, d.h + 0.3, -0.9], 'Row 14. This is the row on your boarding pass.', () => this.thisRow());
-      } else if (phase === 'seat') {
-        const s = spots.find((q) => q.row === TARGET && q.side === -1 && q.i === 2);
-        s.hot.flash(true);
-        const c = d.worldToStage(s.hot.mesh.getWorldPosition(new THREE.Vector3()));
-        d.runDemo([{ p: [c.x + 0.9, c.y + 0.2, c.z + 0.6], dur: 1.5 }, { p: [c.x + 0.35, c.y + 0.12, c.z + 0.25], dur: 0.7, press: true }],
-          { say: 'Your pass says 14A. Row 14, letter A, the window seat on the left. Point at it and pinch, like this. You do not need to sit.', apply: () => this.pick(TARGET, -1, 2) });
-      }
+      if (finished || d.walking || phase !== 'seat') return;
+      const sp = spots.find((q) => q.row === TARGET && q.side === -1 && q.i === 2);
+      sp.hot.flash(true);
+      const c = d.worldToStage(sp.hot.mesh.getWorldPosition(new THREE.Vector3()));
+      d.runDemo([{ p: [c.x + 0.9, c.y + 0.2, c.z + 0.6], dur: 1.5 }, { p: [c.x + 0.35, c.y + 0.12, c.z + 0.25], dur: 0.7, press: true }],
+        { say: 'Your pass says 14A. Row 14, letter A, the window seat on the left. Point at it and pinch, like this. You do not need to sit.', apply: () => this.pick(TARGET, -1, 2) });
     },
     pick(r, side, i) {
       if (finished || phase !== 'seat') { if (!finished && phase === 'aisle') d.nudge('First find your row, then choose a seat.'); return; }
@@ -826,7 +793,7 @@ const packing = (d) => {
   ];
   const zoneOf = (o) => { for (const k of Object.keys(ZX)) { const p = o.position; if (Math.abs(p.x - ZX[k]) < 0.21 && Math.abs(p.z - ZZ) < 0.24 && Math.abs(p.y - ZY()) < 0.3) return k; } return null; };
   const api = {
-    id: 'packing', scene: 'home', walkIn: false, assets: ['laptop', 'smartphone', 'wallet', 'practice-id', 'cabin-suitcase', 'checked-suitcase', 'baggage-scale'],
+    id: 'packing', scene: 'home', roam: false, walkIn: false, assets: ['laptop', 'smartphone', 'wallet', 'practice-id', 'cabin-suitcase', 'checked-suitcase', 'baggage-scale'],
     voice: 'Pack at home, so the airport is calm. Put all your electronics together in one pouch, keep your documents in the front pocket, and the heavy things go in the checked bag.',
     help: 'At home, put laptop, tablet, power bank and charger together in one pouch at the top of your cabin bag. At security you take out just that pouch. Power banks never go in the checked bag.',
     helpShort: 'Electronics together, power bank in cabin',
@@ -915,7 +882,7 @@ const packing = (d) => {
 const phone = (d) => {
   let phase = 'read';
   const api = {
-    id: 'phone', scene: 'home', table: false, walkIn: false, panelOffset: 0.9, assets: [],
+    id: 'phone', scene: 'home', roam: false, table: false, walkIn: false, panelOffset: 0.9, assets: [],
     voice: 'You are at home. You take your phone out of your pocket. Your booking is ready.',
     help: 'Your booking is on your phone. Point at the notification and pinch, or press the trigger, to open it. Read the flight, the time and the terminal. Then choose Ready for the airport.',
     enter() {
@@ -968,7 +935,7 @@ function terminalSign(label, arrow, onPick) {
 const cab = (d) => {
   let phase = 'board', cabMesh, driver, inside, facade; const signs = [];
   const api = {
-    id: 'cab', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
+    id: 'cab', scene: 'outdoor', roam: false, people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
     voice: 'Your cab is here.',
     help: 'Your cab is waiting. Choose Get in. Later, look for the terminal on your booking: it says Terminal 2. Point at that sign.',
     enter() {
@@ -1034,7 +1001,7 @@ const kerb = (d) => {
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.castShadow = true; return b; };
   const api = {
-    id: 'kerb', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: ['terminal-sliding-doors', 'terminal-sign', 'luggage-trolley'],
+    id: 'kerb', scene: 'outdoor', people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, bounds: { x0: -3, x1: 3, z0: -3.2, z1: 3 }, assets: ['terminal-sliding-doors', 'terminal-sign', 'luggage-trolley'],
     voice: 'You have arrived at the airport. Step out of the cab.',
     help: 'The cab has stopped at the terminal. Tap Get out, and the entrance is straight ahead.',
     enter() {
@@ -1043,22 +1010,22 @@ const kerb = (d) => {
       if (ct) {
         const cw = 4.4, ch = cw * 712 / 1500;
         cab = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch).translate(0, ch / 2, 0), new THREE.MeshBasicMaterial({ map: ct, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, toneMapped: false }));
-        d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true });
+        d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); d.obstacle(cab);
       }
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-0.7, 0, -1.3]);
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 });
       d.track(screenOverlay(ksign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures', arrow: '↑', state: { glow: false } }) }), false);
-      d.addScenery(d.assets.make('luggage-trolley'), { x: 0.9, z: -1.2, ry: 0.4 });
+      d.obstacle(d.addScenery(d.assets.make('luggage-trolley'), { x: 0.9, z: -1.2, ry: 0.4 }));
       facadePlane(d, 17, 8.5);
       d.setPanel({ title: 'You have arrived.', body: 'Step out of the cab.', note: '', tone: 'normal', buttons: [{ id: 'out', label: 'Get out' }] });
     },
     onButton(b) { if (b === 'out') this.out(); },
     out() {
       if (phase !== 'cab') return; phase = 'walk'; d.voice.success();
-      d.setPanel({ title: 'Walk to the entrance.', body: '', buttons: [] });
+      d.setPanel({ title: 'Walk to the entrance.', body: 'Walk up to the doors.', buttons: [] });
       d.say('Thank you, and have a good flight. Now walk to the entrance.'); driver?.say('Have a good flight!', 6);
-      d.walkToward(d.worldToStage(doors.getWorldPosition(new THREE.Vector3())), 0.5, () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue'));
+      d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance', radius: 1.5, onArrive: () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue') });
     },
     demo() { if (phase !== 'cab') return; d.runDemo([{ p: [0, d.h - 0.2, -0.9], dur: 1.0 }, { p: [0, d.h - 0.2, -1.3], dur: 0.6, press: true }], { say: 'Tap Get out, like this.', apply: () => this.out() }); },
   };
@@ -1067,17 +1034,18 @@ const kerb = (d) => {
 
 /* ------------------------------------------------------------------ 3. arrive at the terminal and enter */
 const arrival = (d) => {
-  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false;
+  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors;
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   const api = {
-    id: 'arrival', scene: 'outdoor', people: ['guard'], panelOffset: 0.95, walkDist: 1.0, assets: ['terminal-sliding-doors', 'terminal-sign', 'information-desk', 'booking-document', 'practice-id', 'luggage-trolley'],
+    id: 'arrival', scene: 'outdoor', people: ['guard'], panelOffset: 0.95, walkDist: 1.6, bounds: { x0: -2.6, x1: 2.6, z0: -2.9, z1: 3.5 }, assets: ['terminal-sliding-doors', 'terminal-sign', 'information-desk', 'booking-document', 'practice-id', 'luggage-trolley'],
     voice: 'You have arrived at the airport. You already know your terminal from your booking. Check that the sign matches, then show your ticket and photo I D to the guard at the entrance.',
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });
+      rmDoors = d.obstacle(doors);      // shut until the guard has checked you
       const st = { glow: false };
       signSurf = screenOverlay(sign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures · Entry 3', arrow: '↑', state: st }) });
       d.track(signSurf, false);
@@ -1089,6 +1057,7 @@ const arrival = (d) => {
       d.addScenery(d.assets.make('luggage-trolley'), { x: -1.8, z: -1.0, ry: 0.4 });
       zoneMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: COLORS.tealGlow, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
       zoneMesh.position.set(0, 1.032, 0.03); desk.add(zoneMesh);
+      d.setStation({ point: new THREE.Vector3(0, 0, -1.3), label: "the guard's desk", radius: 1.4 });
       this.matched();   // you already know your terminal: go straight to the guard
     },
     onButton(b) {
@@ -1115,10 +1084,11 @@ const arrival = (d) => {
     },
     pass() {
       if (phase !== 'docs') return; phase = 'walk'; d.voice.success();
-      d.setPanel({ title: 'Thank you. You may go in.', body: 'The doors are opening. Walking into Terminal 2…', note: 'You stay seated', buttons: [] });
+      d.setPanel({ title: 'Thank you. You may go in.', body: 'Walk through the doors.', note: '', buttons: [] });
       for (const a of [0, 1]) doors.userData.actions?.toggle(a);
-      d.say('Thank you. You may go in.'); guard?.say('Thank you. Please go in.');
-      d.walkToward(d.worldToStage(doors.getWorldPosition(new THREE.Vector3())), 0.2, () => { finished = true; d.success('You are inside Terminal 2.', 'Ticket and ID checked. Next, find your airline\'s check-in counter.'); });
+      rmDoors?.(); api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4, z1: 3.5 };   // the doors are open: you may walk through
+      d.say('Thank you. You may go in. Walk through the doors.'); guard?.say('Thank you. Please go in.');
+      d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance doors', radius: 1.2, onArrive: () => { finished = true; d.success('You are inside Terminal 2.', 'Ticket and ID checked. Next, find your airline\'s check-in counter.'); } });
     },
     demo() {
       if (finished) return;

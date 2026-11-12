@@ -27,6 +27,10 @@ export class Interactions {
     this.mouse = null;
     this.showJoints = false;
     this.listeners = {};
+    this.keys = new Set();   // desktop walking: W A S D
+    addEventListener('keydown', (e) => { if (e.target?.tagName !== 'INPUT' && /^[wasd]$/i.test(e.key)) this.keys.add(e.key.toLowerCase()); });
+    addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+    addEventListener('blur', () => this.keys.clear());
 
     for (let i = 0; i < 2; i++) this.pointers.push(this._makeXRPointer(i));
     this._makeMouse();
@@ -227,6 +231,13 @@ export class Interactions {
     this.raycaster.ray.origin.setFromMatrixPosition(p.controller.matrixWorld);
     this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(_m).normalize();
     return this.raycaster;
+  }
+
+  /** Walking input as a stick-like vector: the left thumbstick, or W A S D on the desktop. y < 0 is forward. */
+  walkAxes() {
+    const s = this.stick('left');
+    if (Math.hypot(s.x, s.y) > 0.01) return s;
+    return { x: (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0), y: (this.keys.has('s') ? 1 : 0) - (this.keys.has('w') ? 1 : 0) };
   }
 
   /** Thumbstick of a controller (-1..1), preferring the left one for walking. */

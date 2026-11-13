@@ -29,7 +29,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   floorTex = terrazzoTexture(); floorTex.repeat.set((HX * 2) / 3, (Z1 - ZW) / 3);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, Z1 - ZW).rotateX(-Math.PI / 2), std(0xffffff, { roughness: 0.16, map: floorTex, envMapIntensity: 0.9 }));
   floor.position.set(0, 0, (ZW + Z1) / 2); g.add(floor);
-  applyPbr(floor.material, 'marble_01', HX * 2 / 5, (Z1 - ZW) / 5, { normal: 0.6, rough: 0.38, tint: 0xe6ebf0 });   // real polished tile, photographed (Poly Haven, CC0)
+  applyPbr(floor.material, 'marble_01', HX * 2 / 5, (Z1 - ZW) / 5, { normal: 0.6, rough: 0.38, tint: 0xc4c9ce });   // real polished tile, photographed (Poly Haven, CC0)
 
   // ---- a gentle barrel vault with light strips and downlights
   const span = HX * 2, sag = CROWN - EAVE, R = (span * span) / (8 * sag) + sag / 2, half = Math.asin(HX / R), len = Z1 - ZW;
@@ -142,7 +142,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (const a of plants) { P.plant(...a); RL.blob(a[0], a[1], 0.95 * a[2]); }
   const real = plants.map((a, i) => ['fern_02', a[0] - 0.25 * a[2], 0.78 * a[2], a[1] - 0.2 * a[2], i * 2.1, 0.55 * a[2]]);       // a real fern in every planter
   // ---- realism: window sunlight, contact shadows, ceiling fittings and signs
-  RL.sun([-HX, ZW], [HX, ZW], [0, 1], 12, { opacity: 0.5, shear: 0.35 });
+  RL.sun([-HX, ZW], [HX, ZW], [0, 1], 12, { opacity: 0.2, shear: 0.35 });
   for (const [cx, cz] of [[-20, -3], [-8, -3], [8, -3], [20, -3], [-20, 10], [-8, 10], [8, 10], [20, 10]]) RL.blob(cx, cz, 1.6);
   for (const [x0, z, n] of [[-22, -7.2, 14], [8, -7.2, 14]]) RL.slab(x0 + (n - 1) * 0.28, z, n * 0.56 + 0.4, 0.95);
   for (const bx of [-22, -12, 6, 16]) { RL.slab(bx + 7 * 0.28, 3, 8 * 0.56 + 0.4, 0.95); RL.slab(bx + 7 * 0.28, 4.1, 8 * 0.56 + 0.4, 0.95); }

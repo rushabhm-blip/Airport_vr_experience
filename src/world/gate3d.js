@@ -146,7 +146,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   mergeStatic(static_);
 
   // ================= PEOPLE =================
-  const crowd = new Crowd({ capacity: 130, seed: 23, density });
+  const crowd = new Crowd({ capacity: 130, seed: 23, density, glb: density < 0.7 ? { size: 4, radius: 5 } : { size: 12, radius: 9 } });
   const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
   // seated, rows facing the windows and back-to-back rows: most seats taken, bags at their feet, phones in hand
   const sit = (x0, z, n, yaw, p = 0.62) => { for (let i = 0; i < n; i++) if (rr() < p) crowd.sitter(x0 + i * 0.56, z + 0.04, yaw, { phone: rr() < 0.45, bag: rr() < 0.45 ? 'roll' : null, elder: rr() < 0.35 }); };

@@ -1019,7 +1019,7 @@ function taxiBillboard(state = 'closed') {
 
 /** Travellers on the forecourt in front of the terminal: arriving with trolleys and bags, heading for the doors, standing in groups. */
 function forecourtCrowd(d, seed = 31) {
-  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1 }), rr = c.rng;
+  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5 } : { size: 8, radius: 9 } }), rr = c.rng;
   c.walker([[5.5, -1.2], [15, -1.2], [5.5, -2.6], [-14, -2.2]], { speed: 1.2, bag: 'roll' });
   c.walker([[-6, -3.4], [-15, -3.4], [8, -3.0]], { speed: 1.1, bag: 'pack', elder: true });
   c.trolley([[9, 3.2], [3.2, -1.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-3.4, -1.8], [-9, 3.6]], { speed: 0.9 });

@@ -152,7 +152,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   // information desk and a row of luggage trolleys near the entrance
   add(new THREE.BoxGeometry(5, 1.1, 1.2), white, 0, 0.55, 15); add(new THREE.BoxGeometry(5.1, 0.06, 1.3), dark, 0, 1.13, 15); add(new THREE.BoxGeometry(5.02, 0.06, 1.22), teal, 0, 0.78, 15);
   add(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 8), steel, -2.2, 1.15, 15); add(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 8), steel, 2.2, 1.15, 15);
-  sign(INFO, 4.4, 0.65, 0, 2.55, 15);
+  sign(INFO, 4.4, 0.65, 0, 2.55, 15, Math.PI);
   for (let i = 0; i < 9; i++) { const x = -9 + i * 0.62, z = 19; add(new THREE.BoxGeometry(0.5, 0.04, 0.8), steel, x, 0.2, z); add(new THREE.BoxGeometry(0.03, 0.8, 0.03), steel, x - 0.23, 0.6, z + 0.35); add(new THREE.BoxGeometry(0.03, 0.8, 0.03), steel, x + 0.23, 0.6, z + 0.35); add(new THREE.BoxGeometry(0.5, 0.03, 0.03), steel, x, 1.0, z + 0.35); add(new THREE.BoxGeometry(0.5, 0.4, 0.03), steel, x, 0.45, z - 0.3); }
 
   // outside the glass: a tree line, low hills and a kerb
@@ -175,7 +175,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   mergeStatic(static_);                       // a few hundred shapes become a handful of draw calls
 
   // ================= PEOPLE =================
-  const crowd = new Crowd({ capacity: 150, seed: 11, density });
+  const crowd = new Crowd({ capacity: 150, seed: 11, density, glb: density < 0.7 ? { size: 4, radius: 5 } : { size: 12, radius: 9 } });
   const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
   // queues in front of the check-in counters (they shuffle forward and are served)
   const lane = (cx, cz, i, side, n) => {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildPeopleGeometries, faceAtlas } from './peopleparts.js';
+import { GlbPeople } from './glbcrowd.js';
 
 /**
  * An airport crowd: walkers, runners, people waiting in queues, people seated or standing with luggage, families with children and
@@ -49,7 +50,7 @@ function geometries() {
 }
 
 export class Crowd {
-  constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true } = {}) {
+  constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true, glb = null } = {}) {
     if (density < 0.7) { nearMax = Math.min(nearMax, 14); nearR = Math.min(nearR, 9.5); }      // on a headset: fewer detailed people, and only the closest
     this.group = new THREE.Group(); this.group.name = 'Crowd';
     this.pace = 0.62; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
@@ -61,6 +62,7 @@ export class Crowd {
       m.count = 0; m.frustumCulled = false; m.castShadow = false; m.name = 'crowd-' + p; this.group.add(m); this.meshes[p] = m;
     }
     this.nearR = nearR; if (detailed) this._initDetail(nearMax);
+    if (glb) this.glb = new GlbPeople(this.group, glb);                     // real characters for the people nearest to you
     this._m = new THREE.Matrix4(); this._b = new THREE.Matrix4(); this._l = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._e = new THREE.Euler(); this._v = new THREE.Vector3(); this._s = new THREE.Vector3(); this._c = new THREE.Color();
   }
 
@@ -76,6 +78,7 @@ export class Crowd {
       skin: this.pick(SKIN), shirt: this.pick(SHIRT), trouser: this.pick(TROUSER), dress: female && !child && r() < 0.4 ? this.pick(SAREE) : 0,
       hair: elder ? this.pick(HAIR.slice(4)) : this.pick(HAIR.slice(0, 4)), shoe: 0x1c1c1e, stride: 0, onDone: null, path: null, pi: 0, leader: null, offset: null, idx: -1, spin: r() * 6,
     };
+    p.skinIdx = Math.max(0, SKIN.indexOf(p.skin)); p.hairIdx = Math.max(0, HAIR.indexOf(p.hair)); p.seedA = (r() * 4294967295) >>> 0; p.vNow = 0;
     p.idx = this.people.length; this.people.push(p);
     for (const k of PARTS) this.meshes[k].count = Math.max(this.meshes[k].count, p.idx + 1);
     // colours (fixed per person)
@@ -132,6 +135,7 @@ export class Crowd {
     v *= this.pace;                                       // a calm pace for VR: people walk slower than in real life so you can take them in
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
     if (d < 0.06) return true;
+    p.vNow = v;
     const step = Math.min(d, v * dt);
     p.x += (dx / d) * step; p.z += (dz / d) * step;
     p.yaw += wrapPi(Math.atan2(dx, dz) - p.yaw) * Math.min(1, dt * 7);
@@ -141,7 +145,7 @@ export class Crowd {
   }
 
   _step(p, dt) {
-    p.t += dt; p.stride = 0;
+    p.t += dt; p.stride = 0; p.vNow = 0;
     switch (p.mode) {
       case 'loop': {
         const a = p.path[p.pi]; if (this._go(p, a[0], a[1], p.speed * (p.run ? 2.6 : 1), dt)) p.pi = (p.pi + 1) % p.path.length;
@@ -297,7 +301,7 @@ export class Crowd {
 
   _hideD(part, k) { this._zero = this._zero || new THREE.Matrix4().makeScale(0, 0, 0); this.dmeshes[part].setMatrixAt(k, this._zero); }
 
-  _drawDetail(p, k, o) {
+  _drawDetail(p, k, o, realBody = false) {
     const s = p.scale, B = this._b, L = this._l, V = this._v, D = this.dmeshes, [M1, M2, M3, M4, M5, M6] = this._dm;
     B.compose(V.set(p.x, p.y + o.bob * s - o.drop, p.z), this._q.setFromEuler(this._e.set(o.lean, p.yaw, o.sway, 'YXZ')), this._s.set(s, s, s));
     const put = (part, M) => D[part].setMatrixAt(k, M);
@@ -336,6 +340,7 @@ export class Crowd {
     else if (p.bag === 'cart') {
       L.makeRotationX(0); L.setPosition(0, 0, 0.62); M5.multiplyMatrices(B, L); put('cart', M5); L.setPosition(0, 0.24, 0.62); M6.multiplyMatrices(B, L); put('suitcase', M6); none('pack');
     } else { none('suitcase'); none('pack'); none('cart'); }
+    if (realBody) for (const part of this.dparts) if (part !== 'suitcase' && part !== 'pack' && part !== 'cart') this._hideD(part, k);      // a real character is drawn instead of the built one; only the luggage stays
   }
 
   /** The arms of the detailed model: where the shoulder and the elbow bend for this activity (the simple model keeps o.arm). */
@@ -354,7 +359,7 @@ export class Crowd {
     dt = Math.min(dt, 0.1); this.time += dt;
     this._updateQueues(dt);
     let near = 0; const R2 = (this.nearR ?? 15) ** 2, detail = !!this.dmeshes && !!camera;
-    if (detail) { camera.getWorldPosition(this._cam); this.group.worldToLocal(this._cam); }
+    if (detail) { camera.getWorldPosition(this._cam); this.group.worldToLocal(this._cam); this.glb?.assign(this.people, this._cam); }
     for (const p of this.people) {
       this._step(p, dt);
       const d2 = detail ? (p.x - this._cam.x) ** 2 + (p.z - this._cam.z) ** 2 + ((p.y - this._cam.y + 1.4) ** 2) * 0.3 : Infinity;
@@ -362,13 +367,14 @@ export class Crowd {
         if (!p.looked) { this._look(p); p.looked = true; }
         const k = near++;
         if (this.slotOwner[k] !== p) { this.slotOwner[k] = p; this._colorsD(p, k); }
-        this._drawDetail(p, k, this._poseD(p, this._pose(p)));
+        this._drawDetail(p, k, this._poseD(p, this._pose(p)), !!p.glb);
         if (!p.hidFar) { for (const part of PARTS) this._hide(part, p.idx); p.hidFar = true; }
       } else { p.hidFar = false; this._draw(p); }
     }
     if (this.dmeshes) for (const k of this.dparts) { const m = this.dmeshes[k]; m.count = near; m.instanceMatrix.needsUpdate = true; }
+    this.glb?.update(dt);
     for (const k of PARTS) this.meshes[k].instanceMatrix.needsUpdate = true;
   }
 
-  dispose() { for (const m of [...Object.values(this.meshes), ...Object.values(this.dmeshes || {})]) { m.geometry.dispose(); } this.group.removeFromParent(); }
+  dispose() { this.glb?.dispose(); for (const m of [...Object.values(this.meshes), ...Object.values(this.dmeshes || {})]) { m.geometry.dispose(); } this.group.removeFromParent(); }
 }

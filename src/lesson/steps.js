@@ -1034,7 +1034,7 @@ const cab = (d) => {
   const api = {
     id: 'cab', scene: 'outdoor', roam: false, people: ['driver'], table: false, panelOffset: 0.8, walkIn: false, assets: [],
     voice: 'Your cab is here.',
-    help: 'Your cab is waiting. Choose Get in. Later, look for the terminal on your booking: it says Terminal 2. Point at that sign.',
+    help: 'Your cab is waiting. Choose Get in. The driver will ask which terminal. Your booking says Terminal 2.',
     enter() {
       d.app.env.setOutdoorTheme('home');                                   // the street outside the traveller's home
       cabMesh = taxiBillboard('closed');
@@ -1049,50 +1049,42 @@ const cab = (d) => {
     update(dt) { road?.update(dt); },
     exit() { road?.dispose(); road = null; },
     staffLine() { return phase === 'terminal' ? 'Which terminal, please? Your booking will tell you.' : 'Take your time. Get in whenever you are ready.'; },
-    onButton(b) { if (b === 'in') this.board(); if (b === 'cont' && phase === 'rideDone') this.terminal(); },
+    onButton(b) { if (b === 'in') this.board(); if (b === 't1') this.pick(1); if (b === 't2') this.pick(2); },
     board() {
-      if (phase !== 'board') return; phase = 'ride'; d.voice.success();
-      d.setPanel({ title: 'On the way to the airport.', body: 'Sit back. You stay seated.', note: '', tone: 'normal', buttons: [] });
-      d.say('Off we go. Sit back. You stay seated while the cab takes you to the airport.');
+      if (phase !== 'board') return; phase = 'terminal'; d.voice.success();
       if (cabMesh?.userData.open) cabMesh.material.map = cabMesh.userData.open;       // the rear door swings open
+      d.setPanel({ title: 'Which terminal, please?', body: 'Check your booking on the phone, then choose.', note: '', tone: 'normal', buttons: [{ id: 't1', label: 'Terminal 1' }, { id: 't2', label: 'Terminal 2' }] });
+      d.panel.set({ chips: d._chips() });
       d.tweens.add({ delay: d.reduceMotion ? 0.1 : 1.1, dur: 0.01, done: () => blink(d, () => {
-        d.app.env.setOutdoorTheme('airport');
         if (cabMesh) cabMesh.visible = false; if (driver) driver.root.visible = false;
-        interior = cabPlate(d); d.stage.props.add(interior);                      // the real cab interior (the driver is in the photograph)
-        road = new RoadVideo(d.stage.props, Math.max(1.0, d.h)); road.preload('road-arrival'); road.play('road-drive', false, 0.86);      // slowed a little so the one clip lasts the whole ride, with no loop jump
-            // the road moves past the windscreen; the side windows slide
-        d.app.env.driveSpeed = 0;
-        const sc = d.stage.scenery, dur = d.reduceMotion ? 0.6 : 9;
-        d.tweens.add({ dur, update: (e) => { sc.position.z = 44 * (1 - Math.pow(1 - e, 2)); }, done: () => {
-          d.app.env.driveSpeed = 0; road?.stop();
-          if (phase !== 'ride') return; phase = 'rideDone';
-          d.setPanel({ title: 'You are at the airport.', body: 'Continue to choose your terminal.', note: '', tone: 'normal', buttons: [{ id: 'cont', label: 'Continue' }] }); d.say('You are at the airport.');
-        } });
+        interior = cabPlate(d); d.stage.props.add(interior);                      // you are inside the cab, still at home; the driver turns and asks
+        road = new RoadVideo(d.stage.props, Math.max(1.0, d.h)); road.preload('road-drive'); road.preload('road-arrival');
+        d.say('Which terminal, please? Your booking will tell you.');
       }) });
     },
-    terminal() {
-      phase = 'terminal';
-      const mk = (label, arrow, x, n) => { const s = terminalSign(label, arrow, () => this.pick(n)); d.addSurface(s, { pos: [x, 1.55, -3.6 - d.stage.scenery.position.z], ry: 0, parent: d.stage.scenery }); signs.push(s); };   // the road has moved on: place them 3.6 m ahead of the cab now
-      mk('Terminal 1', '←', -1.1, 1); mk('Terminal 2', '→', 1.1, 2);
-      d.setPanel({ title: 'Which terminal is yours?', body: 'Check your booking on the phone, then point at the sign.', note: '', tone: 'normal', buttons: [] });
-      d.say('We are at the airport. Which terminal is yours? Check your booking on the phone, then point at the sign.');
-      d.panel.set({ chips: d._chips() });
+    /** A stretch of the ride that lasts at least `sec` seconds (a blink in the fade comfort mode), then calls done. */
+    leg(sec, done) {
+      if (d.app.comfort === 'fade') { d.tweens.add({ delay: sec, dur: 0.01, done }); return; }
+      d.moveWorld(0, 20, done, { route: false, min: sec, speed: 99 });
     },
     pick(n) {
       if (phase !== 'terminal') return;
       if (n !== 2) { d.nudge('That is Terminal 1. Your booking says Terminal 2. Open the phone to check.'); return; }
-      phase = 'drive'; d.voice.success();
-      for (const s of signs) s.mesh.visible = false;
-      d.setPanel({ title: 'Terminal 2.', body: 'The cab takes you to the entrance.', note: '', tone: 'normal', buttons: [] });
+      phase = 'ride'; d.voice.success();
+      d.setPanel({ title: 'Terminal 2.', body: 'Sit back. The cab takes you to the entrance.', note: '', tone: 'normal', buttons: [] });
       d.say('Terminal two. The driver takes you to the entrance.');
-      d.app.env.driveSpeed = 0; road?.play('road-arrival', false);                  // the second clip: along the road and up to the terminal
-      const arrive = () => d.moveWorld(0, 18.5, () => { road?.stop(); d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'); }, { route: false, min: 9.8, speed: 1.9 });
-      if (road && d.app.comfort === 'fade') d.tweens.add({ delay: 9.0, dur: 0.01, done: arrive }); else arrive();      // with the blink comfort option, let the whole clip play before the jump
+      d.app.env.driveSpeed = 0;
+      road?.play('road-drive', false, 0.86);                                         // the road moves past the windscreen; the side windows slide
+      this.leg(d.reduceMotion ? 0.6 : 9.2, () => {
+        if (phase !== 'ride') return;
+        d.app.env.setOutdoorTheme('airport');                                        // the airport comes into view
+        road?.play('road-arrival', false);                                           // the second clip: along the road and up to the terminal
+        this.leg(d.reduceMotion ? 0.6 : 9.8, () => { road?.stop(); d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'); });
+      });
     },
     demo() {
       if (phase === 'board') { const to = d.surfacePoint(d.panel, 'in', 0.03), near = d.surfacePoint(d.panel, 'in', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.1 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Choose Get in, like this.', apply: () => this.board() }); }
-      else if (phase === 'rideDone') { const to = d.surfacePoint(d.panel, 'cont', 0.03), near = d.surfacePoint(d.panel, 'cont', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.0 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Choose Continue when you are ready.', apply: () => this.terminal() }); }
-      else if (phase === 'terminal') { const s = signs[1]; const to = d.surfacePoint(s, 'sel', 0.05), near = d.surfacePoint(s, 'sel', 0.3); d.runDemo([{ p: near.toArray(), dur: 1.2 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Your booking says Terminal 2. Point at that sign, like this.', apply: () => this.pick(2) }); }
+      else if (phase === 'terminal') { const to = d.surfacePoint(d.panel, 't2', 0.03), near = d.surfacePoint(d.panel, 't2', 0.14); d.runDemo([{ p: near.toArray(), dur: 1.2 }, { p: to.toArray(), dur: 0.5, press: true }], { say: 'Your booking says Terminal 2. Choose that one, like this.', apply: () => this.pick(2) }); }
     },
   };
   return api;

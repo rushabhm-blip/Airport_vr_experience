@@ -10,11 +10,13 @@ const FILES = [
   'cab-side.png', 'person-driver.png', 'view-cab-window.jpg', 'kerb-golden.jpg', 'xray-bag-lying.jpg',
   'home-street.jpg', 'side-left.jpg', 'side-right.jpg', 'cab-side-closed.jpg', 'cab-side-door-open.jpg', 'cab-rear-boot.jpg', 'security-hall.jpg', 'gate-lounge.jpg',
   'aircraft-window-seat.jpg', 'sky-clouds.jpg', 'checkin-hall.jpg', 'aircraft-sidewall-texture.jpg', 'aircraft-ceiling-texture.jpg', 'overhead-bin-texture.jpg', 'checkin-counter-texture.jpg',
-  'home-living-room.webp', 'hall-360.webp', 'gate-360.webp', 'home-street-360.webp', 'airport-kerb-360.webp', 'brushed-steel.jpg', 'conveyor-rubber.jpg', 'security-tray-plastic.jpg', 'white-counter-laminate.jpg', 'airport-floor-tile.jpg', 'blue-grey-carpet.jpg',
+  'home-living-room-v2.jpg', 'hall-360-v2.jpg', 'gate-360-v2.jpg', 'home-street-360-v2.jpg', 'airport-kerb-360-v2.jpg', 'brushed-steel.jpg', 'conveyor-rubber.jpg', 'security-tray-plastic.jpg', 'white-counter-laminate.jpg', 'airport-floor-tile.jpg', 'blue-grey-carpet.jpg',
   'item-powerbank.jpg', 'item-tablet.jpg', 'item-pouch.jpg', 'item-charger.jpg', 'item-clothes.jpg', 'item-bottle.jpg',
 ];
 
 export const IMG = {};            // name (no extension) -> HTMLImageElement
+// the 360-degree panoramas are loaded as ...-v2 files; the rest of the app keeps using the short names
+const PANO_ALIAS = { 'home-living-room': 'home-living-room-v2', 'hall-360': 'hall-360-v2', 'gate-360': 'gate-360-v2', 'home-street-360': 'home-street-360-v2', 'airport-kerb-360': 'airport-kerb-360-v2' };
 const cache = new Map();
 
 export async function loadImages(base = './assets/images/', onProgress) {
@@ -25,6 +27,7 @@ export async function loadImages(base = './assets/images/', onProgress) {
     im.onerror = () => { onProgress?.(++done, FILES.length); res(); };
     im.src = base + f;
   })));
+  for (const [a, b] of Object.entries(PANO_ALIAS)) if (IMG[b]) IMG[a] = IMG[b];
 }
 
 const finish = (t, { repeat = null, srgb = true } = {}) => {
@@ -52,6 +55,36 @@ export function cropTexture(name, [x, y, w, h], { mirror = false } = {}) {
   if (mirror) { g.save(); g.translate(w * 2, 0); g.scale(-1, 1); g.drawImage(im, x, y, w, h, 0, 0, w, h); g.restore(); }
   const t = finish(new THREE.CanvasTexture(c)); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   cache.set(k, t); t.userData.aspect = c.width / c.height; return t;
+}
+
+/**
+ * A 360-degree panorama texture, tidied for use inside a sphere: the two ends are colour-matched so there is no step at the back seam,
+ * and the pinched rows at the very top and bottom (the poles) are softened into an even colour.
+ */
+export function panoTexture(name) {
+  const im = IMG[name]; if (!im) return null;
+  const k = 'pano:' + name; if (cache.has(k)) return cache.get(k);
+  const W = im.width, H = im.height, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, W, H), p = d.data, B = Math.round(W * 0.035), P = Math.round(H * 0.02);
+  for (let y = 0; y < H; y++) {
+    const l = y * W * 4, r = (y * W + W - 1) * 4;
+    for (let ch = 0; ch < 3; ch++) {
+      const m = (p[l + ch] + p[r + ch]) / 2, dl = m - p[l + ch], dr = m - p[r + ch];
+      for (let x = 0; x < B; x++) { const f = 1 - x / B, s = f * f * (3 - 2 * f); p[l + x * 4 + ch] += dl * s; p[r - x * 4 + ch] += dr * s; }
+    }
+  }
+  for (const top of [true, false]) {
+    for (let j = 0; j < P; j++) {
+      const y = top ? j : H - 1 - j, t = 1 - j / P, row = y * W * 4;
+      let a = 0, b2 = 0, c2 = 0; for (let x = 0; x < W; x++) { a += p[row + x * 4]; b2 += p[row + x * 4 + 1]; c2 += p[row + x * 4 + 2]; }
+      a /= W; b2 /= W; c2 /= W; const w = t * t * 0.85;
+      for (let x = 0; x < W; x++) { p[row + x * 4] += (a - p[row + x * 4]) * w; p[row + x * 4 + 1] += (b2 - p[row + x * 4 + 1]) * w; p[row + x * 4 + 2] += (c2 - p[row + x * 4 + 2]) * w; }
+    }
+  }
+  g.putImageData(d, 0, 0);
+  const t = finish(new THREE.CanvasTexture(c)); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.userData.aspect = W / H;
+  cache.set(k, t); return t;
 }
 
 /** Whole photo as a clamped texture. */

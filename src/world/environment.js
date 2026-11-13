@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { COLORS } from '../config.js';
 import { Tweens } from '../util.js';
-import { tileTexture, cropTexture, photoTexture, IMG } from './images.js';
+import { tileTexture, cropTexture, photoTexture, panoTexture, IMG } from './images.js';
 
 /**
  * Two ways to look at the same lesson:
@@ -105,7 +105,7 @@ export class Environment {
     this.s360 ??= {};
     for (const name of ['hall-360', 'gate-360']) {
       if (!this.s360[name]) {
-        const t = photoTexture(name); if (!t) continue;
+        const t = panoTexture(name); if (!t) continue;
         const m = new THREE.Mesh(groundSphere(30, this.stage.headY), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
         m.userData.R = 30; m.userData.H = this.stage.headY;
         m.name = 'Sphere360 ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = this.stage.headY; m.renderOrder = -11; m.visible = false;
@@ -124,7 +124,7 @@ export class Environment {
   /** A 360-degree photograph of a living room, for the steps at home when there is no passthrough room to show. */
   _homeSphere() {
     if (this.homeSphere) return this.homeSphere;
-    const t = photoTexture('home-living-room');
+    const t = panoTexture('home-living-room');
     const m = this.homeSphere = new THREE.Mesh(groundSphere(25, this.stage.headY), new THREE.MeshBasicMaterial({ map: t || null, color: t ? 0xffffff : 0xdfe9ee, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
     m.userData.R = 25; m.userData.H = this.stage.headY;
     m.name = 'HomeSphere'; m.scale.x = -1; m.renderOrder = -11; m.visible = false;      // x = -1 undoes the mirror you get from inside a sphere
@@ -173,7 +173,7 @@ export class Environment {
     this.streets ??= {};
     for (const name of ['home-street-360', 'airport-kerb-360']) {
       if (this.streets[name]) continue;
-      const t = photoTexture(name); if (!t) continue;
+      const t = panoTexture(name); if (!t) continue;
       const m = new THREE.Mesh(groundSphere(40, this.stage.headY), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
       m.userData.R = 40; m.userData.H = this.stage.headY;
       m.name = 'Street ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = this.stage.headY; m.renderOrder = -8; m.visible = false; g.add(m); this.streets[name] = m;

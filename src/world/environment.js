@@ -4,6 +4,7 @@ import { COLORS } from '../config.js';
 import { Tweens } from '../util.js';
 import { tileTexture, cropTexture, photoTexture, panoTexture, IMG } from './images.js';
 import { buildHall3D } from './hall3d.js';
+import { buildGate3D } from './gate3d.js';
 
 /**
  * Two ways to look at the same lesson:
@@ -97,6 +98,14 @@ export class Environment {
     this._apply360(imm && hall && !this.hallHidden, k);
     this.setBackground();
   }
+  /** The 3D gate lounge, built the first time it is needed. */
+  _gate3D() {
+    if (this.gate3d) return this.gate3d;
+    let env = null; const pano = panoTexture('gate-360');
+    if (pano) { try { const t = pano.clone(); t.mapping = THREE.EquirectangularReflectionMapping; t.needsUpdate = true; const pm = new THREE.PMREMGenerator(this.renderer); env = pm.fromEquirectangular(t).texture; pm.dispose(); } catch { env = null; } }
+    const h = this.gate3d = buildGate3D({ envMap: env, floorTex: tileTexture('airport-floor-tile') });
+    h.visible = false; this.stage.root.add(h); return h;
+  }
   /** The 3D departures hall, built the first time it is needed. Its reflections come from the hall panorama. */
   _hall3D() {
     if (this.hall3d) return this.hall3d;
@@ -123,12 +132,14 @@ export class Environment {
     }
     const on = want && !!this.s360[key];
     const hallMode = on && k === 'hall-wall';                       // the departures hall is real 3D geometry, not a photograph
+    const gateMode = on && k === 'hall-apron';                       // the gate lounge is real 3D too
     if (hallMode || this.hall3d) { const h = hallMode ? this._hall3D() : this.hall3d; if (h) h.visible = hallMode; }
-    for (const [name, m] of Object.entries(this.s360)) m.visible = on && name === key && !hallMode;
+    if (gateMode || this.gate3d) { const h = gateMode ? this._gate3D() : this.gate3d; if (h) h.visible = gateMode; }
+    for (const [name, m] of Object.entries(this.s360)) m.visible = on && name === key && !hallMode && !gateMode;
     this.use360 = on;
     if (this.virtual.children.length) {
-      this.hallActive = hallMode;
-      const keep = hallMode ? new Set() : new Set([this.ceilMesh, ...(this.lightMeshes || [])]);      // the real vaulted roof replaces the low ceiling panel
+      this.hallActive = hallMode || gateMode; this.hallCeilY = hallMode ? 12.6 : gateMode ? (this.gate3d?.userData.dims.ceil ?? 7.4) : 0;
+      const keep = (hallMode || gateMode) ? new Set() : new Set([this.ceilMesh, ...(this.lightMeshes || [])]);      // the real vaulted roof replaces the low ceiling panel
       for (const c of this.virtual.children) c.visible = on ? keep.has(c) : c === this.apronView ? k === 'hall-apron' : c === this.closedWall ? k === 'hall-wall' : true;
       if (this.ceilMesh) this.ceilMesh.scale.set(on ? 0.7 : 1, 1, on ? 0.7 : 1);
     }

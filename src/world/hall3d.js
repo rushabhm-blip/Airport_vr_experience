@@ -95,11 +95,11 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null } =
   for (let r = 0; r < 4; r++) { bench(-27 + 0, 2 + r * 2.4, 5, Math.PI / 2); bench(26, 2 + r * 2.4, 5, -Math.PI / 2); }
 
   // ---- outside the glass: sky and the apron
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, toneMapped: false,
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(72, 24, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, toneMapped: false,
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader: 'varying vec3 vP; void main(){ float h = clamp(vP.y*1.5+0.1,0.,1.); vec3 c = mix(vec3(0.86,0.92,0.97), vec3(0.36,0.62,0.9), pow(h,0.6)); gl_FragColor = vec4(c,1.0);}' }));
   sky.renderOrder = -12; g.add(sky);
-  const apron = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9aa1a5, roughness: 1 })); apron.position.y = -0.05; g.add(apron);
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(200, 120).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x7d8488, roughness: 1 })); apron.position.set(0, -0.05, -70); g.add(apron);
 
 
   // ================= MORE DETAIL =================
@@ -165,8 +165,8 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null } =
   [[-20.5, -21, 0], [-19.4, -19.3, 0], [-17.2, -21.2, 0], [-1.5, -20.8, 0], [0.9, -19.6, 0], [2.2, -21.3, 0], [16.5, -21, 0], [18.9, -19.4, 0], [-18.8, -7, 0], [-17, -5.4, 0], [19, -7, 0], [-6, 15, 3], [-7.4, 18, 2], [6, 9, 4]].forEach(([x, z, r], k) => traveller(x, z, r, k));
 
   // outside the glass: a tree line, low hills and a kerb
-  for (let x = -110; x <= 110; x += 6.5) { const z = -50 - ((x * 7) % 9); add(new THREE.CylinderGeometry(0.3, 0.4, 3.4, 8), dark, x, 1.7, z); add(new THREE.SphereGeometry(2.6 + ((x * 13) % 5) / 6, 10, 8), leaf, x, 5.0, z); add(new THREE.SphereGeometry(1.9, 10, 8), leaf2, x + 1.0, 6.2, z); }
-  for (const [hx, hz, hs] of [[-70, -170, 60], [20, -190, 80], [95, -165, 55]]) add(new THREE.SphereGeometry(hs, 16, 10), std(0x5f8a6a, { roughness: 1 }), hx, -hs * 0.72, hz);
+  for (let x = -80; x <= 80; x += 6) { const z = -50 - ((x * 7) % 6); add(new THREE.CylinderGeometry(0.3, 0.4, 3.4, 8), dark, x, 1.7, z); add(new THREE.SphereGeometry(2.6 + ((x * 13) % 5) / 6, 10, 8), leaf, x, 5.0, z); add(new THREE.SphereGeometry(1.9, 10, 8), leaf2, x + 1.0, 6.2, z); }
+  
   add(new THREE.BoxGeometry(HX * 2 + 40, 0.15, 3), std(0xcfd3d6, { roughness: 0.9 }), 0, 0.04, Z0 - 6);
 
   mergeStatic(static_);                       // a few hundred shapes become a handful of draw calls

@@ -13,7 +13,7 @@ import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop, keyedC
 
 /** A real photo as a distant backdrop (only in the virtual/immersive view; in passthrough it would float in the room). */
 /** Two thin rods from the top of a hanging sign up to the ceiling (2.9 m), so it is visibly fixed to it. */
-function hangRods(d, obj, ceilingY = d.app.env.hallActive ? 12.6 : 2.9) {      // in the big hall the boards hang on long rods from the vaulted roof
+function hangRods(d, obj, ceilingY = d.app.env.hallCeilY || 2.9) {      // in the big hall the boards hang on long rods from the vaulted roof
   const b = new THREE.Box3().setFromObject(obj), len = ceilingY - b.max.y; if (len < 0.03) return;
   const mat = new THREE.MeshStandardMaterial({ color: 0x9aa4ab, metalness: 0.6, roughness: 0.4 });
   for (const x of [b.min.x + 0.18, b.max.x - 0.18]) {

@@ -80,7 +80,32 @@ export class Environment {
     if (this.closedWall) this.closedWall.visible = k === 'hall-wall';
     this._outdoorGroup().visible = imm && k === 'outdoor';
     this._homeSphere().visible = imm && k === 'home';       // the learner's living room (only where there is no real room: laptop preview and full VR)
+    this._apply360(imm && hall && !this.hallHidden, k);
     this.setBackground();
+  }
+  /**
+   * Inside the terminal the learner is surrounded by a 360-degree photograph (the departures hall, or the gate lounge with the
+   * aircraft outside). The box-shaped 3D hall is hidden, except a ceiling panel over the work area so the hung boards still hang from something.
+   */
+  _apply360(want, k) {
+    const key = k === 'hall-apron' ? 'gate-360' : 'hall-360';
+    this.s360 ??= {};
+    for (const name of ['hall-360', 'gate-360']) {
+      if (!this.s360[name]) {
+        const t = photoTexture(name); if (!t) continue;
+        const m = new THREE.Mesh(new THREE.SphereGeometry(30, 64, 40), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+        m.name = 'Sphere360 ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = 1.25; m.renderOrder = -11; m.visible = false;
+        this.stage.root.add(m); this.s360[name] = m;
+      }
+    }
+    const on = want && !!this.s360[key];
+    for (const [name, m] of Object.entries(this.s360)) m.visible = on && name === key;
+    this.use360 = on;
+    if (this.virtual.children.length) {
+      const keep = new Set([this.ceilMesh, ...(this.lightMeshes || [])]);
+      for (const c of this.virtual.children) c.visible = on ? keep.has(c) : c === this.apronView ? k === 'hall-apron' : c === this.closedWall ? k === 'hall-wall' : true;
+      if (this.ceilMesh) this.ceilMesh.scale.set(on ? 0.7 : 1, 1, on ? 0.7 : 1);
+    }
   }
   /** A 360-degree photograph of a living room, for the steps at home when there is no passthrough room to show. */
   _homeSphere() {
@@ -193,7 +218,7 @@ export class Environment {
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(13, 13).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf3f4f2, roughness: 0.95 }));
     const ctex = tileTexture('tex-ceiling');
     if (ctex) { const t = ctex.clone(); t.repeat.set(11, 11); t.needsUpdate = true; ceil.material.map = t; ceil.material.color.set(0xffffff); }
-    ceil.position.set(0, 2.9, -1); v.add(ceil);
+    ceil.position.set(0, 2.9, -1); v.add(ceil); this.ceilMesh = ceil; this.lightMeshes = [];
     // The real apron photo, seen through the (now clear) windows of the far wall.
     const view = cropTexture('view-tarmac-day', [620, 150, 880, 610], { mirror: true });
     if (view) { const arc = 1.7, b = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 5.4, 48, 1, true, Math.PI - arc / 2, arc), new THREE.MeshBasicMaterial({ map: view, toneMapped: false, side: THREE.BackSide })); b.position.set(0, 2.3, -0.4); v.add(b); this.apronView = b; }
@@ -202,7 +227,7 @@ export class Environment {
     if (wallTex) { const t = wallTex.clone(); t.repeat.set(6, 1.4); t.needsUpdate = true; wallMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }); }
     this.closedWall = new THREE.Mesh(new THREE.PlaneGeometry(12.6, 3.1), wallMat); this.closedWall.position.set(0, 1.55, -6.7); v.add(this.closedWall);
     const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6e0, toneMapped: false });
-    for (let i = -3; i <= 3; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.04, 9), lightMat); l.position.set(i * 1.8, 2.88, -1.5); v.add(l); }
+    for (let i = -3; i <= 3; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.04, 9), lightMat); l.position.set(i * 1.8, 2.88, -1.5); v.add(l); this.lightMeshes.push(l); }
     // Outside the windows: apron + sky
     const apron = new THREE.Mesh(new THREE.PlaneGeometry(120, 120).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x7c8588, roughness: 1 }));
     apron.position.set(0, -0.02, -60); v.add(apron);

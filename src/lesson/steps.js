@@ -31,6 +31,7 @@ function hangBoardY(obj) {
 
 function photoPlane(d, name, w, h, pos) {
   if (d.app.env.mode !== 'immersive') return null;
+  if (d.app.env.use360 && name === 'checkin-hall') return null;      // the 360 hall already surrounds the check-in counters
   const t = photoTexture(name); if (!t) return null;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
   m.position.set(...pos); d.stage.scenery.add(m); return m;

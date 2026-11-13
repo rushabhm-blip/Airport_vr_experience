@@ -788,6 +788,7 @@ export class Director {
     this._updateStation(dt);
     this._stickWalk(dt);
     this._tourWatchdog(dt);
+    this.app.env.syncEye();
     this.step?.update?.(dt, time);
   }
 

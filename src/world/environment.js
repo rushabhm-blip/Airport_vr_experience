@@ -11,6 +11,19 @@ import { tileTexture, cropTexture, photoTexture, IMG } from './images.js';
  *                  if the learner drifts outside the cleared area it drops back to passthrough.
  * In a true immersive-vr session only 'immersive' is possible; on desktop the preview uses it too.
  */
+/**
+ * A 360-degree photograph sphere whose lower half is laid flat on the floor (a "ground-projected" panorama). H is the eye height:
+ * the floor of the photograph then lies exactly at floor level under the viewer, instead of hanging in the air below them.
+ */
+function groundSphere(R, H) {
+  const g = new THREE.SphereGeometry(1, 160, 360), p = g.attributes.position;      // many rows, so the floor meets the horizon smoothly
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = y < -1e-4 ? Math.min(R, H / -y) : R;
+    p.setXYZ(i, x * t, y * t, z * t);
+  }
+  p.needsUpdate = true; g.computeBoundingSphere(); return g;
+}
+
 export class Environment {
   constructor({ renderer, scene, stage, assets }) {
     this.renderer = renderer; this.scene = scene; this.stage = stage; this.assets = assets;
@@ -93,8 +106,9 @@ export class Environment {
     for (const name of ['hall-360', 'gate-360']) {
       if (!this.s360[name]) {
         const t = photoTexture(name); if (!t) continue;
-        const m = new THREE.Mesh(new THREE.SphereGeometry(30, 64, 40), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
-        m.name = 'Sphere360 ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = 1.25; m.renderOrder = -11; m.visible = false;
+        const m = new THREE.Mesh(groundSphere(30, this.stage.headY), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+        m.userData.R = 30; m.userData.H = this.stage.headY;
+        m.name = 'Sphere360 ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = this.stage.headY; m.renderOrder = -11; m.visible = false;
         this.stage.root.add(m); this.s360[name] = m;
       }
     }
@@ -111,9 +125,10 @@ export class Environment {
   _homeSphere() {
     if (this.homeSphere) return this.homeSphere;
     const t = photoTexture('home-living-room');
-    const m = this.homeSphere = new THREE.Mesh(new THREE.SphereGeometry(25, 48, 32), new THREE.MeshBasicMaterial({ map: t || null, color: t ? 0xffffff : 0xdfe9ee, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+    const m = this.homeSphere = new THREE.Mesh(groundSphere(25, this.stage.headY), new THREE.MeshBasicMaterial({ map: t || null, color: t ? 0xffffff : 0xdfe9ee, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+    m.userData.R = 25; m.userData.H = this.stage.headY;
     m.name = 'HomeSphere'; m.scale.x = -1; m.renderOrder = -11; m.visible = false;      // x = -1 undoes the mirror you get from inside a sphere
-    m.position.y = 1.25; m.rotation.y = -1.57; this.stage.root.add(m); return m;      // turned so the first view is the sofa
+    m.position.y = this.stage.headY; m.rotation.y = -1.57; this.stage.root.add(m); return m;      // turned so the first view is the sofa
   }
   _outdoorGroup() {
     if (this.outdoor) return this.outdoor;
@@ -159,8 +174,9 @@ export class Environment {
     for (const name of ['home-street-360', 'airport-kerb-360']) {
       if (this.streets[name]) continue;
       const t = photoTexture(name); if (!t) continue;
-      const m = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 40), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
-      m.name = 'Street ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = 1.25; m.renderOrder = -8; m.visible = false; g.add(m); this.streets[name] = m;
+      const m = new THREE.Mesh(groundSphere(40, this.stage.headY), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+      m.userData.R = 40; m.userData.H = this.stage.headY;
+      m.name = 'Street ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = this.stage.headY; m.renderOrder = -8; m.visible = false; g.add(m); this.streets[name] = m;
     }
     const key = home ? 'home-street-360' : 'airport-kerb-360', sphere = this.streets[key] || null;
     for (const [name, m] of Object.entries(this.streets)) m.visible = m === sphere;
@@ -268,6 +284,15 @@ export class Environment {
   }
 
   /** Called every frame with the head position in stage-local coordinates. Returns true if state changed. */
+  /** Keep every panorama's floor on the real floor: rebuild when the viewer's eye height changes (a headset reports it after the session starts). */
+  syncEye() {
+    const h = this.stage.headY, spheres = [this.homeSphere, ...Object.values(this.streets || {}), ...Object.values(this.s360 || {})];
+    for (const m of spheres) {
+      if (!m || Math.abs((m.userData.H ?? h) - h) < 0.04) continue;
+      m.geometry.dispose(); m.geometry = groundSphere(m.userData.R, h); m.userData.H = h; m.position.y = h;
+    }
+  }
+
   update(dt, headLocal, camera) {
     this.tweens.step(dt);
     if (this.driveSpeed && this.roadTex) this.roadTex.offset.y += this.driveSpeed * dt;     // the road streams past while the cab drives

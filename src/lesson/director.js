@@ -103,7 +103,7 @@ export class Director {
     this._convSnapshot = JSON.parse(JSON.stringify(this.panel.state));
     this.convStaff = staff; this.helper = staff; this.idle = 0;
     this.panel.set({ title: staff.role.split(' ·')[0], body: line, note: '', tone: 'normal',
-      buttons: this.step?.demo ? [{ id: 'staffshow', label: 'Show me how' }, { id: 'staffdone', label: 'Got it', kind: 'secondary' }] : [{ id: 'staffdone', label: 'Got it' }] });
+      buttons: this.step?.demo ? [{ id: 'staffassist', label: 'Show me' }, { id: 'staffdone', label: 'Got it', kind: 'secondary' }] : [{ id: 'staffdone', label: 'Got it' }] });
     this._applyPresentation();
   }
 
@@ -126,7 +126,7 @@ export class Director {
     this._convSnapshot = JSON.parse(JSON.stringify(this.panel.state));
     const short = text.split(/(?<=\.)\s/).slice(0, 2).join(' ');
     this.panel.set({ title: 'Need a hand?', body: short, note: '', tone: 'normal',
-      buttons: this.step?.demo ? [{ id: 'staffshow', label: 'Show me how' }, { id: 'staffassist', label: 'Do it with me', kind: 'secondary' }, { id: 'staffdone', label: 'Got it', kind: 'secondary' }] : [{ id: 'staffdone', label: 'Got it' }] });
+      buttons: this.step?.demo ? [{ id: 'staffassist', label: 'Show me' }, { id: 'staffdone', label: 'Got it', kind: 'secondary' }] : [{ id: 'staffdone', label: 'Got it' }] });
     this.step?.onHelp?.();
     this._applyPresentation();
   }
@@ -262,8 +262,8 @@ export class Director {
     this._taskSnap = null; this._applyPresentation();
   }
   _stopDemo() { this.endDemo(); this._afterDemoOnly(); }
-  /** Legacy name used by the step buttons labelled "Show me": it demonstrates only. */
-  startAssist() { return this.showMe(); }
+  /** The "Show me" buttons: the guide hand does the step for you, for real (and it is recorded as assisted). */
+  startAssist() { return this.completeWithHelp(); }
 
   /** "Do it with me": explicit, recorded as assisted. The demonstration then performs the action for real. */
   completeWithHelp() {
@@ -271,7 +271,7 @@ export class Director {
     this.endConversation(true);
     this.log.noteAssist(this.stepId);
     this.assisting = true; this._assistGap = 0.4; this.assistCount = 0; this.assistedSteps.add(this.index);
-    this.panel.set({ note: 'Doing this step together. Choose Pause to stop.', tone: 'normal' });
+    this.panel.set({ note: 'I am doing this for you. Choose Pause to stop.', tone: 'normal' });
   }
 
   /** Every frame: drives an explicit assist. A quiet offer of help appears after a long pause; nothing starts by itself. */
@@ -284,7 +284,7 @@ export class Director {
       this._assistGap -= dt;
       if (this._assistGap <= 0) {
         this._assistGap = 0.7;
-        if (++this.assistCount > 16) { if (this.tour) this.assistCount = 0; else this.assisting = false; }   // safety: never loop forever (a tour keeps going)
+        if (++this.assistCount > 60) { if (this.tour) this.assistCount = 0; else this.assisting = false; }   // safety: never loop forever (a tour keeps going)
         else this.step.demo();
       }
       return;
@@ -625,7 +625,7 @@ export class Director {
       case 'stoptour': return this.stopTour();
       case 'tourplay': return this.startTour();
       case 'tourpractise': return this.stopTour(true);
-      case 'staffshow': return this.showMe();
+      case 'staffshow': return this.completeWithHelp();
       case 'staffassist': return this.completeWithHelp();
       case 'staffdone': return this.endConversation();
       case 'demostop': return this._stopDemo();

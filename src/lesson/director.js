@@ -163,7 +163,7 @@ export class Director {
     g.add(hand, tip, ring); g.userData.ring = ring;
     g.traverse((m) => { if (m.isMesh) m.renderOrder = 40; });
     // swap in the realistic model once it has loaded; the simple hand above stays if it cannot be fetched
-    const realSkin = new THREE.MeshStandardMaterial({ color: 0x4fe6d8, emissive: 0x14867e, emissiveIntensity: 0.5, roughness: 0.6, transparent: true, opacity: 0.9, depthTest: false, toneMapped: false });
+    const realSkin = new THREE.MeshStandardMaterial({ color: 0x4fe6d8, emissive: 0x14867e, emissiveIntensity: 0.5, roughness: 0.6, toneMapped: false });      // solid: a see-through hand shows its own back and front blended together and looks distorted
     makePointingHand(realSkin).then((real) => { if (real) { g.remove(hand); g.add(real); tip.visible = false; } }).catch(() => {});
     g.visible = false;
     this.stage.root.add(g);

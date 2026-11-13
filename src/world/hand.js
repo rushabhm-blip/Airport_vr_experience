@@ -25,12 +25,20 @@ export async function makePointingHand(material) {
   const m = g.scene, B = {};
   m.traverse((o) => { if (o.isBone) B[o.name] = o; });
   const F = (f) => [f + '-finger-phalanx-proximal', f + '-finger-phalanx-intermediate', f + '-finger-phalanx-distal', f + '-finger-tip'];
-  for (const f of ['middle', 'ring', 'pinky']) bendChain(B, F(f), [1.3, 1.6, 0.9, 0]);
-  bendChain(B, ['thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip'], [0.5, 0.5, 0]);
+  for (const f of ['middle', 'ring', 'pinky']) bendChain(B, F(f), [1.4, 1.7, 1.0, 0]);
+  bendChain(B, ['thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip'], [0, 0.6, 0.6, 0]);      // thumb tucked alongside the curled fingers
   const wrap = new THREE.Group(); wrap.add(m); m.rotation.x = Math.PI / 2;
   wrap.updateMatrixWorld(true);
   const tip = new THREE.Vector3(); B['index-finger-tip'].getWorldPosition(tip); m.position.sub(tip);
   m.traverse((o) => { if (o.isMesh) { o.material = material; o.renderOrder = 40; o.frustumCulled = false; } });
+  // a soft cuff closes the open end of the wrist, so the hand never ends in a flat cut
+  wrap.updateMatrixWorld(true);
+  const wr = new THREE.Vector3(), fg = new THREE.Vector3();
+  B['wrist'].getWorldPosition(wr); B['middle-finger-phalanx-proximal'].getWorldPosition(fg);
+  const dir = fg.clone().sub(wr).normalize();                          // wrist towards the fingers
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.05, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x9fe8e1, emissiveIntensity: 0.55, roughness: 0.5, toneMapped: false }));
+  cuff.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  cuff.position.copy(wr).addScaledVector(dir, -0.01); cuff.renderOrder = 40; wrap.add(cuff);
   wrap.rotation.x = 0.45;       // fingers a little higher than the wrist, like a hand reaching up from below
   return wrap;
 }

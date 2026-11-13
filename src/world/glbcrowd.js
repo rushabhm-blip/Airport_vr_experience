@@ -55,8 +55,9 @@ export class GlbPeople {
       const root = new THREE.Group(); root.add(model); model.scale.setScalar(1.74 / h); root.visible = false; this.group.add(root);
       const mixer = new THREE.AnimationMixer(model), idle = g.animations.find((a) => a.name === 'Idle'), walk = g.animations.find((a) => a.name === 'Walk');
       const aI = mixer.clipAction(idle).play(), aW = mixer.clipAction(walk).play(); aI.setEffectiveWeight(1); aW.setEffectiveWeight(0);
+      const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, who: null, wI: 1, wW: 0, phase: Math.random() * 3 });
+      this.entries.push({ name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3 });
     }
   }
 
@@ -97,8 +98,11 @@ export class GlbPeople {
       e.wW += ((moving ? 1 : 0) - e.wW) * k; e.wI = 1 - e.wW; e.aW.setEffectiveWeight(e.wW); e.aI.setEffectiveWeight(Math.max(0.001, e.wI));
       e.aW.setEffectiveTimeScale(Math.max(0.25, Math.min(1.6, (p.vNow || 0.7) / 1.25))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
       e.mixer.update(dt);
+      if (p.bag === 'roll' && e.bones.arm) { const a = window.__arm ?? [-0.75, 0, 0.42], f = window.__fore ?? [0.25, 0, 0]; this._hold(e.bones.arm, a); this._hold(e.bones.fore, f); }     // the right hand takes the suitcase handle, held low and a little behind
     }
   }
+
+  _hold(b, eu) { if (!b?.userData.rest) return; this._q ??= new THREE.Quaternion(); this._e ??= new THREE.Euler(); b.quaternion.copy(b.userData.rest).multiply(this._q.setFromEuler(this._e.set(eu[0], eu[1], eu[2]))); }
 
   dispose() { this.disposed = true; this.group.removeFromParent(); for (const e of this.entries) e.model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); }); }
 }

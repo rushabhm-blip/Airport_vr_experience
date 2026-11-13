@@ -194,13 +194,13 @@ export class Crowd {
     if (p.stride > 0.05) {
       o.thigh = [sw * amp, -sw * amp]; o.knee = [0.12 + 0.75 * Math.max(0, -Math.cos(p.phase)) * p.stride, 0.12 + 0.75 * Math.max(0, Math.cos(p.phase)) * p.stride];
       o.arm = [-sw * amp * 0.85, sw * amp * 0.85]; o.lean = p.run ? -0.2 : -0.04; o.bob = Math.abs(sw) * 0.035 * p.stride * (p.run ? 1.8 : 1);
-      if (p.bag === 'roll') o.arm[1] = -0.45; if (p.bag === 'cart') o.arm = [0.95, 0.95];
+      if (p.bag === 'roll') o.arm[0] = -0.45; if (p.bag === 'cart') o.arm = [0.95, 0.95];
       o.head = 0; return o;
     }
     o.sway = Math.sin(T * 0.8 + p.spin) * 0.012; o.knee = [0.04, 0.04];
     if (p.pose === 'phone') { o.arm = [0.1, 1.35]; o.head = 0.2; }
     else if (p.pose === 'talk') { o.arm = [0.2, 0.8 + Math.sin(T * 3 + p.spin) * 0.25]; o.head = Math.sin(T * 0.7 + p.spin) * 0.3; }
-    else { o.arm = [0.06, 0.06]; o.head = Math.sin(T * 0.35 + p.spin) * 0.4; if (p.bag === 'roll') o.arm[1] = -0.15; }
+    else { o.arm = [0.06, 0.06]; o.head = Math.sin(T * 0.35 + p.spin) * 0.4; if (p.bag === 'roll') o.arm[0] = -0.4; }
     o.thigh = [Math.sin(T * 0.5 + p.spin) * 0.03, 0]; return o;
   }
 
@@ -233,8 +233,8 @@ export class Crowd {
     // luggage
     const none = (part) => this._hide(part, i);
     if (p.bag === 'roll') {
-      const bx = 0.34, bz = p.stride > 0.05 ? -0.5 : -0.12;
-      L.makeRotationX(p.stride > 0.05 ? 0.12 : 0); L.setPosition(bx, 0, bz); M.multiplyMatrices(B, L); this._put('suitcase', i, M);
+      const bx = -0.3, bz = -0.44;
+      L.makeRotationX(0.26); L.setPosition(bx, 0, bz); M.multiplyMatrices(B, L); this._put('suitcase', i, M);
       L.setPosition(bx, 0, bz); M.multiplyMatrices(B, L); this._put('handle', i, M); none('pack'); none('cart');
     } else if (p.bag === 'pack') { L.makeRotationX(0.05); L.setPosition(0, 1.2, -0.17); M.multiplyMatrices(B, L); this._put('pack', i, M); none('suitcase'); none('handle'); none('cart'); }
     else if (p.bag === 'cart') {
@@ -336,8 +336,8 @@ export class Crowd {
     // luggage
     const none = (part) => this._hideD(part, k);
     if (p.bag === 'roll') {
-      const bx = 0.34, bz = p.stride > 0.05 ? -0.5 : -0.12;
-      L.makeRotationX(p.stride > 0.05 ? 0.12 : 0); L.setPosition(bx, 0, bz); M5.multiplyMatrices(B, L); put('suitcase', M5); none('pack'); none('cart');
+      const bx = -0.3, bz = -0.44;
+      L.makeRotationX(0.26); L.setPosition(bx, 0, bz); M5.multiplyMatrices(B, L); put('suitcase', M5); none('pack'); none('cart');
     } else if (p.bag === 'pack') { L.makeRotationX(0.05); L.setPosition(0, 1.2, -0.17); M5.multiplyMatrices(B, L); put('pack', M5); none('suitcase'); none('cart'); }
     else if (p.bag === 'cart') {
       L.makeRotationX(0); L.setPosition(0, 0, 0.62); M5.multiplyMatrices(B, L); put('cart', M5); L.setPosition(0, 0.24, 0.62); M6.multiplyMatrices(B, L); put('suitcase', M6); none('pack');
@@ -350,7 +350,7 @@ export class Crowd {
     const a = o.arm, w = p.stride > 0.05;
     o.armD = [a[0], a[1]]; o.elbow = [0.2, 0.2];
     if (p.mode === 'sit') { o.armD = [0.22, p.pose === 'phone' ? 0.5 : 0.22]; o.elbow = [0.95, p.pose === 'phone' ? 1.75 : 0.95]; }
-    else if (w) { o.elbow = [0.3 + 0.45 * Math.max(0, a[0]), 0.3 + 0.45 * Math.max(0, a[1])]; if (p.bag === 'roll') { o.armD[1] = -0.2; o.elbow[1] = 0.15; } if (p.bag === 'cart') { o.armD = [0.45, 0.45]; o.elbow = [0.55, 0.55]; } }
+    else if (w) { o.elbow = [0.3 + 0.45 * Math.max(0, a[0]), 0.3 + 0.45 * Math.max(0, a[1])]; if (p.bag === 'roll') { o.armD[0] = -0.5; o.elbow[0] = 0.2; } if (p.bag === 'cart') { o.armD = [0.45, 0.45]; o.elbow = [0.55, 0.55]; } }
     else if (p.pose === 'phone') { o.armD = [0.08, 0.55]; o.elbow = [0.15, 1.95]; }
     else if (p.pose === 'talk') { o.armD = [0.15, 0.45 + Math.sin(p.t * 3 + p.spin) * 0.2]; o.elbow = [0.25, 1.2 + Math.sin(p.t * 2.5 + p.spin) * 0.3]; }
     return o;

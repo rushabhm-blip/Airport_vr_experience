@@ -79,7 +79,16 @@ export class Environment {
     if (this.apronView) this.apronView.visible = k === 'hall-apron';
     if (this.closedWall) this.closedWall.visible = k === 'hall-wall';
     this._outdoorGroup().visible = imm && k === 'outdoor';
+    this._homeSphere().visible = imm && k === 'home';       // the learner's living room (only where there is no real room: laptop preview and full VR)
     this.setBackground();
+  }
+  /** A 360-degree photograph of a living room, for the steps at home when there is no passthrough room to show. */
+  _homeSphere() {
+    if (this.homeSphere) return this.homeSphere;
+    const t = photoTexture('home-living-room');
+    const m = this.homeSphere = new THREE.Mesh(new THREE.SphereGeometry(25, 48, 32), new THREE.MeshBasicMaterial({ map: t || null, color: t ? 0xffffff : 0xdfe9ee, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+    m.name = 'HomeSphere'; m.scale.x = -1; m.renderOrder = -11; m.visible = false;      // x = -1 undoes the mirror you get from inside a sphere
+    m.position.y = 1.25; m.rotation.y = -1.57; this.stage.root.add(m); return m;      // turned so the first view is the sofa
   }
   _outdoorGroup() {
     if (this.outdoor) return this.outdoor;

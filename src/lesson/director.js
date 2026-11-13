@@ -446,6 +446,15 @@ export class Director {
   /** Return to the previous step (optional steps are not part of "back"). */
   previousStep() { let n = this.index - 1; while (n > 0 && OPTIONAL_STEPS.has(STEP_IDS[n])) n--; if (n >= 0) this.goto(n); }
 
+  /** The watch tour must never stay stuck: if nothing at all changes for 35 seconds, it moves on to the next step by itself. */
+  _tourWatchdog(dt) {
+    if (!this.tour || this.app.phase !== 'lesson' || this.paused || this.index >= STEPS.length) { this._tourIdle = 0; return; }
+    const sig = [this.index, this.panel.state.title, this.panel.state.buttons?.length, this.panel.state.note, this.station?.label, this.tweens.list.length > 0].join('|');
+    if (sig !== this._tourSig || this.walking || this.demoing) { this._tourSig = sig; this._tourIdle = 0; return; }
+    this._tourIdle = (this._tourIdle || 0) + dt;
+    if (this._tourIdle > 35) { this._tourIdle = 0; this.skipStep(); }
+  }
+
   /** In a watch tour a lone Continue-style button is pressed for you after a pause. Practice mode never does this. */
   _tourAuto(buttons) {
     if (!this.tour || !buttons || buttons.length !== 1 || !['go', 'cont'].includes(buttons[0].id)) return;
@@ -769,6 +778,7 @@ export class Director {
     this.phone.update(dt);
     this._updateStation(dt);
     this._stickWalk(dt);
+    this._tourWatchdog(dt);
     this.step?.update?.(dt, time);
   }
 

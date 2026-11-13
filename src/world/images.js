@@ -10,7 +10,7 @@ const FILES = [
   'cab-side.png', 'person-driver.png', 'view-cab-window.jpg', 'kerb-golden.jpg', 'xray-bag-lying.jpg',
   'home-street.jpg', 'side-left.jpg', 'side-right.jpg', 'cab-side-closed.jpg', 'cab-side-door-open.jpg', 'cab-rear-boot.jpg', 'security-hall.jpg', 'gate-lounge.jpg',
   'aircraft-window-seat.jpg', 'sky-clouds.jpg', 'checkin-hall.jpg', 'aircraft-sidewall-texture.jpg', 'aircraft-ceiling-texture.jpg', 'overhead-bin-texture.jpg', 'checkin-counter-texture.jpg',
-  'brushed-steel.jpg', 'conveyor-rubber.jpg', 'security-tray-plastic.jpg', 'white-counter-laminate.jpg', 'airport-floor-tile.jpg', 'blue-grey-carpet.jpg',
+  'home-living-room.webp', 'brushed-steel.jpg', 'conveyor-rubber.jpg', 'security-tray-plastic.jpg', 'white-counter-laminate.jpg', 'airport-floor-tile.jpg', 'blue-grey-carpet.jpg',
   'item-powerbank.jpg', 'item-tablet.jpg', 'item-pouch.jpg', 'item-charger.jpg', 'item-clothes.jpg', 'item-bottle.jpg',
 ];
 

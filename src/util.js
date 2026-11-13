@@ -46,13 +46,19 @@ export class Tweens {
     return t;
   }
   step(dt) {
-    for (let i = this.list.length - 1; i >= 0; i--) {
-      const tw = this.list[i];
+    // Work on a snapshot: a finishing tween may add new tweens, or change the step (which clears the list), while we are looping.
+    const run = this.list.slice();
+    for (let n = run.length - 1; n >= 0; n--) {
+      const tw = run[n];
+      if (!this.list.includes(tw)) continue;           // it was cleared by an earlier callback in this same frame
       if (tw.delay > 0) { tw.delay -= dt; continue; }
       tw.t += dt;
       const k = clamp(tw.t / tw.dur, 0, 1);
-      tw.update?.(tw.easing(k), k);
-      if (k >= 1) { this.list.splice(i, 1); tw.done?.(); }
+      try { tw.update?.(tw.easing(k), k); } catch (e) { console.error('tween update failed', e); this.list.splice(this.list.indexOf(tw), 1); continue; }
+      if (k >= 1) {
+        const at = this.list.indexOf(tw); if (at >= 0) this.list.splice(at, 1);
+        try { tw.done?.(); } catch (e) { console.error('tween done failed', e); }      // one broken callback must never freeze the whole app
+      }
     }
   }
   clear() { this.list.length = 0; }

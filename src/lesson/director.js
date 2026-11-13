@@ -215,8 +215,9 @@ export class Director {
     hand.position.copy(home);
     if (say) this.say(say);
     let t = 0, prev = home.clone();
+    const K = this.tour ? 2.0 : 1;                       // the watch tour is twice as slow, so you can follow every move
     for (const f of frames) {
-      const from = prev.clone(), to = new THREE.Vector3(...f.p), dur = f.dur ?? 1.0, carry = f.carry, rx = f.rx;
+      const from = prev.clone(), to = new THREE.Vector3(...f.p), dur = (f.dur ?? 1.0) * K, carry = f.carry, rx = f.rx;
       this.tweens.add({ delay: t, dur, update: (e) => {
         if (id !== this._demoId) return;
         hand.position.lerpVectors(from, to, e);
@@ -226,14 +227,15 @@ export class Director {
         f.act?.();
         if (f.press) this.tweens.add({ dur: 0.5, update: (e) => { hand.userData.ring.material.opacity = 1 - e; hand.userData.ring.scale.setScalar(1 + e * 1.6); } });
       } });
-      t += dur + (f.hold ?? (f.press ? 0.55 : 0.12)); prev = to;
+      t += dur + (f.hold ?? (f.press ? 0.55 : 0.12)) * K; prev = to;
     }
-    this.tweens.add({ delay: t + 0.4, dur: 0.01, done: () => {
+    const finish = () => {
       if (id !== this._demoId) return;
       this.endDemo(true);
       if (this.demoOnly) this._afterDemoOnly();            // 'Show me how': the task is left ready for the learner
       else if (this.assisting) apply?.();                  // only an explicit 'Do it with me' performs the action
-    } });
+    };
+    this.tweens.add({ delay: t + 0.4, dur: 0.01, done: () => { if (this.tour) this.afterSpeech(1.5, finish); else finish(); } });
   }
 
   endDemo(natural = false) {
@@ -277,13 +279,13 @@ export class Director {
   /** Every frame: drives an explicit assist. A quiet offer of help appears after a long pause; nothing starts by itself. */
   _assist(dt) {
     if (this.tour && this.station && !this.near) return;      // in the watch tour the demonstrations start once it has walked up to the task
-    if (this.tour && this.step && !this.step.demo && !this.paused && this.pres.mode === 'scene' && (this._tourWait += dt) > 7) { this._tourWait = 0; return this.next(); }
+    if (this.tour && this.step && !this.step.demo && !this.paused && this.pres.mode === 'scene' && (this._tourWait += dt) > 14 && !this.voice.busy) { this._tourWait = 0; return this.next(); }
     if (!this.step?.demo || this.paused || this.completed.has(this.index) || this.app.phase !== 'lesson' || this.walking) return;
     if (this.assisting) {
       if (this.demoing) return;
       this._assistGap -= dt;
       if (this._assistGap <= 0) {
-        this._assistGap = 0.7;
+        this._assistGap = this.tour ? 2.5 : 0.7;
         if (++this.assistCount > 60) { if (this.tour) this.assistCount = 0; else this.assisting = false; }   // safety: never loop forever (a tour keeps going)
         else this.step.demo();
       }
@@ -308,6 +310,7 @@ export class Director {
       const legs = this._route({ x: 0, z: 0 }, { x: -dx, z: -dz });
       if (legs.length > 1) { const run = (i) => (i >= legs.length ? done?.() : this.moveWorld(-legs[i][0], -legs[i][1], () => run(i + 1), { speed, min: 0.8, route: false })); return run(0); }
     }
+    if (this.tour && min < 5) { speed *= 0.65; min *= 1.4; }      // in the watch tour the walking is slower too (the long cab ride is already timed to its video)
     const sc = this.stage.scenery, hall = this.app.env.virtual, env = this.app.env;
     const dist = Math.hypot(dx, dz);
     if (dist < 0.02) { done?.(); return; }
@@ -427,7 +430,7 @@ export class Director {
     if (step.id !== 'phone') this.phone.setPose('away', 0.01);
     this.app.env.setScene(step.scene || 'hall-wall');
     step.enter();
-    if (this.tour) { this.assisting = true; this._assistGap = 1.2; this.assistCount = 0; this._tourWait = 0; }
+    if (this.tour) { this.assisting = true; this._assistGap = 3.0; this.assistCount = 0; this._tourWait = 0; }      // a breath before each step starts
     this._applyPresentation();
     this.snapshot = JSON.parse(JSON.stringify(this.panel.state));
     this.say(this.step.voice || '');
@@ -459,7 +462,7 @@ export class Director {
   _tourAuto(buttons) {
     if (!this.tour || !buttons || buttons.length !== 1 || !['go', 'cont'].includes(buttons[0].id)) return;
     const id = buttons[0].id, idx = this.index;
-    this.tweens.add({ delay: 2.6, dur: 0.01, done: () => { if (this.tour && this.index === idx && this.panel.state.buttons[0]?.id === id) this.onPanel(id); } });
+    this.afterSpeech(3.0, () => { if (this.tour && this.index === idx && this.panel.state.buttons[0]?.id === id) this.onPanel(id); });
   }
 
   /** Protected volume: a physical headset is never moved. Scenery that comes within 0.35 m of the head is hidden until it clears. */
@@ -681,6 +684,12 @@ export class Director {
     if (p.buttons) p = { ...p, buttons: p.buttons.filter((b) => b.id !== 'help') };   // Help lives in the utility row; no duplicate button
     this.panel.set({ chips: this._chips(), ...p }); this.snapshot = JSON.parse(JSON.stringify(this.panel.state)); this._tourAuto(p.buttons); }
 
+  /** Run fn once the current spoken line has finished, plus a short pause. Used so the watch tour never races ahead of the voice. */
+  afterSpeech(extra, fn) {
+    const tick = () => this.tweens.add({ delay: 0.4, dur: 0.01, done: () => { if (this.voice.busy) tick(); else this.tweens.add({ delay: extra, dur: 0.01, done: fn }); } });
+    tick();
+  }
+
   /** Calm positive state; the learner moves on with the Continue button (never automatically). */
   success(title, body, label = 'Continue', spoken = null) {
     const line = spoken ?? title + ' ' + body;      // one fixed sentence per success, the same in every mode (so it can be recorded once)
@@ -689,7 +698,7 @@ export class Director {
     this.log.complete(this.stepId);
     if (this.tour) {
       this.setPanel({ title, body, note: '', tone: 'normal', buttons: [] }); this.say(line);
-      const idx = this.index; this.tweens.add({ delay: 3.2, dur: 0.01, done: () => { if (this.tour && this.index === idx) this.next(); } });
+      const idx = this.index; this.afterSpeech(3.5, () => { if (this.tour && this.index === idx) this.next(); });      // a moment to take it in
       return;
     }
     this.voice.success();

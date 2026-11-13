@@ -30,8 +30,9 @@ export class Voice {
   say(text) {
     if (!text) return;
     this.last = text; this.log.add(text);
-    if (!this.enabled) return;
+    if (!this.enabled) { this._speakUntil = 0; return; }
     this.stop();
+    this._speakUntil = performance.now() + Math.min(18000, 1500 + String(text).split(/s+/).length * 430);      // roughly how long the line takes at this pace: the watch tour waits for it
     const file = this.manifest[text];
     if (file) {
       try { this.audio = new Audio('./assets/voice/' + file); this.audio.volume = 0.95; this.audio.play().catch(() => this._tts(text)); return; } catch { /* fall through */ }
@@ -49,6 +50,8 @@ export class Voice {
     } catch { /* ignore */ }
   }
 
+  /** True while a spoken line is probably still playing (used to pace the watch tour). */
+  get busy() { return this.enabled && performance.now() < (this._speakUntil || 0); }
   repeat() { if (this.last) this.say(this.last); }
   stop() {
     try { this.synth?.cancel(); } catch { /* ignore */ }

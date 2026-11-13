@@ -13,7 +13,18 @@ export function makeProps(group, { steel, white, dark, teal, navy, glass, glow }
   const cache = {};
   const col = (c) => (cache[c] ??= colourBox(c));
 
+  // a leafy indoor plant: a tapered pot with a soil top and many long curved leaves in several greens
+  const greens = [0x2e7d3b, 0x3f9a4a, 0x2a6b34, 0x4fae57, 0x1f5f30].map((c) => std(c, { roughness: 0.7, side: THREE.DoubleSide }));
+  const leafGeo = (() => { const g = new THREE.ConeGeometry(0.1, 0.85, 4, 3); g.translate(0, 0.42, 0); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, p.getZ(i) * 0.35 + y * y * 0.35); p.setX(i, p.getX(i) * (1 - y * 0.25)); } g.computeVertexNormals(); return g; })();
+  const plantAt = (x, z, s = 1) => {
+    add(new THREE.CylinderGeometry(0.5 * s, 0.38 * s, 0.8 * s, 16), steel, x, 0.4 * s, z); add(new THREE.CylinderGeometry(0.52 * s, 0.52 * s, 0.05 * s, 16), dark, x, 0.82 * s, z); add(new THREE.CylinderGeometry(0.44 * s, 0.44 * s, 0.03 * s, 14), std(0x3b2a1d, { roughness: 1 }), x, 0.83 * s, z);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 + (i % 3) * 0.2, tilt = 0.35 + (i % 4) * 0.2, h = (0.8 + (i % 5) * 0.12) * s, m = add(leafGeo, greens[i % greens.length], x + Math.cos(a) * 0.08 * s, 0.86 * s, z + Math.sin(a) * 0.08 * s);
+      m.scale.setScalar(h * 1.15); m.rotation.set(0, -a + Math.PI / 2, 0); m.rotateX(tilt); m.rotateY(0);
+    }
+  };
   return {
+    plant: plantAt,
     /** A shopfront on a wall. (x, z) is its centre on the wall; face is +1 if the shop looks towards +z, -1 towards -z. */
     shop(x, z, face, w, name, accent, items = ['#e8c06a', '#c95b4a', '#5a8fd0', '#7bbf6a']) {
       const d = 2.6, hh = 4.2;

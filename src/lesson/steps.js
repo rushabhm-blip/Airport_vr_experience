@@ -741,13 +741,13 @@ const seat = (d) => {
         const plate = labelSurface('Row ' + num, { w: 0.5, px: 520 }); plate.mesh.userData.noMerge = true; plate.mesh.position.set(0, 2.05, z + 0.45); W.add(plate.mesh); d.track(plate, false);
       });
       // the other passengers, already seated: bags stowed, some on their phones, some asleep with their heads back
-      pax = new Crowd({ capacity: 30, seed: 5, density: 1 }); W.add(pax.group);
+      pax = new Crowd({ capacity: 30, seed: 5, density: d.app.xrPresenting ? 0.69 : 1 }); W.add(pax.group);
       ROWS.forEach((num, k) => { for (const sd of [-1, 1]) for (let idx = 0; idx < 3; idx++) {
         if (k === TARGET && sd === -1 && idx === 2) continue;                      // seat 14A is yours
         if (pax.rng() < 0.28) continue;
         pax.sitter(sd * 1.12 - (idx - 1) * 0.54, rowZ(k) - 0.02, FACE, { phone: pax.rng() < 0.3, elder: pax.rng() < 0.35 });
       } });
-      pax.update(0.016);
+      pax.update(0.016, null);
       // aisle carpet runner, galley curtain at the far end
       const len = 10.4, ct = carpetTexture(); ct.repeat.set(1, len / 1.0);
       const runner = new THREE.Mesh(new THREE.PlaneGeometry(0.62, len).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: ct, roughness: 1 }));
@@ -779,7 +779,7 @@ const seat = (d) => {
       d.say('This is row 14. Now find seat A, the window seat on your left.');
     },
     update(dt) {
-      pax?.update(dt);
+      pax?.update(dt, d.app.camera);
       if (skyTex) skyTex.offset.x += dt * 0.004;                          // the clouds drift slowly past the window
       if (phase !== 'aisle' && phase !== 'seat') return;
       const uz = -d.stage.scenery.position.z - d.stage.pull;     // where you stand along the aircraft
@@ -1026,7 +1026,7 @@ function forecourtCrowd(d, seed = 31) {
   const lead = c.walker([[7, 1.4], [3.6, -1.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
   c.walker([[13, 0.5], [-13, 0.5]], { run: true, bag: 'roll', speed: 1.0 });
   for (const [x, z, yaw, o] of [[-6.5, 1.6, 1.0, { bag: 'roll', phone: true }], [-5.7, 2.2, 4.2, { talkTo: true, bag: 'pack' }], [6.8, -0.6, 2.4, { phone: true }], [11, 2.5, 3.5, { talkTo: true, bag: 'roll' }], [-11.5, 0.2, 0.4, { bag: 'roll', elder: true }]]) c.stander(x, z, yaw, o);
-  c.update(0.016); d.stage.scenery.add(c.group); return c;
+  c.update(0.016, null); d.stage.scenery.add(c.group); return c;
 }
 
 /** A quick dark blink, so a change of place never pops. */
@@ -1137,7 +1137,7 @@ const kerb = (d) => {
       d.setPanel({ title: 'You have arrived.', body: 'Step out of the cab.', note: '', tone: 'normal', buttons: [{ id: 'out', label: 'Get out' }] });
     },
     exit() { alive = false; fc?.dispose(); fc = null; },
-    update(dt) { fc?.update(dt); },
+    update(dt) { fc?.update(dt, d.app.camera); },
     /** The driver gets your bag out of the boot, puts it on the trolley, gets back in, and the cab drives away. */
     unload() {
       const sc = d.stage.scenery, T = d.tweens, quick = d.reduceMotion;
@@ -1225,7 +1225,7 @@ const arrival = (d) => {
     },
     exit() { fc?.dispose(); fc = null; },
     update(dt) {
-      fc?.update(dt);
+      fc?.update(dt, d.app.camera);
       zoneMesh.material.opacity = phase === 'docs' ? 0.2 + 0.25 * pulse() : 0;
       if (phase !== 'docs') return;
       const b = !booking.userData.heldBy && inZone(booking), i = !id.userData.heldBy && inZone(id);

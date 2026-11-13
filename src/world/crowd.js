@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { buildPeopleGeometries, faceAtlas } from './peopleparts.js';
 
 /**
  * An airport crowd: walkers, runners, people waiting in queues, people seated or standing with luggage, families with children and
@@ -48,7 +49,8 @@ function geometries() {
 }
 
 export class Crowd {
-  constructor({ capacity = 70, seed = 7, density = 1 } = {}) {
+  constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true } = {}) {
+    if (density < 0.7) { nearMax = Math.min(nearMax, 14); nearR = Math.min(nearR, 9.5); }      // on a headset: fewer detailed people, and only the closest
     this.group = new THREE.Group(); this.group.name = 'Crowd';
     this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
     const geos = geometries(), mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -58,6 +60,7 @@ export class Crowd {
       m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3);
       m.count = 0; m.frustumCulled = false; m.castShadow = false; m.name = 'crowd-' + p; this.group.add(m); this.meshes[p] = m;
     }
+    this.nearR = nearR; if (detailed) this._initDetail(nearMax);
     this._m = new THREE.Matrix4(); this._b = new THREE.Matrix4(); this._l = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._e = new THREE.Euler(); this._v = new THREE.Vector3(); this._s = new THREE.Vector3(); this._c = new THREE.Color();
   }
 
@@ -237,11 +240,134 @@ export class Crowd {
 
   _hide(part, i) { this._zero = this._zero || new THREE.Matrix4().makeScale(0, 0, 0); this.meshes[part].setMatrixAt(i, this._zero); }
 
-  update(dt) {
+  // ================================================================== DETAILED PEOPLE (those near the camera)
+  _initDetail(nearMax) {
+    const G = buildPeopleGeometries(); this.G = G;
+    const mirror = (geo) => {                                  // a left hand: flip x and turn the triangles round so they face out
+      const g = geo.clone(); g.scale(-1, 1, 1);
+      for (const k of ['position', 'normal', 'uv', 'color']) {
+        const a = g.attributes[k]; if (!a) continue; const s = a.itemSize;
+        for (let i = 0; i + 2 < a.count; i += 3) for (let c = 0; c < s; c++) { const t = a.array[(i + 1) * s + c]; a.array[(i + 1) * s + c] = a.array[(i + 2) * s + c]; a.array[(i + 2) * s + c] = t; }
+      }
+      return g;
+    };
+    const handL = mirror(G.hand);
+    const geo = { torso: G.torso, neck: G.neck, head: G.head, face: G.face, nose: G.nose, ears: G.ears, hairS: G.hairS, hairL: G.hairL, hairB: G.hairB, glasses: G.glasses,
+      armUL: G.armU, armUR: G.armU, foreL: G.foreA, foreR: G.foreA, handL, handR: G.hand, thighL: G.thigh, thighR: G.thigh, shinL: G.shin, shinR: G.shin, shoeL: G.shoe, shoeR: G.shoe,
+      saree: G.saree, kurta: G.kurta, pallu: G.pallu, collar: G.collar, belt: G.belt, suitcase: G.suitcase, pack: G.pack, cart: G.cart, phone: G.phone };
+    this.dparts = Object.keys(geo); this.dn = nearMax; this.dmeshes = {}; this.slotOwner = new Array(nearMax).fill(null);
+    const body = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+    const atlas = faceAtlas();
+    const faceMat = new THREE.MeshBasicMaterial({ map: atlas, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    faceMat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 faceOff;').replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv += faceOff;\n#endif'); };
+    for (const k of this.dparts) {
+      const g = k === 'face' ? G.face : geo[k];
+      const m = new THREE.InstancedMesh(g, k === 'face' ? faceMat : body, nearMax);
+      m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(nearMax * 3).fill(1), 3); m.count = 0; m.frustumCulled = false; m.name = 'crowd3d-' + k;
+      if (k === 'face') m.geometry.setAttribute('faceOff', new THREE.InstancedBufferAttribute(new Float32Array(nearMax * 2), 2));
+      this.group.add(m); this.dmeshes[k] = m;
+    }
+    this._dm = [0, 1, 2, 3, 4, 5].map(() => new THREE.Matrix4());
+    this._cam = new THREE.Vector3(); this._rx = new THREE.Matrix4();
+  }
+
+  /** Per-person look for the detailed model: hair, outfit, glasses, face, sleeves. */
+  _look(p) {
+    const r = this.rng, f = p.female;
+    p.hairStyle = p.child ? 'S' : f ? (r() < 0.5 ? 'L' : r() < 0.6 ? 'B' : 'S') : 'S';
+    p.outfit = p.dress ? 'saree' : (!p.child && r() < (f ? 0.25 : 0.2) ? 'kurta' : 'pant');
+    p.glasses = !p.child && r() < (p.elder ? 0.5 : 0.18); p.face = (r() * 8) | 0; p.longSleeve = r() < 0.4; p.kurtaCol = this.pick(SAREE.concat(SHIRT.slice(0, 6)));
+    p.shoeCol = this.pick([0x1c1c1e, 0x3a2a1d, 0xf0f0f0, 0x2a3a5a, 0x5a4a3a, 0x8a2a2a]);
+  }
+
+  _colorsD(p, k) {
+    const c = this._c, set = (part, hex) => { this.dmeshes[part].setColorAt(k, c.set(hex)); }, sk = p.skin, sh = p.outfit === 'kurta' ? p.kurtaCol : p.shirt;
+    const skDark = c.set(sk).multiplyScalar(0.93).getHex();
+    set('torso', p.outfit === 'saree' ? p.dress : sh); set('neck', sk); set('head', sk); set('face', 0xffffff); set('nose', skDark); set('ears', sk);
+    set('hairS', p.hair); set('hairL', p.hair); set('hairB', p.hair); set('glasses', 0x2a2a2e);
+    set('armUL', p.outfit === 'saree' ? p.dress : sh); set('armUR', p.outfit === 'saree' ? p.dress : sh);
+    const fore = p.longSleeve && p.outfit !== 'saree' ? sh : sk; set('foreL', fore); set('foreR', fore); set('handL', sk); set('handR', sk);
+    const leg = p.outfit === 'saree' ? p.dress : p.trouser; set('thighL', leg); set('thighR', leg); set('shinL', leg); set('shinR', leg); set('shoeL', p.shoeCol); set('shoeR', p.shoeCol);
+    set('saree', p.dress); set('kurta', p.kurtaCol); set('pallu', c.set(p.dress).multiplyScalar(1.15).getHex()); set('collar', sh); set('belt', 0x2a2a2a);
+    set('suitcase', p.bagColor); set('pack', p.bagColor); set('cart', 0xffffff); set('phone', 0xffffff);
+    const fo = this.dmeshes.face.geometry.attributes.faceOff; fo.setXY(k, (p.face % 4) * 0.25, (p.face >> 2) * 0.5); fo.needsUpdate = true;
+    for (const part of this.dparts) this.dmeshes[part].instanceColor.needsUpdate = true;
+  }
+
+  _hideD(part, k) { this._zero = this._zero || new THREE.Matrix4().makeScale(0, 0, 0); this.dmeshes[part].setMatrixAt(k, this._zero); }
+
+  _drawDetail(p, k, o) {
+    const s = p.scale, B = this._b, L = this._l, V = this._v, D = this.dmeshes, [M1, M2, M3, M4, M5, M6] = this._dm;
+    B.compose(V.set(p.x, p.y + o.bob * s - o.drop, p.z), this._q.setFromEuler(this._e.set(o.lean, p.yaw, o.sway, 'YXZ')), this._s.set(s, s, s));
+    const put = (part, M) => D[part].setMatrixAt(k, M);
+    put('torso', B); put('neck', B);
+    const saree = p.outfit === 'saree', kurta = p.outfit === 'kurta';
+    if (saree) { put('saree', B); put('pallu', B); } else { this._hideD('saree', k); this._hideD('pallu', k); }
+    kurta ? put('kurta', B) : this._hideD('kurta', k);
+    if (p.outfit === 'pant') { put('collar', B); put('belt', B); } else { this._hideD('collar', k); this._hideD('belt', k); }
+    // head group (turns a little to look around): face, ears, nose and hair
+    L.makeRotationY(o.head); M1.multiplyMatrices(B, L);
+    put('head', M1); put('face', M1); put('nose', M1); put('ears', M1);
+    for (const hs of ['S', 'L', 'B']) p.hairStyle === hs ? put('hair' + hs, M1) : this._hideD('hair' + hs, k);
+    p.glasses ? put('glasses', M1) : this._hideD('glasses', k);
+    // arms: shoulder -> elbow -> wrist
+    const elbow = o.elbow, armD = o.armD;
+    for (const [side, sx] of [['L', -0.195], ['R', 0.195]]) {
+      const i = side === 'L' ? 0 : 1;
+      L.makeTranslation(sx, 1.405, 0); M2.multiplyMatrices(B, L); L.makeRotationX(-armD[i]); M2.multiply(L); put('armU' + side, M2);
+      L.makeTranslation(0, -0.285, 0); M3.multiplyMatrices(M2, L); L.makeRotationX(-elbow[i]); M3.multiply(L); put('fore' + side, M3);
+      L.makeTranslation(0, -0.268, 0); M4.multiplyMatrices(M3, L); put('hand' + side, M4);
+      if (side === 'R' && p.pose === 'phone') { L.makeTranslation(0, -0.07, 0.03); L.multiply(this._rx.makeRotationX(0.35)); M6.multiplyMatrices(M4, L); put('phone', M6); } else if (side === 'R') this._hideD('phone', k);
+    }
+    // legs: hip -> knee -> ankle (the shoe is kept flat)
+    for (const [side, sx] of [['L', -0.09], ['R', 0.09]]) {
+      const i = side === 'L' ? 0 : 1, a = o.thigh[i], kn = o.knee[i];
+      L.makeTranslation(sx, 0.92, 0); M2.multiplyMatrices(B, L); L.makeRotationX(-a); M2.multiply(L); put('thigh' + side, M2);
+      L.makeTranslation(0, -0.44, 0); M3.multiplyMatrices(M2, L); L.makeRotationX(kn); M3.multiply(L); put('shin' + side, M3);
+      L.makeTranslation(0, -0.415, 0); M4.multiplyMatrices(M3, L); L.makeRotationX(a - kn); M4.multiply(L); put('shoe' + side, M4);
+    }
+    // luggage
+    const none = (part) => this._hideD(part, k);
+    if (p.bag === 'roll') {
+      const bx = 0.34, bz = p.stride > 0.05 ? -0.5 : -0.12;
+      L.makeRotationX(p.stride > 0.05 ? 0.12 : 0); L.setPosition(bx, 0, bz); M5.multiplyMatrices(B, L); put('suitcase', M5); none('pack'); none('cart');
+    } else if (p.bag === 'pack') { L.makeRotationX(0.05); L.setPosition(0, 1.2, -0.17); M5.multiplyMatrices(B, L); put('pack', M5); none('suitcase'); none('cart'); }
+    else if (p.bag === 'cart') {
+      L.makeRotationX(0); L.setPosition(0, 0, 0.62); M5.multiplyMatrices(B, L); put('cart', M5); L.setPosition(0, 0.24, 0.62); M6.multiplyMatrices(B, L); put('suitcase', M6); none('pack');
+    } else { none('suitcase'); none('pack'); none('cart'); }
+  }
+
+  /** The arms of the detailed model: where the shoulder and the elbow bend for this activity (the simple model keeps o.arm). */
+  _poseD(p, o) {
+    const a = o.arm, w = p.stride > 0.05;
+    o.armD = [a[0], a[1]]; o.elbow = [0.2, 0.2];
+    if (p.mode === 'sit') { o.armD = [0.22, p.pose === 'phone' ? 0.5 : 0.22]; o.elbow = [0.95, p.pose === 'phone' ? 1.75 : 0.95]; }
+    else if (w) { o.elbow = [0.3 + 0.45 * Math.max(0, a[0]), 0.3 + 0.45 * Math.max(0, a[1])]; if (p.bag === 'roll') { o.armD[1] = -0.2; o.elbow[1] = 0.15; } if (p.bag === 'cart') { o.armD = [0.45, 0.45]; o.elbow = [0.55, 0.55]; } }
+    else if (p.pose === 'phone') { o.armD = [0.08, 0.55]; o.elbow = [0.15, 1.95]; }
+    else if (p.pose === 'talk') { o.armD = [0.15, 0.45 + Math.sin(p.t * 3 + p.spin) * 0.2]; o.elbow = [0.25, 1.2 + Math.sin(p.t * 2.5 + p.spin) * 0.3]; }
+    return o;
+  }
+
+  /** Frame update with LOD: the nearest people get the detailed model, everyone else the simple one. */
+  update(dt, camera = null) {
     dt = Math.min(dt, 0.1); this.time += dt;
     this._updateQueues(dt);
-    for (const p of this.people) { this._step(p, dt); this._draw(p); }
+    let near = 0; const R2 = (this.nearR ?? 15) ** 2, detail = !!this.dmeshes && !!camera;
+    if (detail) { camera.getWorldPosition(this._cam); this.group.worldToLocal(this._cam); }
+    for (const p of this.people) {
+      this._step(p, dt);
+      const d2 = detail ? (p.x - this._cam.x) ** 2 + (p.z - this._cam.z) ** 2 + ((p.y - this._cam.y + 1.4) ** 2) * 0.3 : Infinity;
+      if (d2 < R2 && near < this.dn) {
+        if (!p.looked) { this._look(p); p.looked = true; }
+        const k = near++;
+        if (this.slotOwner[k] !== p) { this.slotOwner[k] = p; this._colorsD(p, k); }
+        this._drawDetail(p, k, this._poseD(p, this._pose(p)));
+        if (!p.hidFar) { for (const part of PARTS) this._hide(part, p.idx); p.hidFar = true; }
+      } else { p.hidFar = false; this._draw(p); }
+    }
+    if (this.dmeshes) for (const k of this.dparts) { const m = this.dmeshes[k]; m.count = near; m.instanceMatrix.needsUpdate = true; }
     for (const k of PARTS) this.meshes[k].instanceMatrix.needsUpdate = true;
   }
-  dispose() { for (const m of Object.values(this.meshes)) { m.geometry.dispose(); } this.group.removeFromParent(); }
+
+  dispose() { for (const m of [...Object.values(this.meshes), ...Object.values(this.dmeshes || {})]) { m.geometry.dispose(); } this.group.removeFromParent(); }
 }

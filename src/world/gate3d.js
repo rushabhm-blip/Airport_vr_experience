@@ -54,7 +54,12 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
 
   // ---- seating: rows facing the windows, plus two rows back to back
   const seats = (x0, z, n, facing = -1) => {
-    for (let i = 0; i < n; i++) { const x = x0 + i * 0.56; add(new THREE.BoxGeometry(0.5, 0.1, 0.5), seatMat, x, 0.46, z); add(new THREE.BoxGeometry(0.5, 0.46, 0.08), seatMat, x, 0.78, z - facing * 0.24, -0.1 * facing, 0, 0); add(new THREE.BoxGeometry(0.08, 0.14, 0.4), steel, x + 0.27, 0.58, z); }
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * 0.56;
+      add(new THREE.BoxGeometry(0.5, 0.09, 0.48), seatMat, x, 0.45, z); add(new THREE.BoxGeometry(0.46, 0.012, 0.44), teal, x, 0.5, z);                                       // seat pad and a teal cushion strip
+      add(new THREE.BoxGeometry(0.5, 0.4, 0.07), seatMat, x, 0.76, z - facing * 0.23, -0.12 * facing, 0, 0); add(new THREE.BoxGeometry(0.3, 0.1, 0.075), seatMat, x, 1.04, z - facing * 0.255, -0.12 * facing, 0, 0);   // back and headrest
+      add(new THREE.BoxGeometry(0.045, 0.04, 0.4), steel, x + 0.28, 0.64, z); add(new THREE.BoxGeometry(0.035, 0.2, 0.035), steel, x + 0.28, 0.54, z + 0.12 * -facing);   // armrest and its post
+    }
     add(new THREE.BoxGeometry(n * 0.56, 0.06, 0.07), steel, x0 + (n - 1) * 0.28, 0.34, z);
     for (const lx of [0, n - 1]) add(new THREE.BoxGeometry(0.06, 0.4, 0.5), steel, x0 + lx * 0.56, 0.2, z);
   };
@@ -63,7 +68,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (const bx of [-22, 14]) for (const z of [14, 15.1]) seats(bx, z, 10, z === 14 ? -1 : 1);
 
   // ---- planters
-  const plant = (x, z, s = 1) => { add(new THREE.CylinderGeometry(0.46 * s, 0.4 * s, 0.9 * s, 18), steel, x, 0.45 * s, z); for (let i = 0; i < 7; i++) { const a = i * 0.9, r = 0.28 * s; add(new THREE.IcosahedronGeometry((0.5 + (i % 3) * 0.1) * s, 1), i % 2 ? leaf : leaf2, x + Math.cos(a) * r, (1.35 + (i % 4) * 0.22) * s, z + Math.sin(a) * r); } };
+  const plants = [], plant = (x, z, s = 1) => { plants.push([x, z, s]); };
   for (const [x, z] of [[-14, -6.5], [14, -6.5], [-4, 6], [4, 6], [-24, 2], [24, 2], [-24, 18], [24, 18], [0, 19]]) plant(x, z, 1.1);
 
   // ---- hanging signs
@@ -86,7 +91,11 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
     const nose = put(new THREE.SphereGeometry(1.95, 24, 16), body, 0, 3.4, 12); nose.scale.set(1, 1, 1.9);                // rounded nose
     const tail = put(new THREE.ConeGeometry(1.95, 7, 24), body, 0, 3.9, -15.5, -Math.PI / 2 - 0.1, 0, 0);                  // tapered tail cone
     for (const side of [-1, 1]) {
-      put(new THREE.BoxGeometry(0.06, 0.34, 17), wnd, side * 1.96, 4.2, 1);                                                // window band
+      for (let wi = 0; wi < 26; wi++) put(new THREE.BoxGeometry(0.05, 0.3, 0.34), wnd, side * 1.955, 4.15, -9 + wi * 0.72).rotation.y = 0;      // one window per row
+      put(new THREE.BoxGeometry(0.06, 1.1, 0.04), grey, side * 1.95, 3.4, 11.6); put(new THREE.BoxGeometry(0.06, 1.8, 0.9), std(0xdfe3e6, { roughness: 0.4 }), side * 1.955, 3.2, 8.0);    // the doors
+      put(new THREE.CylinderGeometry(0.88, 0.88, 0.05, 18), std(0x6d747a, { roughness: 0.3, metalness: 0.7 }), side * 5.8, 1.4, 3.55, Math.PI / 2, 0, 0); put(new THREE.ConeGeometry(0.28, 0.45, 12), std(0xbfc5ca, { roughness: 0.3, metalness: 0.6 }), side * 5.8, 1.4, 3.8, Math.PI / 2, 0, 0);   // engine fan and spinner
+      put(new THREE.BoxGeometry(0.12, 1.4, 1.0), navy, side * 17.4, 3.1, -4.4).rotation.z = side * 0.25;                                  // winglet
+      put(new THREE.CylinderGeometry(0.62, 0.62, 0.5, 14), dark, side * 2.2, 0.62, -1.4, 0, 0, Math.PI / 2);       // second wheel of the main gear
       put(new THREE.BoxGeometry(0.07, 0.55, 15), teal, side * 1.97, 2.2, 0);                                               // livery stripe
       const wing = put(new THREE.BoxGeometry(16, 0.28, 5.2), body, side * 8.6, 2.5, -0.5); wing.rotation.y = side * 0.5;    // swept wing
       put(new THREE.CylinderGeometry(1.05, 0.95, 4.2, 18), grey, side * 5.8, 1.4, 1.4, Math.PI / 2, 0, 0);                // engine
@@ -96,6 +105,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
     put(new THREE.BoxGeometry(0.34, 6.2, 5.0), navy, 0, 7.6, -16.2).rotation.x = 0.4;                                      // tail fin
     put(new THREE.BoxGeometry(0.36, 3.2, 2.0), teal, 0, 7.2, -17.2).rotation.x = 0.4;
     put(new THREE.CylinderGeometry(0.28, 0.28, 2.0, 10), steel, 0, 1.0, 9.5); put(new THREE.CylinderGeometry(0.5, 0.5, 0.38, 14), dark, 0, 0.5, 9.5, 0, 0, Math.PI / 2);
+    put(new THREE.BoxGeometry(2.3, 0.5, 0.06), wnd, 0, 4.5, 13.5).rotation.x = -0.35; put(new THREE.BoxGeometry(0.5, 0.45, 0.06), wnd, -0.95, 4.5, 13.4); put(new THREE.BoxGeometry(0.5, 0.45, 0.06), wnd, 0.95, 4.5, 13.4);     // the cockpit windscreen
     for (const side of [-1, 1]) { put(new THREE.CylinderGeometry(0.26, 0.26, 2.0, 10), steel, side * 2.2, 1.0, -1.0); put(new THREE.CylinderGeometry(0.62, 0.62, 0.5, 14), dark, side * 2.2, 0.62, -1.0, 0, 0, Math.PI / 2); }
     a.scale.setScalar(s); a.position.set(x, 0, z); a.rotation.y = ry; static_.add(a);
   };
@@ -124,6 +134,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
 
   // ================= SHOPS, ADVERTS AND FURNISHINGS =================
   const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
+  for (const a of plants) P.plant(...a);
   P.shop(-16, 21.6, -1, 8, 'CAFE', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']); P.shop(0, 21.6, -1, 8, 'NEWS & BOOKS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(16, 21.6, -1, 8, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']);
   for (const z of [4, 10, 16]) { P.lightbox(-25.88, 3.4, z, Math.PI / 2, 4.6, 1.7, ['Fly Practice Air', 'Visit Kerala', 'Meet the Taj'][(z / 6) | 0 ? 0 : 1], 'Book at practiceair.example', '#15305a', '#12a3a1'); P.lightbox(25.88, 3.4, z, -Math.PI / 2, 4.6, 1.7, ['Discover Goa', 'Welcome Aboard', 'Fly Calm'][((z / 6) | 0) % 3], 'Your journey starts here', '#c0392b', '#e0a030'); }
   P.clock(0, 6.0, 21.8, Math.PI); P.gateSign(-10, 5.2, -4.5, 'GATE 12  \u2192', 0, vy(-10)); P.gateSign(11, 5.2, -4.5, 'GATE 18  \u2190', 0, vy(11));
@@ -160,8 +171,8 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   // standing groups and travellers near the columns and planters
   for (const [x, z, yaw, o] of [[-19, 6.5, 1.0, { bag: 'roll', phone: true }], [-18.2, 7.2, 4.1, { talkTo: true, bag: 'pack' }], [19.5, 12, 2.2, { phone: true }], [20.3, 12.8, 5.3, { talkTo: true, bag: 'roll' }], [0, 19, 3.1, { bag: 'roll' }], [1, 19.4, 3.3, { elder: true, bag: 'pack' }], [-3.5, 6.8, 1.7, { phone: true }], [11, -0.4, 0.2, { bag: 'roll' }]]) crowd.stander(x, z, yaw, o);
   g.add(crowd.group);
-  g.userData.crowd = crowd; g.userData.update = (dt) => crowd.update(dt);
-  crowd.update(0.016);
+  g.userData.crowd = crowd; g.userData.update = (dt, cam) => crowd.update(dt, cam);
+  crowd.update(0.016, null);
 
   g.userData.dims = { HX, ZW, Z1, CROWN, ceil: vy(0) - 0.3 };
   return g;

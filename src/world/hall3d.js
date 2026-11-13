@@ -86,10 +86,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   for (const [cx, cz] of [[-18, -24], [0, -24], [18, -24], [-18, -10], [18, -10]]) island(cx, cz, 6);
 
   // ---- planters with leafy plants
-  const plant = (x, z, s = 1) => {
-    add(new THREE.CylinderGeometry(0.46 * s, 0.4 * s, 0.9 * s, 18), steel, x, 0.45 * s, z);
-    for (let i = 0; i < 7; i++) { const a = i * 0.9, r = 0.28 * s; add(new THREE.IcosahedronGeometry((0.5 + (i % 3) * 0.1) * s, 1), i % 2 ? leaf : leaf2, x + Math.cos(a) * r, (1.35 + (i % 4) * 0.22) * s, z + Math.sin(a) * r); }
-  };
+  const plants = [], plant = (x, z, s = 1) => { plants.push([x, z, s]); };      // drawn later, with the leafy plant model
   for (const [x, z] of [[-9, -17], [9, -17], [-9, -3], [9, -3], [-24, -12], [24, -12], [-24, 6], [24, 6], [-6, 12], [6, 12], [-26, -28], [26, -28]]) plant(x, z, 1.1);
 
   // ---- seating lounge to the left and right
@@ -165,6 +162,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
 
   // ================= SHOPS, ADVERTS, KIOSKS AND FURNISHINGS =================
   const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
+  for (const a of plants) P.plant(...a);
   P.shop(-20, 25.6, -1, 9, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']); P.shop(-8, 25.6, -1, 9, 'CAFE & BAKERY', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']);
   P.shop(8, 25.6, -1, 9, 'BOOKS & GIFTS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(20, 25.6, -1, 9, 'PHARMACY', 0x2f8a3f, ['#ffffff', '#7bbf6a', '#5a8fd0', '#e0e0e0']);
   P.lightbox(-14, 7.3, 25.85, Math.PI, 7, 2.1, 'Fly Practice Air', 'Mumbai · Delhi · Chennai', '#15305a', '#12a3a1'); P.lightbox(0, 7.3, 25.85, Math.PI, 7, 2.1, 'Discover India', 'Your journey starts here', '#c0392b', '#e0a030'); P.lightbox(14, 7.3, 25.85, Math.PI, 7, 2.1, 'Welcome Aboard', 'Calm. Clear. Cared for.', '#2c5aa0', '#7de0ff');
@@ -214,8 +212,8 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
     if (rr() < 0.6) { const px = tx + Math.cos(a) * 0.85, pz = tz + Math.sin(a) * 0.85; crowd.sitter(px, pz, Math.atan2(tx - px, tz - pz), { y: 5.4, phone: rr() < 0.3, elder: rr() < 0.4 }); }
   }
   g.add(crowd.group);
-  g.userData.crowd = crowd; g.userData.update = (dt) => crowd.update(dt);
-  crowd.update(0.016);
+  g.userData.crowd = crowd; g.userData.update = (dt, cam) => crowd.update(dt, cam);
+  crowd.update(0.016, null);
 
   g.userData.dims = { HX, Z0, Z1, CROWN };
   return g;

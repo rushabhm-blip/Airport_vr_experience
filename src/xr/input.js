@@ -238,22 +238,28 @@ export class Interactions {
 
   /** Walking input as a stick-like vector: the left thumbstick, or W A S D on the desktop. y < 0 is forward. */
   walkAxes() {
-    const s = this.stick('left');
+    const s = this.stick();
     if (Math.hypot(s.x, s.y) > 0.01) return s;
     return { x: (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0), y: (this.keys.has('s') ? 1 : 0) - (this.keys.has('w') ? 1 : 0) };
   }
 
-  /** Thumbstick of a controller (-1..1), preferring the left one for walking. */
-  stick(hand = 'left') {
-    let best = null;
-    for (const p of this.pointers) {
-      const gp = p.kind === 'xr' && p.connected && !p.isHand ? p.source?.gamepad : null;
-      if (!gp || gp.axes.length < 4) continue;
-      const v = { x: gp.axes[2], y: gp.axes[3] };
-      if (p.handedness === hand) return v;
-      best = best || v;
-    }
-    return best || { x: 0, y: 0 };
+  /**
+   * Thumbstick (-1..1) of whichever controller is being pushed. It reads the headset's live input sources every time (a stored copy can
+   * go stale when the headset swaps controllers or hands), accepts 2-axis or 4-axis gamepads, and uses the left stick on a tie.
+   */
+  stick() {
+    let best = { x: 0, y: 0 }, bm = 0;
+    const consider = (gp, hand) => {
+      if (!gp || !gp.axes) return;
+      const n = gp.axes.length; if (n < 2) return;
+      const v = n >= 4 ? { x: gp.axes[2] || 0, y: gp.axes[3] || 0 } : { x: gp.axes[0] || 0, y: gp.axes[1] || 0 };
+      const m = Math.hypot(v.x, v.y);
+      if (m > bm + 1e-6 || (Math.abs(m - bm) < 1e-6 && m > 0 && hand === 'left')) { best = v; bm = m; }
+    };
+    const session = this.renderer.xr.getSession?.();
+    if (session) { for (const src of session.inputSources) if (!src.hand) consider(src.gamepad, src.handedness); }
+    else for (const p of this.pointers) if (p.kind === 'xr' && p.connected && !p.isHand) consider(p.source?.gamepad, p.handedness);
+    return best;
   }
 
   // ----------------------------------------------------------------- per-frame

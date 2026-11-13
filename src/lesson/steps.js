@@ -383,7 +383,7 @@ const security = (d) => {
         { p: a.toArray(), dur: 0.9, hold: 0.2 },
         { p: [(a.x + to.x) / 2, Math.max(a.y, to.y) + up, (a.z + to.z) / 2], dur: 0.8, carry: gh },
         { p: to.toArray(), dur: 0.7, carry: gh, press: true }]; };
-      const put = (o, to) => { o.position.copy(to); o.updateMatrixWorld(true); };
+      const put = (o, to) => { o.position.copy(o.parent.worldToLocal(d.stage.root.localToWorld(to.clone()))); o.updateMatrixWorld(true); };      // 'to' is in stage space; the tray and bag live in the moving scenery, so convert
       if (!st.phoneIn) { const m = !st.inTray.has('phone') ? phone : pouch, t = here(tray), to = new THREE.Vector3(t.x, t.y + 0.07, t.z); d.runDemo(move(m, to), { say: m === phone ? 'Put your phone in the tray, like this.' : 'Take out your electronics pouch and put it in the tray, like this. Everything is together, so it is quick.', apply: () => { put(m, to); this.phoneReleased(m); } }); }
       else if (!st.traySent) { const to = laneP(0, 0.8, 0.1); d.runDemo(move(tray, to, 0.12), { say: 'Now pick up the tray and release it on the belt, like this.', apply: () => { put(tray, to); this.trayReleased(tray); } }); }
       else if (!st.bagSent) { const to = laneP(0, 0.8, 0.1); d.runDemo(move(bag, to, 0.25), { say: 'Now lift your bag and release it on the belt, like this.', apply: () => { put(bag, to); this.bagReleased(bag); } }); }

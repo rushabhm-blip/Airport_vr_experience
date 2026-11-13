@@ -154,18 +154,23 @@ export class Environment {
   setOutdoorTheme(theme) {
     const g = this._outdoorGroup(), home = theme === 'home';
     if (!this.kerbRing) this.kerbRing = g.children.find((o) => o.isMesh && o.geometry?.type === 'CylinderGeometry' && o.geometry.parameters.radiusTop === 60);
-    if (this.kerbRing) this.kerbRing.visible = !home;
-    for (const n of ['Ground', 'Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = !home; }     // at home the photograph supplies the road itself
-    if (home && !this.streetSphere) {
-      const t = photoTexture('home-street-360');
-      if (t) {
-        const m = this.streetSphere = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 40), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
-        m.name = 'StreetSphere'; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = 1.25; m.renderOrder = -8; g.add(m);      // drawn after the sky; first view: the house gate across the road
-      }
+    // one 360-degree photograph per theme; each is drawn after the sky and turned so that the first view faces the main subject
+    this.streets ??= {};
+    for (const name of ['home-street-360', 'airport-kerb-360']) {
+      if (this.streets[name]) continue;
+      const t = photoTexture(name); if (!t) continue;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 40), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+      m.name = 'Street ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = 1.25; m.renderOrder = -8; m.visible = false; g.add(m); this.streets[name] = m;
     }
-    if (this.streetSphere) this.streetSphere.visible = home;
+    const key = home ? 'home-street-360' : 'airport-kerb-360', sphere = this.streets[key] || null;
+    for (const [name, m] of Object.entries(this.streets)) m.visible = m === sphere;
+    this.streetSphere = this.streets['home-street-360'];
+    this.theme360 = !!sphere;                                         // true: a photograph supplies the road, the pavement and the building
+    // without a photograph the old drawn ground (and the flat kerb photo ring) is used; with one, the photograph supplies all of it
+    if (this.kerbRing) this.kerbRing.visible = !sphere && !home;
+    for (const n of ['Ground', 'Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = !sphere && !home; }
     if (this.homeRing) this.homeRing.visible = false;
-    if (home && !this.streetSphere) { /* photograph missing: fall back to the old three-strip street */ this._legacyHomeRing(g); }
+    if (home && !sphere) this._legacyHomeRing(g);
   }
   _legacyHomeRing(g) {
     if (!this.homeRing) {

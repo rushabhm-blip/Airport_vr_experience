@@ -31,7 +31,8 @@ function hangBoardY(obj) {
 
 function photoPlane(d, name, w, h, pos) {
   if (d.app.env.mode !== 'immersive') return null;
-  if (d.app.env.use360 && name === 'checkin-hall') return null;      // the 360 hall already surrounds the check-in counters
+  if (d.app.env.use360 && name === 'checkin-hall') return null;
+  if (d.app.env.theme360 && name === 'view-hall-wide') return null;      // the 360 airport photograph already shows the terminal      // the 360 hall already surrounds the check-in counters
   const t = photoTexture(name); if (!t) return null;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
   m.position.set(...pos); d.stage.scenery.add(m); return m;
@@ -958,6 +959,7 @@ const phone = (d) => {
 
 /** The airport facade as one big photo, in the scenery (so it can be approached). The entrance sits at x = 0. Shown in mixed reality too. */
 function facadePlane(d, w, dist) {
+  if (d.app.env.theme360) return null;      // the 360 photograph already shows the terminal
   const t = photoTexture('view-kerb'); if (!t) return null;
   const h = w * 1024 / 1536;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.DoubleSide }));
@@ -1112,6 +1114,7 @@ const kerb = (d) => {
       if (cab) { d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); rmCab = d.obstacle(cab); }
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-1.0, 0, 1.2]); driver.noPush = true; alive = true;
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
+      if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 });
       d.track(screenOverlay(ksign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures', arrow: '↑', state: { glow: false } }) }), false);
       d.obstacle(d.addScenery(d.assets.make('luggage-trolley'), { x: 0.9, z: -1.2, ry: 0.4 }));
@@ -1171,7 +1174,9 @@ const arrival = (d) => {
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
+      d.app.env.setOutdoorTheme('airport');
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
+      if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });
       rmDoors = d.obstacle(doors);      // shut until the guard has checked you
       const st = { glow: false };

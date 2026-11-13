@@ -102,7 +102,7 @@ export class Environment {
     };
     this.roadTex = speckle('#575b5f', ['#3f4347', '#6c7075', '#4b4f53'], 70);
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 160).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: this.roadTex, roughness: 1 }));
-    ground.position.y = -0.02; g.add(ground);
+    ground.position.y = -0.02; ground.name = 'Ground'; g.add(ground);
     // the forecourt in front of the terminal: lighter paving, with a kerb where the road ends (z = -1.2)
     const pave = new THREE.Mesh(new THREE.PlaneGeometry(160, 80).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: speckle('#b4b4ae', ['#a2a29c', '#c6c6c0'], 60, 'rgba(90,90,85,0.35)'), roughness: 0.95 }));
     pave.position.set(0, 0.01, -41.2); pave.name = 'Pave'; g.add(pave);
@@ -127,23 +127,33 @@ export class Environment {
    * home: three photographs, one in front and one on each side, on a curved backdrop at about 14 m).
    */
   setOutdoorTheme(theme) {
-    const g = this._outdoorGroup();
+    const g = this._outdoorGroup(), home = theme === 'home';
     if (!this.kerbRing) this.kerbRing = g.children.find((o) => o.isMesh && o.geometry?.type === 'CylinderGeometry' && o.geometry.parameters.radiusTop === 60);
-    if (this.kerbRing) this.kerbRing.visible = theme !== 'home';
-    for (const n of ['Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = theme !== 'home'; }     // at home it is all road
-    if (theme === 'home' && !this.homeRing) {
-      const R = 14, arc = 2 * Math.PI / 3, H = 2 * R * Math.sin(arc / 2) / 3.0;       // each photograph is 3 : 1 and spans a third of the circle
-      const grp = this.homeRing = new THREE.Group(); grp.name = 'HomeStreet';
-      // the kerb line sits at about 69% down each photograph: put that line on the ground (so the photograph rises from y = 0)
-      const kerbAt = 0.69;
+    if (this.kerbRing) this.kerbRing.visible = !home;
+    for (const n of ['Ground', 'Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = !home; }     // at home the photograph supplies the road itself
+    if (home && !this.streetSphere) {
+      const t = photoTexture('home-street-360');
+      if (t) {
+        const m = this.streetSphere = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 40), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide, depthWrite: false }));
+        m.name = 'StreetSphere'; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = 1.25; m.renderOrder = -8; g.add(m);      // drawn after the sky; first view: the house gate across the road
+      }
+    }
+    if (this.streetSphere) this.streetSphere.visible = home;
+    if (this.homeRing) this.homeRing.visible = false;
+    if (home && !this.streetSphere) { /* photograph missing: fall back to the old three-strip street */ this._legacyHomeRing(g); }
+  }
+  _legacyHomeRing(g) {
+    if (!this.homeRing) {
+      const R = 14, arc = 2 * Math.PI / 3, H = 2 * R * Math.sin(arc / 2) / 3.0, grp = this.homeRing = new THREE.Group(); grp.name = 'HomeStreet';
       [['home-street', 0], ['side-left', 1], ['side-right', -1]].forEach(([name, k]) => {
         const t = photoTexture(name); if (!t) return;
         const seg = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 48, 1, true, Math.PI - arc / 2 + k * arc, arc), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.BackSide }));
-        seg.position.y = H * (kerbAt - 0.5); seg.renderOrder = -8; grp.add(seg);
+        seg.position.y = H * (0.69 - 0.5); seg.renderOrder = -8; grp.add(seg);
       });
       g.add(grp);
     }
-    if (this.homeRing) this.homeRing.visible = theme === 'home';
+    this.homeRing.visible = true;
+    const gr = g.getObjectByName('Ground'); if (gr) gr.visible = true;
   }
 
   setBackground() {

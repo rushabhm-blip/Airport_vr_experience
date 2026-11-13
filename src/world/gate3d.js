@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mergeStatic } from './merge.js';
 import { terrazzoTexture } from './floors.js';
-import { applyPbr } from './pbr.js';
+import { applyPbr, pbrMap } from './pbr.js';
+import { placeProps } from './realprops.js';
 import { Crowd } from './crowd.js';
 import { makeRealism, skylineRing } from './realism3d.js';
 import { makeProps } from './props3d.js';
@@ -34,7 +35,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   const span = HX * 2, sag = CROWN - EAVE, R = (span * span) / (8 * sag) + sag / 2, half = Math.asin(HX / R), len = Z1 - ZW;
   const vy = (x) => CROWN - R + Math.sqrt(Math.max(0, R * R - x * x));
   const RL = makeRealism(static_, { steel, white, dark, teal, navy, glow, vy });
-  const vault = new THREE.Mesh(new THREE.CylinderGeometry(R, R, len, 96, 1, true, -half, 2 * half).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xe9e7e1, side: THREE.BackSide, toneMapped: false }));
+  const vault = new THREE.Mesh(new THREE.CylinderGeometry(R, R, len, 96, 1, true, -half, 2 * half).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf2f0ea, side: THREE.BackSide, toneMapped: false }));
   vault.position.set(0, CROWN - R, (ZW + Z1) / 2); g.add(vault);
   for (const x of [-18, -10, -3, 3, 10, 18]) add(new THREE.BoxGeometry(0.28, 0.06, len - 2), glow, x, vy(x) - 0.05, (ZW + Z1) / 2);
   const down = new THREE.CircleGeometry(0.15, 16).rotateX(Math.PI / 2);
@@ -139,6 +140,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   // ================= SHOPS, ADVERTS AND FURNISHINGS =================
   const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
   for (const a of plants) { P.plant(...a); RL.blob(a[0], a[1], 0.95 * a[2]); }
+  const real = plants.map((a, i) => ['fern_02', a[0] - 0.25 * a[2], 0.78 * a[2], a[1] - 0.2 * a[2], i * 2.1, 0.55 * a[2]]);       // a real fern in every planter
   // ---- realism: window sunlight, contact shadows, ceiling fittings and signs
   RL.sun([-HX, ZW], [HX, ZW], [0, 1], 12, { opacity: 0.5, shear: 0.35 });
   for (const [cx, cz] of [[-20, -3], [-8, -3], [8, -3], [20, -3], [-20, 10], [-8, 10], [8, 10], [20, 10]]) RL.blob(cx, cz, 1.6);
@@ -151,6 +153,8 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (let x = -22; x <= 22; x += 6) for (let z = -6; z <= 20; z += 6) RL.sprinkler(x, z);
   for (const x of [-12, 12]) for (const z of [-4, 7, 18]) RL.vent(x, z);
   RL.exit(-23.5, 5.2, 19.5, Math.PI); RL.exit(23.5, 5.2, 19.5, Math.PI); RL.extinguisher(-10, 1.3, 21.8, Math.PI); RL.extinguisher(10, 1.3, 21.8, Math.PI); RL.wallScreen(-25.7, 2.4, 14, Math.PI / 2, 1.6, 0.9); RL.door(-24, 21.9, -1, 2.2);
+  for (const x of [-18, 18]) real.push(['korean_fire_extinguisher_01', x, 0, 21.4, Math.PI, 1.0]);
+  placeProps(g, real, envMap);
   { const ring = skylineRing(56, 24); ring.position.z = -22; g.add(ring); }
   P.shop(-16, 21.6, -1, 8, 'CAFE', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']); P.shop(0, 21.6, -1, 8, 'NEWS & BOOKS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(16, 21.6, -1, 8, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']);
   for (const z of [4, 10, 16]) { P.lightbox(-25.88, 3.4, z, Math.PI / 2, 4.6, 1.7, ['Fly Practice Air', 'Visit Kerala', 'Meet the Taj'][(z / 6) | 0 ? 0 : 1], 'Book at practiceair.example', '#15305a', '#12a3a1'); P.lightbox(25.88, 3.4, z, -Math.PI / 2, 4.6, 1.7, ['Discover Goa', 'Welcome Aboard', 'Fly Calm'][((z / 6) | 0) % 3], 'Your journey starts here', '#c0392b', '#e0a030'); }

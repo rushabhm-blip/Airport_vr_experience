@@ -18,8 +18,8 @@ export function makeProps(group, { steel, white, dark, teal, navy, glass, glow }
   const leafGeo = (() => { const g = new THREE.ConeGeometry(0.1, 0.85, 4, 3); g.translate(0, 0.42, 0); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, p.getZ(i) * 0.35 + y * y * 0.35); p.setX(i, p.getX(i) * (1 - y * 0.25)); } g.computeVertexNormals(); return g; })();
   const plantAt = (x, z, s = 1) => {
     add(new THREE.CylinderGeometry(0.5 * s, 0.38 * s, 0.8 * s, 16), steel, x, 0.4 * s, z); add(new THREE.CylinderGeometry(0.52 * s, 0.52 * s, 0.05 * s, 16), dark, x, 0.82 * s, z); add(new THREE.CylinderGeometry(0.44 * s, 0.44 * s, 0.03 * s, 14), std(0x3b2a1d, { roughness: 1 }), x, 0.83 * s, z);
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2 + (i % 3) * 0.2, tilt = 0.35 + (i % 4) * 0.2, h = (0.8 + (i % 5) * 0.12) * s, m = add(leafGeo, greens[i % greens.length], x + Math.cos(a) * 0.08 * s, 0.86 * s, z + Math.sin(a) * 0.08 * s);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + (i % 3) * 0.2, tilt = 0.35 + (i % 4) * 0.2, h = (0.8 + (i % 5) * 0.12) * s, m = add(leafGeo, greens[i % greens.length], x + Math.cos(a) * 0.08 * s, 0.86 * s, z + Math.sin(a) * 0.08 * s);
       m.scale.setScalar(h * 1.15); m.rotation.set(0, -a + Math.PI / 2, 0); m.rotateX(tilt); m.rotateY(0);
     }
   };

@@ -22,3 +22,5 @@ export function loadAirportEnv(renderer) {
   envP = new HDRLoader().loadAsync(BASE.replace('pbr/', 'hdri/') + 'airport_1k.hdr').then((t) => { t.mapping = THREE.EquirectangularReflectionMapping; const pm = new THREE.PMREMGenerator(renderer); const e = pm.fromEquirectangular(t).texture; pm.dispose(); t.dispose(); return e; }).catch(() => null);
   return envP;
 }
+/** The ceiling panels as a colour map for an unlit vault. */
+export const pbrMap = (name, rx, ry) => tex(name + '_Diffuse.jpg', true, rx, ry);

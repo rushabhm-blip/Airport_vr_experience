@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mergeStatic } from './merge.js';
 import { terrazzoTexture } from './floors.js';
-import { applyPbr } from './pbr.js';
+import { applyPbr, pbrMap } from './pbr.js';
+import { placeProps } from './realprops.js';
 import { Crowd } from './crowd.js';
 import { makeRealism, skylineRing } from './realism3d.js';
 import { makeProps } from './props3d.js';
@@ -36,7 +37,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   const vy = (x) => CROWN - R + Math.sqrt(Math.max(0, R * R - x * x));
   const RL = makeRealism(static_, { steel, white, dark, teal, navy, glow, vy });
   if (ceilTex) { ceilTex = ceilTex.clone(); ceilTex.wrapS = ceilTex.wrapT = THREE.RepeatWrapping; ceilTex.repeat.set(14, 12); ceilTex.needsUpdate = true; }
-  const vault = new THREE.Mesh(new THREE.CylinderGeometry(R, R, Z1 - Z0, 96, 1, true, -half, 2 * half).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xeeece6, side: THREE.BackSide, toneMapped: false }));
+  const vault = new THREE.Mesh(new THREE.CylinderGeometry(R, R, Z1 - Z0, 96, 1, true, -half, 2 * half).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf6f4ee, side: THREE.BackSide, toneMapped: false }));
   vault.position.set(0, CROWN - R, (Z0 + Z1) / 2); g.add(vault);
   for (const x of [-22, -14, -6, 6, 14, 22]) add(new THREE.BoxGeometry(0.3, 0.07, Z1 - Z0 - 2), glow, x, vy(x) - 0.06, (Z0 + Z1) / 2);
   const down = new THREE.CircleGeometry(0.16, 16).rotateX(Math.PI / 2);
@@ -167,6 +168,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   // ================= SHOPS, ADVERTS, KIOSKS AND FURNISHINGS =================
   const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
   for (const a of plants) { P.plant(...a); RL.blob(a[0], a[1], 0.95 * a[2]); }
+  const real = plants.map((a, i) => ['fern_02', a[0] - 0.25 * a[2], 0.78 * a[2], a[1] - 0.2 * a[2], i * 2.1, 0.55 * a[2]]);       // a real fern in every planter
   // ---- realism: window sunlight, contact shadows, ceiling fittings, belts, doors and safety equipment
   RL.sun([-HX, Z0], [HX, Z0], [0, 1], 11, { opacity: 0.4 }); RL.sun([-HX, Z0], [-HX, Z1], [1, 0], 9, { opacity: 0.34, shear: 0.3 }); RL.sun([HX, Z0], [HX, Z1], [-1, 0], 9, { opacity: 0.34, shear: -0.3 });
   for (const cx of [-15, 15]) for (const cz of [-28, -16, -4, 8, 20]) RL.blob(cx, cz, 1.7);
@@ -184,6 +186,8 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   for (const x of [-12, 12]) for (const z of [-30, -12, 6, 22]) RL.vent(x, z);
   RL.exit(-27.4, 7.0, 24.6, Math.PI); RL.exit(27.4, 7.0, 24.6, Math.PI); RL.exit(-20, 7.4, -31.5, 0); RL.exit(20, 7.4, -31.5, 0);
   RL.door(-27.5, 25.9, -1, 2.2); RL.door(27.5, 25.9, -1, 2.2); RL.extinguisher(-25.6, 1.3, 25.78, Math.PI); RL.extinguisher(25.6, 1.3, 25.78, Math.PI); RL.wallScreen(-24.6, 3.0, 25.85, Math.PI, 1.6, 0.9);
+  for (const cz of [-28, -4, 20]) for (const cx of [-15, 15]) real.push(['korean_fire_extinguisher_01', cx + (cx < 0 ? 1.0 : -1.0), 0, cz + 0.2, cx < 0 ? -1.2 : 1.2, 1.0]);
+  placeProps(g, real, envMap);
   { const ring = skylineRing(58, 24); ring.position.z = -4; g.add(ring); }
   P.shop(-20, 25.6, -1, 9, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']); P.shop(-8, 25.6, -1, 9, 'CAFE & BAKERY', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']);
   P.shop(8, 25.6, -1, 9, 'BOOKS & GIFTS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(20, 25.6, -1, 9, 'PHARMACY', 0x2f8a3f, ['#ffffff', '#7bbf6a', '#5a8fd0', '#e0e0e0']);

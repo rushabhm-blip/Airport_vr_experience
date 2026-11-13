@@ -5,6 +5,7 @@ import { Tweens } from '../util.js';
 import { tileTexture, cropTexture, photoTexture, panoTexture, IMG } from './images.js';
 import { buildHall3D } from './hall3d.js';
 import { buildGate3D } from './gate3d.js';
+import { loadAirportEnv } from './pbr.js';
 
 /**
  * Two ways to look at the same lesson:
@@ -104,7 +105,7 @@ export class Environment {
     let env = null; const pano = panoTexture('gate-360');
     if (pano) { try { const t = pano.clone(); t.mapping = THREE.EquirectangularReflectionMapping; t.needsUpdate = true; const pm = new THREE.PMREMGenerator(this.renderer); env = pm.fromEquirectangular(t).texture; pm.dispose(); } catch { env = null; } }
     const h = this.gate3d = buildGate3D({ envMap: env, floorTex: tileTexture('airport-floor-tile'), density: this.renderer.xr.isPresenting ? 0.55 : 0.9 });
-    h.visible = false; this.virtual.add(h); return h;       // inside the walking group: it moves past you as you walk
+    h.visible = false; this.virtual.add(h); this._realEnv(h); return h;       // inside the walking group: it moves past you as you walk
   }
   /** The 3D departures hall, built the first time it is needed. Its reflections come from the hall panorama. */
   _hall3D() {
@@ -112,8 +113,10 @@ export class Environment {
     let env = null; const pano = panoTexture('hall-360');
     if (pano) { try { const t = pano.clone(); t.mapping = THREE.EquirectangularReflectionMapping; t.needsUpdate = true; const pm = new THREE.PMREMGenerator(this.renderer); env = pm.fromEquirectangular(t).texture; pm.dispose(); } catch { env = null; } }
     const h = this.hall3d = buildHall3D({ envMap: env, floorTex: tileTexture('airport-floor-tile'), ceilTex: tileTexture('tex-ceiling'), density: this.renderer.xr.isPresenting ? 0.55 : 0.9 });
-    h.visible = false; this.virtual.add(h); return h;
+    h.visible = false; this.virtual.add(h); this._realEnv(h); return h;
   }
+  /** Lights and reflects the 3D interior with a real photographed airport terminal, once it has loaded. */
+  _realEnv(h) { loadAirportEnv(this.renderer).then((e) => { if (!e) return; h.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) if (m.isMeshStandardMaterial && m.envMap) { m.envMap = e; m.needsUpdate = true; } }); }); }
   /**
    * Inside the terminal the learner is surrounded by a 360-degree photograph (the departures hall, or the gate lounge with the
    * aircraft outside). The box-shaped 3D hall is hidden, except a ceiling panel over the work area so the hung boards still hang from something.

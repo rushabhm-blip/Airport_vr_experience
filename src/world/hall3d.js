@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeStatic } from './merge.js';
 import { terrazzoTexture } from './floors.js';
+import { applyPbr } from './pbr.js';
 import { Crowd } from './crowd.js';
 import { makeRealism, skylineRing } from './realism3d.js';
 import { makeProps } from './props3d.js';
@@ -28,6 +29,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   floorTex = terrazzoTexture(); floorTex.repeat.set((HX * 2) / 3, (Z1 - Z0) / 3);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, Z1 - Z0).rotateX(-Math.PI / 2), std(0xffffff, { roughness: 0.16, map: floorTex, envMapIntensity: 0.9 }));
   floor.position.set(0, 0, (Z0 + Z1) / 2); g.add(floor);
+  applyPbr(floor.material, 'marble_01', HX * 2 / 5, (Z1 - Z0) / 5, { normal: 0.6, rough: 0.38, tint: 0xe6ebf0 });   // real polished tile, photographed (Poly Haven, CC0)
 
   // ---- barrel-vaulted roof (a shallow arch along z), with light strips, downlights and skylights
   const span = HX * 2, sag = CROWN - EAVE, R = (span * span) / (8 * sag) + sag / 2, half = Math.asin(HX / R);

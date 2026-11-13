@@ -134,12 +134,14 @@ export class Interactions {
     for (const m of this.interactives) { if (!m.parent || !live(m)) continue; if (this.paused && !m.userData.system) continue; list.push(m); }
     if (!list.length) return null;
     const hits = rc.intersectObjects(list, false);
+    let person = null;
     for (const h of hits) {
       if (h.distance > maxDist) break;
       if (h.object.userData.interact?.enabled === false) continue;
+      if (h.object.userData.lowPriority) { person ??= h; continue; }     // a person's click-box must never block a card or button behind it
       return h;
     }
-    return null;
+    return person;
   }
 
   _pickGrabbable(rc, maxDist = 2.6) {

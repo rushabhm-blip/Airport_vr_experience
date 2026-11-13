@@ -67,7 +67,7 @@ export class Director {
   addStaff(kind, role, parent, pos) {
     const s = new Staff(kind, role); s.root.position.set(...pos); parent.add(s.root); s.quiet = () => this.pres.mode === 'staff' || this.pres.mode === 'demo';
     this.staffList.push(s); this.surfaces.push(s.tag);
-    if (s.body) { this.input.addInteractive(s.body); s.onTap = (st) => this.askStaff(st); }
+    if (s.body) { s.body.userData.lowPriority = true; this.input.addInteractive(s.body); s.onTap = (st) => this.askStaff(st); }
     return s;
   }
 

@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { mergeStatic } from './merge.js';
+import { terrazzoTexture } from './floors.js';
+import { Crowd } from './crowd.js';
+import { makeProps } from './props3d.js';
 
 /**
  * The departures hall as real 3D geometry (not a photograph): a high barrel-vaulted roof, branching white columns, a glass curtain wall,
@@ -9,10 +12,10 @@ import { mergeStatic } from './merge.js';
  */
 const HX = 30, Z0 = -34, Z1 = 26, CROWN = 13.5, EAVE = 8.8;
 
-export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null } = {}) {
+export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, density = 1 } = {}) {
   const g = new THREE.Group(); g.name = 'Hall3D';
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0, envMap, envMapIntensity: 0.7, ...o });
-  const white = std(0xf4f3ef, { roughness: 0.32 }), steel = std(0xc9ced2, { metalness: 0.85, roughness: 0.26, envMapIntensity: 1 });
+  const white = std(0xf4f3ef, { roughness: 0.34, emissive: 0x4a4944, emissiveIntensity: 1 }), steel = std(0xc9ced2, { metalness: 0.85, roughness: 0.26, envMapIntensity: 1 });
   const dark = std(0x23272c, { roughness: 0.55 }), navy = std(0x15305a, { roughness: 0.4 }), teal = std(0x12a3a1, { roughness: 0.4 });
   const leaf = std(0x2f8a3f, { roughness: 0.8 }), leaf2 = std(0x3ea34d, { roughness: 0.8 }), seatMat = std(0x2b3a52, { roughness: 0.7 });
   const glass = new THREE.MeshStandardMaterial({ color: 0xaed6ee, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, envMap, envMapIntensity: 1 });
@@ -21,8 +24,8 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null } =
   const static_ = new THREE.Group(); g.add(static_);
 
   // ---- floor: glossy terrazzo that mirrors the hall around it
-  if (floorTex) { floorTex = floorTex.clone(); floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(24, 24); floorTex.needsUpdate = true; }
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, Z1 - Z0).rotateX(-Math.PI / 2), std(0xffffff, { roughness: 0.2, map: floorTex, envMapIntensity: 0.6 }));
+  floorTex = terrazzoTexture(); floorTex.repeat.set((HX * 2) / 3, (Z1 - Z0) / 3);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, Z1 - Z0).rotateX(-Math.PI / 2), std(0xffffff, { roughness: 0.16, map: floorTex, envMapIntensity: 0.9 }));
   floor.position.set(0, 0, (Z0 + Z1) / 2); g.add(floor);
 
   // ---- barrel-vaulted roof (a shallow arch along z), with light strips, downlights and skylights
@@ -155,21 +158,65 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null } =
   sign(INFO, 4.4, 0.65, 0, 2.55, 15);
   for (let i = 0; i < 9; i++) { const x = -9 + i * 0.62, z = 19; add(new THREE.BoxGeometry(0.5, 0.04, 0.8), steel, x, 0.2, z); add(new THREE.BoxGeometry(0.03, 0.8, 0.03), steel, x - 0.23, 0.6, z + 0.35); add(new THREE.BoxGeometry(0.03, 0.8, 0.03), steel, x + 0.23, 0.6, z + 0.35); add(new THREE.BoxGeometry(0.5, 0.03, 0.03), steel, x, 1.0, z + 0.35); add(new THREE.BoxGeometry(0.5, 0.4, 0.03), steel, x, 0.45, z - 0.3); }
 
-  // travellers waiting in the queues (simple stylised figures with their bags)
-  const shirt = [0xc2573a, 0x2f6f9f, 0x7aa05a, 0xd8b04a, 0x8a5a9b, 0xe9e4da, 0x395a5a].map((c) => std(c, { roughness: 0.8 })), skin = [0xc99068, 0xa8714a, 0xe0b48f].map((c) => std(c, { roughness: 0.7 })), trousers = std(0x2b3040, { roughness: 0.8 });
-  const traveller = (x, z, ry, k) => {
-    add(new THREE.CylinderGeometry(0.2, 0.17, 0.62, 10), shirt[k % shirt.length], x, 1.15, z);
-    add(new THREE.CylinderGeometry(0.15, 0.13, 0.82, 10), trousers, x, 0.41, z); add(new THREE.SphereGeometry(0.115, 12, 10), skin[k % skin.length], x, 1.62, z);
-    add(new THREE.BoxGeometry(0.4, 0.6, 0.22), steel, x + Math.cos(ry) * 0.42, 0.32, z - Math.sin(ry) * 0.42);
-  };
-  [[-20.5, -21, 0], [-19.4, -19.3, 0], [-17.2, -21.2, 0], [-1.5, -20.8, 0], [0.9, -19.6, 0], [2.2, -21.3, 0], [16.5, -21, 0], [18.9, -19.4, 0], [-18.8, -7, 0], [-17, -5.4, 0], [19, -7, 0], [-6, 15, 3], [-7.4, 18, 2], [6, 9, 4]].forEach(([x, z, r], k) => traveller(x, z, r, k));
-
   // outside the glass: a tree line, low hills and a kerb
   for (let x = -80; x <= 80; x += 6) { const z = -50 - ((x * 7) % 6); add(new THREE.CylinderGeometry(0.3, 0.4, 3.4, 8), dark, x, 1.7, z); add(new THREE.SphereGeometry(2.6 + ((x * 13) % 5) / 6, 10, 8), leaf, x, 5.0, z); add(new THREE.SphereGeometry(1.9, 10, 8), leaf2, x + 1.0, 6.2, z); }
   
   add(new THREE.BoxGeometry(HX * 2 + 40, 0.15, 3), std(0xcfd3d6, { roughness: 0.9 }), 0, 0.04, Z0 - 6);
 
+  // ================= SHOPS, ADVERTS, KIOSKS AND FURNISHINGS =================
+  const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
+  P.shop(-20, 25.6, -1, 9, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']); P.shop(-8, 25.6, -1, 9, 'CAFE & BAKERY', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']);
+  P.shop(8, 25.6, -1, 9, 'BOOKS & GIFTS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(20, 25.6, -1, 9, 'PHARMACY', 0x2f8a3f, ['#ffffff', '#7bbf6a', '#5a8fd0', '#e0e0e0']);
+  P.lightbox(-14, 7.3, 25.85, Math.PI, 7, 2.1, 'Fly Practice Air', 'Mumbai · Delhi · Chennai', '#15305a', '#12a3a1'); P.lightbox(0, 7.3, 25.85, Math.PI, 7, 2.1, 'Discover India', 'Your journey starts here', '#c0392b', '#e0a030'); P.lightbox(14, 7.3, 25.85, Math.PI, 7, 2.1, 'Welcome Aboard', 'Calm. Clear. Cared for.', '#2c5aa0', '#7de0ff');
+  P.clock(-4, 7.0, 25.8, Math.PI); P.clock(4, 7.0, 25.8, Math.PI);
+  for (let i = 0; i < 4; i++) { P.kiosk(8 + i * 1.25, -4.2); P.kiosk(-8 - i * 1.25, -4.2); }
+  for (const cx of [-15, 15]) for (const cz of [-16, -4, 8, 20]) P.bin(cx - 1.6, cz + 0.4);
+  for (const z of [13, 14.3]) { P.vending(-29.2, z, Math.PI / 2, z === 13 ? 0xd63a3a : 0x2c6bd0); P.vending(29.2, z, -Math.PI / 2, z === 13 ? 0x2c6bd0 : 0x1f8a70); }
+  P.lightbox(-29.88, 4.2, -2, Math.PI / 2, 5, 1.8, 'Lounge', 'Level 2', '#15305a', '#35c6c2'); P.lightbox(-29.88, 4.2, 8, Math.PI / 2, 5, 1.8, 'Wi-Fi Free', 'Practice-Air-Guest', '#7a1f2b', '#d97b3c');
+
   mergeStatic(static_);                       // a few hundred shapes become a handful of draw calls
+
+  // ================= PEOPLE =================
+  const crowd = new Crowd({ capacity: 150, seed: 11, density });
+  const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
+  // queues in front of the check-in counters (they shuffle forward and are served)
+  const lane = (cx, cz, i, side, n) => {
+    const x = cx - 4.75 + 1.9 * i, slots = []; for (let k = 0; k < 5; k++) slots.push([x + (rr() - 0.5) * 0.1, cz + side * (1.95 + k * 0.85)]);
+    crowd.queue(slots, side > 0 ? Math.PI : 0, { n, interval: 12 + rr() * 8, exit: [x + 7, cz + side * 2.4], entry: [x + 7, cz + side * 5.6] });
+  };
+  lane(-18, -24, 1, 1, 4); lane(-18, -24, 3, -1, 3); lane(0, -24, 2, 1, 5); lane(0, -24, 4, 1, 3); lane(18, -24, 1, 1, 4); lane(18, -24, 2, -1, 3);
+  lane(-18, -10, 3, 1, 3); lane(18, -10, 2, 1, 4); lane(18, -10, 4, -1, 3); lane(0, -24, 0, -1, 3);
+  // walkers on cross lanes (the learner stays clear of them: they pass behind and well in front)
+  const cross = (z, count, opts = {}) => { for (let k = 0; k < count; k++) { const x0 = between(-20, 20), dir = rr() < 0.5 ? 1 : -1, a = [x0, z + (rr() - 0.5) * 1.6], b = [dir * 25, a[1]], c = [-dir * 25, a[1] + (rr() - 0.5) * 1.2]; crowd.walker([a, b, c], { speed: between(0.95, 1.4), bag: rr() < 0.55 ? (rr() < 0.7 ? 'roll' : 'pack') : null, ...opts }); } };
+  cross(7.5, 5); cross(12, 5); cross(-15.5, 5); cross(17.5, 3);
+  for (let k = 0; k < 3; k++) { const x0 = between(-20, 20), z = 9.5; crowd.trolley([[x0, z], [x0 > 0 ? -22 : 22, z]], { speed: 0.9 }); }
+  for (let k = 0; k < 2; k++) crowd.walker([[between(-8, 8), 21], [between(-8, 8), -7.5]], { speed: 1.1, bag: 'roll' });
+  // a late traveller running for the gate, with a bag
+  crowd.walker([[-22, 4.8], [22, 4.8]], { run: true, bag: 'roll', speed: 1.0 });
+  crowd.walker([[22, 13.8], [-22, 13.8]], { run: true, bag: 'pack', speed: 1.0 });
+  // families: an adult with a child or two following, and some elders
+  for (const [x0, z, dir] of [[-14, 11, 1], [10, 6.4, -1], [-3, 14.5, 1]]) {
+    const lead = crowd.walker([[x0, z], [dir * 24, z], [-dir * 24, z]], { speed: 0.85, bag: 'roll', elder: rr() < 0.3, female: rr() < 0.5 });
+    if (lead) { crowd.follower(lead, 0.55, -0.7, { child: true }); if (rr() < 0.7) crowd.follower(lead, -0.55, -1.1, { child: true }); }
+  }
+  // standing groups: chatting, on phones, waiting with luggage
+  const stand = (x, z, yaw, o = {}) => crowd.stander(x, z, yaw, o);
+  stand(-12, -2, 0.5, { bag: 'roll', talkTo: true }); stand(-11.2, -1.4, 3.6, { bag: 'pack', talkTo: true }); stand(12.5, 2, 2.2, { phone: true, bag: 'roll' });
+  stand(11.4, 2.7, 5.1, { talkTo: true }); stand(-24, -14, 1.3, { phone: true, bag: 'roll' }); stand(24, -13, -1.4, { bag: 'roll', phone: true }); stand(-6.5, 14, 0.3, { bag: 'pack' });
+  stand(-1.6, 13.6, 0, { phone: false, bag: 'roll' }); stand(0.4, 13.6, 0.1, { bag: 'roll' }); stand(1.9, 13.7, -0.1, { bag: 'pack', elder: true }); stand(-22, 18, 0.5, { phone: true }); stand(23, 19, -0.6, { phone: true, bag: 'roll' });
+  // seated in the lounges at both sides, with bags at their feet
+  for (let r = 0; r < 4; r++) for (let i = 0; i < 5; i++) {
+    if (rr() < 0.55) crowd.sitter(-26.9, 2 + r * 2.4 - i * 0.62, Math.PI / 2, { phone: rr() < 0.5, bag: null });
+    if (rr() < 0.55) crowd.sitter(25.9, 2 + r * 2.4 - i * 0.62, -Math.PI / 2, { phone: rr() < 0.5 });
+  }
+  // up on the mezzanine, at the cafe tables
+  for (const [tx, tz] of [[24, -30], [27, -24], [24, -18], [27, -12], [24, -6], [27, 0]]) for (const a of [0, 2.1, 4.2]) {
+    if (rr() < 0.6) { const px = tx + Math.cos(a) * 0.85, pz = tz + Math.sin(a) * 0.85; crowd.sitter(px, pz, Math.atan2(tx - px, tz - pz), { y: 5.4, phone: rr() < 0.3, elder: rr() < 0.4 }); }
+  }
+  g.add(crowd.group);
+  g.userData.crowd = crowd; g.userData.update = (dt) => crowd.update(dt);
+  crowd.update(0.016);
+
   g.userData.dims = { HX, Z0, Z1, CROWN };
   return g;
 }

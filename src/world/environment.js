@@ -103,16 +103,16 @@ export class Environment {
     if (this.gate3d) return this.gate3d;
     let env = null; const pano = panoTexture('gate-360');
     if (pano) { try { const t = pano.clone(); t.mapping = THREE.EquirectangularReflectionMapping; t.needsUpdate = true; const pm = new THREE.PMREMGenerator(this.renderer); env = pm.fromEquirectangular(t).texture; pm.dispose(); } catch { env = null; } }
-    const h = this.gate3d = buildGate3D({ envMap: env, floorTex: tileTexture('airport-floor-tile') });
-    h.visible = false; this.stage.root.add(h); return h;
+    const h = this.gate3d = buildGate3D({ envMap: env, floorTex: tileTexture('airport-floor-tile'), density: this.renderer.xr.isPresenting ? 0.55 : 0.9 });
+    h.visible = false; this.virtual.add(h); return h;       // inside the walking group: it moves past you as you walk
   }
   /** The 3D departures hall, built the first time it is needed. Its reflections come from the hall panorama. */
   _hall3D() {
     if (this.hall3d) return this.hall3d;
     let env = null; const pano = panoTexture('hall-360');
     if (pano) { try { const t = pano.clone(); t.mapping = THREE.EquirectangularReflectionMapping; t.needsUpdate = true; const pm = new THREE.PMREMGenerator(this.renderer); env = pm.fromEquirectangular(t).texture; pm.dispose(); } catch { env = null; } }
-    const h = this.hall3d = buildHall3D({ envMap: env, floorTex: tileTexture('airport-floor-tile'), ceilTex: tileTexture('tex-ceiling') });
-    h.visible = false; this.stage.root.add(h); return h;
+    const h = this.hall3d = buildHall3D({ envMap: env, floorTex: tileTexture('airport-floor-tile'), ceilTex: tileTexture('tex-ceiling'), density: this.renderer.xr.isPresenting ? 0.55 : 0.9 });
+    h.visible = false; this.virtual.add(h); return h;
   }
   /**
    * Inside the terminal the learner is surrounded by a 360-degree photograph (the departures hall, or the gate lounge with the
@@ -140,7 +140,7 @@ export class Environment {
     if (this.virtual.children.length) {
       this.hallActive = hallMode || gateMode; this.hallCeilY = hallMode ? 12.6 : gateMode ? (this.gate3d?.userData.dims.ceil ?? 7.4) : 0;
       const keep = (hallMode || gateMode) ? new Set() : new Set([this.ceilMesh, ...(this.lightMeshes || [])]);      // the real vaulted roof replaces the low ceiling panel
-      for (const c of this.virtual.children) c.visible = on ? keep.has(c) : c === this.apronView ? k === 'hall-apron' : c === this.closedWall ? k === 'hall-wall' : true;
+      for (const c of this.virtual.children) if (c !== this.hall3d && c !== this.gate3d) c.visible = on ? keep.has(c) : c === this.apronView ? k === 'hall-apron' : c === this.closedWall ? k === 'hall-wall' : true;
       if (this.ceilMesh) this.ceilMesh.scale.set(on ? 0.7 : 1, 1, on ? 0.7 : 1);
     }
   }
@@ -318,6 +318,7 @@ export class Environment {
 
   update(dt, headLocal, camera) {
     this.tweens.step(dt);
+    for (const h of [this.hall3d, this.gate3d]) if (h?.visible) h.userData.update?.(dt);       // the crowds in the 3D hall and gate lounge
     if (this.driveSpeed && this.roadTex) this.roadTex.offset.y += this.driveSpeed * dt;     // the road streams past while the cab drives
     const a = this.vig.material.uniforms.amt;
     a.value += (this.vigTarget - a.value) * Math.min(1, dt * 5);

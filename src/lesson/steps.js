@@ -8,6 +8,7 @@ import { FONT, roundRect, wrapText, ease, lerp } from '../util.js';
 import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCanvas } from '../ui/documents.js';
 import { mergeStatic } from '../world/merge.js';
 import { RoadVideo } from '../world/roadvideo.js';
+import { Crowd } from '../world/crowd.js';
 import { tileTexture, boxUV } from '../world/images.js';
 import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop, keyedCrop } from '../world/images.js';
 
@@ -698,11 +699,12 @@ function cabinSide(d, { mirrored }) {
   return c;
 }
 
+const FACE = Math.PI;      // the way the passengers face (down the aircraft)
 const seat = (d) => {
   const ROWS = [12, 13, 14, 15], TARGET = 2, PITCH = 2.2, ROW0 = -7.4;
   const LETTERS = { '-1': ['C', 'B', 'A'], '1': ['F', 'E', 'D'] };   // row-local seat index -> letter, per side
   const rowZ = (k) => ROW0 - k * PITCH, standZ = (k) => rowZ(k) + 1.0;
-  let crew, W, door, phase = 'bridge', userZ = 0, finished = false, prevMode = 'mixed', seatView, skyTex;
+  let crew, W, door, phase = 'bridge', userZ = 0, finished = false, prevMode = 'mixed', seatView, skyTex, pax;
   const rows = new RowTracker(ROWS, TARGET);
   const spots = [], rowsL = [];
   const walkTo = (zW, done) => d.moveWorld(0, userZ - zW, () => { userZ = zW; done?.(); });
@@ -738,6 +740,14 @@ const seat = (d) => {
         }
         const plate = labelSurface('Row ' + num, { w: 0.5, px: 520 }); plate.mesh.userData.noMerge = true; plate.mesh.position.set(0, 2.05, z + 0.45); W.add(plate.mesh); d.track(plate, false);
       });
+      // the other passengers, already seated: bags stowed, some on their phones, some asleep with their heads back
+      pax = new Crowd({ capacity: 30, seed: 5, density: 1 }); W.add(pax.group);
+      ROWS.forEach((num, k) => { for (const sd of [-1, 1]) for (let idx = 0; idx < 3; idx++) {
+        if (k === TARGET && sd === -1 && idx === 2) continue;                      // seat 14A is yours
+        if (pax.rng() < 0.28) continue;
+        pax.sitter(sd * 1.12 - (idx - 1) * 0.54, rowZ(k) - 0.02, FACE, { phone: pax.rng() < 0.3, elder: pax.rng() < 0.35 });
+      } });
+      pax.update(0.016);
       // aisle carpet runner, galley curtain at the far end
       const len = 10.4, ct = carpetTexture(); ct.repeat.set(1, len / 1.0);
       const runner = new THREE.Mesh(new THREE.PlaneGeometry(0.62, len).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: ct, roughness: 1 }));
@@ -751,7 +761,7 @@ const seat = (d) => {
       d.setStation({ point: new THREE.Vector3(0, 0, -6.1), label: 'the aircraft door', radius: 1.3, hint: 'Walk down the jet bridge.', onArrive: () => this.board() });
       d.setPanel({ eyebrow: 'Airport practice · 8 of 8', title: 'Walk to the aircraft.', body: 'Walk down the jet bridge to the door.', note: '', tone: 'normal', buttons: [] });
     },
-    exit() { seatView?.userData.dispose?.(); seatView?.removeFromParent(); seatView = null; d.app.env.setMode(prevMode); d.app.env.setHall(true); },
+    exit() { pax?.dispose(); pax = null; seatView?.userData.dispose?.(); seatView?.removeFromParent(); seatView = null; d.app.env.setMode(prevMode); d.app.env.setHall(true); },
     onButton(id) { if (id === 'show') d.startAssist(); },
     board() {   // you reached the aircraft door
       if (phase !== 'bridge') return; phase = 'aisle'; rows.at = -1; d.voice.beep();
@@ -769,6 +779,7 @@ const seat = (d) => {
       d.say('This is row 14. Now find seat A, the window seat on your left.');
     },
     update(dt) {
+      pax?.update(dt);
       if (skyTex) skyTex.offset.x += dt * 0.004;                          // the clouds drift slowly past the window
       if (phase !== 'aisle' && phase !== 'seat') return;
       const uz = -d.stage.scenery.position.z - d.stage.pull;     // where you stand along the aircraft
@@ -1006,6 +1017,18 @@ function taxiBillboard(state = 'closed') {
   m.userData.open = keyedCrop('cab-side-door-open'); m.userData.closed = keyedCrop('cab-side-closed'); return m;
 }
 
+/** Travellers on the forecourt in front of the terminal: arriving with trolleys and bags, heading for the doors, standing in groups. */
+function forecourtCrowd(d, seed = 31) {
+  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1 }), rr = c.rng;
+  c.walker([[5.5, -1.2], [15, -1.2], [5.5, -2.6], [-14, -2.2]], { speed: 1.2, bag: 'roll' });
+  c.walker([[-6, -3.4], [-15, -3.4], [8, -3.0]], { speed: 1.1, bag: 'pack', elder: true });
+  c.trolley([[9, 3.2], [3.2, -1.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-3.4, -1.8], [-9, 3.6]], { speed: 0.9 });
+  const lead = c.walker([[7, 1.4], [3.6, -1.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
+  c.walker([[13, 0.5], [-13, 0.5]], { run: true, bag: 'roll', speed: 1.0 });
+  for (const [x, z, yaw, o] of [[-6.5, 1.6, 1.0, { bag: 'roll', phone: true }], [-5.7, 2.2, 4.2, { talkTo: true, bag: 'pack' }], [6.8, -0.6, 2.4, { phone: true }], [11, 2.5, 3.5, { talkTo: true, bag: 'roll' }], [-11.5, 0.2, 0.4, { bag: 'roll', elder: true }]]) c.stander(x, z, yaw, o);
+  c.update(0.016); d.stage.scenery.add(c.group); return c;
+}
+
 /** A quick dark blink, so a change of place never pops. */
 function blink(d, change) {
   const env = d.app.env; env.veil.visible = true;
@@ -1092,7 +1115,7 @@ const cab = (d) => {
 
 /* ------------------------------------------------------------------ 1. at the kerb: the driver stops at the entrance; step out */
 const kerb = (d) => {
-  let doors, cab, driver, phase = 'cab', alive = false, rmCab;
+  let doors, cab, driver, phase = 'cab', alive = false, rmCab, fc;
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.castShadow = true; return b; };
   const api = {
@@ -1101,7 +1124,7 @@ const kerb = (d) => {
     help: 'The cab has stopped at the terminal. Tap Get out, and the entrance is straight ahead.',
     enter() {
       // the taxi you arrived in, parked beside you with its rear door open (a real photo, background removed)
-      d.app.env.setOutdoorTheme('airport');
+      d.app.env.setOutdoorTheme('airport'); fc = forecourtCrowd(d, 31);
       cab = taxiBillboard('open');
       if (cab) { d.addScenery(cab, { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); rmCab = d.obstacle(cab); }
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-1.0, 0, 1.2]); driver.noPush = true; alive = true;
@@ -1113,7 +1136,8 @@ const kerb = (d) => {
       facadePlane(d, 17, 8.5);
       d.setPanel({ title: 'You have arrived.', body: 'Step out of the cab.', note: '', tone: 'normal', buttons: [{ id: 'out', label: 'Get out' }] });
     },
-    exit() { alive = false; },
+    exit() { alive = false; fc?.dispose(); fc = null; },
+    update(dt) { fc?.update(dt); },
     /** The driver gets your bag out of the boot, puts it on the trolley, gets back in, and the cab drives away. */
     unload() {
       const sc = d.stage.scenery, T = d.tweens, quick = d.reduceMotion;
@@ -1157,7 +1181,7 @@ const kerb = (d) => {
 
 /* ------------------------------------------------------------------ 3. arrive at the terminal and enter */
 const arrival = (d) => {
-  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors;
+  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, fc;
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   const api = {
@@ -1166,7 +1190,7 @@ const arrival = (d) => {
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
-      d.app.env.setOutdoorTheme('airport');
+      d.app.env.setOutdoorTheme('airport'); fc = forecourtCrowd(d, 47);
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });
@@ -1199,7 +1223,9 @@ const arrival = (d) => {
       d.setPanel({ title: 'Show your ticket and ID.', body: 'Put both on the desk.', note: 'Booking ☐   ID ☐', buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
       d.say('Well done. Now the guard needs to see your ticket and your photo I D. Place both on the desk.');
     },
-    update() {
+    exit() { fc?.dispose(); fc = null; },
+    update(dt) {
+      fc?.update(dt);
       zoneMesh.material.opacity = phase === 'docs' ? 0.2 + 0.25 * pulse() : 0;
       if (phase !== 'docs') return;
       const b = !booking.userData.heldBy && inZone(booking), i = !id.userData.heldBy && inZone(id);

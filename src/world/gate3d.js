@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { mergeStatic } from './merge.js';
+import { terrazzoTexture } from './floors.js';
+import { Crowd } from './crowd.js';
+import { makeProps } from './props3d.js';
 
 /**
  * The gate lounge as real 3D geometry: a glass wall onto a 3D apron with parked aircraft, a jet bridge running out to one of them,
@@ -8,10 +11,10 @@ import { mergeStatic } from './merge.js';
  */
 const HX = 26, ZW = -8.5, Z1 = 22, CROWN = 8.4, EAVE = 6.4;
 
-export function buildGate3D({ envMap = null, floorTex = null } = {}) {
+export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}) {
   const g = new THREE.Group(); g.name = 'Gate3D';
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0, envMap, envMapIntensity: 0.7, ...o });
-  const white = std(0xf4f3ef, { roughness: 0.32 }), steel = std(0xc9ced2, { metalness: 0.85, roughness: 0.26, envMapIntensity: 1 });
+  const white = std(0xf4f3ef, { roughness: 0.34, emissive: 0x4a4944, emissiveIntensity: 1 }), steel = std(0xc9ced2, { metalness: 0.85, roughness: 0.26, envMapIntensity: 1 });
   const dark = std(0x23272c, { roughness: 0.55 }), navy = std(0x15305a, { roughness: 0.4 }), teal = std(0x12a3a1, { roughness: 0.4 });
   const leaf = std(0x2f8a3f, { roughness: 0.8 }), leaf2 = std(0x3ea34d, { roughness: 0.8 }), seatMat = std(0x2d333b, { roughness: 0.7 }), wood = std(0x9b7048, { roughness: 0.6 });
   const glass = new THREE.MeshStandardMaterial({ color: 0xaed6ee, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide, envMap, envMapIntensity: 1 });
@@ -20,8 +23,8 @@ export function buildGate3D({ envMap = null, floorTex = null } = {}) {
   const add = (geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); static_.add(m); return m; };
 
   // ---- floor
-  if (floorTex) { floorTex = floorTex.clone(); floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(20, 14); floorTex.needsUpdate = true; }
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, Z1 - ZW).rotateX(-Math.PI / 2), std(0xffffff, { roughness: 0.2, map: floorTex, envMapIntensity: 0.6 }));
+  floorTex = terrazzoTexture(); floorTex.repeat.set((HX * 2) / 3, (Z1 - ZW) / 3);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, Z1 - ZW).rotateX(-Math.PI / 2), std(0xffffff, { roughness: 0.16, map: floorTex, envMapIntensity: 0.9 }));
   floor.position.set(0, 0, (ZW + Z1) / 2); g.add(floor);
 
   // ---- a gentle barrel vault with light strips and downlights
@@ -119,7 +122,47 @@ export function buildGate3D({ envMap = null, floorTex = null } = {}) {
     fragmentShader: 'varying vec3 vP; void main(){ float h = clamp(vP.y*1.4+0.08,0.,1.); vec3 c = mix(vec3(0.70,0.84,0.96), vec3(0.20,0.48,0.88), pow(h,0.5)); gl_FragColor = vec4(c,1.0);}' }));
   sky.renderOrder = -12; g.add(sky);
 
+  // ================= SHOPS, ADVERTS AND FURNISHINGS =================
+  const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
+  P.shop(-16, 21.6, -1, 8, 'CAFE', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']); P.shop(0, 21.6, -1, 8, 'NEWS & BOOKS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(16, 21.6, -1, 8, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']);
+  for (const z of [4, 10, 16]) { P.lightbox(-25.88, 3.4, z, Math.PI / 2, 4.6, 1.7, ['Fly Practice Air', 'Visit Kerala', 'Meet the Taj'][(z / 6) | 0 ? 0 : 1], 'Book at practiceair.example', '#15305a', '#12a3a1'); P.lightbox(25.88, 3.4, z, -Math.PI / 2, 4.6, 1.7, ['Discover Goa', 'Welcome Aboard', 'Fly Calm'][((z / 6) | 0) % 3], 'Your journey starts here', '#c0392b', '#e0a030'); }
+  P.clock(0, 6.0, 21.8, Math.PI); P.gateSign(-10, 5.2, -4.5, 'GATE 12  \u2192', 0, vy(-10)); P.gateSign(11, 5.2, -4.5, 'GATE 18  \u2190', 0, vy(11));
+  for (const bx of [-22, -12, 6, 16]) P.charger(bx + 8 * 0.28, 3.55);
+  for (const [cx, cz] of [[-20, -3], [-8, -3], [8, -3], [20, -3], [-20, 10], [-8, 10], [8, 10], [20, 10]]) P.bin(cx + 1.2, cz + 0.3);
+  for (const z of [8, 9.2, 10.4]) P.vending(25.2, z, -Math.PI / 2, [0xd63a3a, 0x2c6bd0, 0x1f8a70][((z - 8) / 1.2) | 0]);
+  P.play(19.5, 17.5);
+
   mergeStatic(static_);
+
+  // ================= PEOPLE =================
+  const crowd = new Crowd({ capacity: 130, seed: 23, density });
+  const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
+  // seated, rows facing the windows and back-to-back rows: most seats taken, bags at their feet, phones in hand
+  const sit = (x0, z, n, yaw, p = 0.62) => { for (let i = 0; i < n; i++) if (rr() < p) crowd.sitter(x0 + i * 0.56, z + 0.04, yaw, { phone: rr() < 0.45, bag: rr() < 0.45 ? 'roll' : null, elder: rr() < 0.35 }); };
+  sit(-22, -7.2, 14, Math.PI); sit(8, -7.2, 14, Math.PI);
+  for (const bx of [-22, -12, 6, 16]) { sit(bx, 3, 8, Math.PI); sit(bx, 4.1, 8, 0); }
+  for (const bx of [-22, 14]) { sit(bx, 14, 10, Math.PI); sit(bx, 15.1, 10, 0); }
+  // standing at the glass watching the aircraft, with luggage; a few chatting
+  for (const x of [-19, -18.2, -6.5, 4.5, 5.4, 21]) crowd.stander(x, -7.9, Math.PI + (rr() - 0.5) * 0.4, { bag: rr() < 0.6 ? 'roll' : 'pack', talkTo: rr() < 0.4, phone: rr() < 0.3 });
+  crowd.stander(-12, -7.8, Math.PI, { child: true }); crowd.stander(-11.4, -7.8, Math.PI - 0.2, { bag: 'roll', elder: true });
+  // walkers: along the glass (clear of the boarding desk in the middle), through the lounge and at the back
+  const lane = (z, xa, xb, count, opts = {}) => { for (let k = 0; k < count; k++) { const dir = rr() < 0.5 ? 1 : -1, a = [between(xa, xb), z + (rr() - 0.5) * 1.0], b = dir > 0 ? [xb, a[1]] : [xa, a[1]], c = dir > 0 ? [xa, a[1]] : [xb, a[1]]; crowd.walker([a, b, c], { speed: between(0.95, 1.4), bag: rr() < 0.55 ? (rr() < 0.7 ? 'roll' : 'pack') : null, ...opts }); } };
+  lane(-3.5, -24, -7, 3); lane(-3.5, 7, 24, 3); lane(0.6, -24, 24, 4); lane(9.5, -24, 24, 6); lane(18.5, -24, 24, 4);
+  for (let k = 0; k < 2; k++) { const x0 = between(-20, 20); crowd.trolley([[x0, 9.2], [x0 > 0 ? -23 : 23, 9.2]], { speed: 0.9 }); }
+  crowd.walker([[-23, 11.8], [23, 11.8]], { run: true, bag: 'roll', speed: 1.0 });
+  crowd.walker([[22, 7.0], [-22, 7.0]], { run: true, bag: 'pack', speed: 1.0 });
+  for (const [x0, z, dir] of [[-15, 11.5, 1], [12, 7.5, -1], [-4, 16.5, 1], [4, 1.5, -1]]) {
+    const lead = crowd.walker([[x0, z], [dir * 23, z], [-dir * 23, z]], { speed: 0.85, bag: 'roll', elder: rr() < 0.3, female: rr() < 0.5 });
+    if (lead) { crowd.follower(lead, 0.55, -0.7, { child: true }); if (rr() < 0.7) crowd.follower(lead, -0.55, -1.1, { child: true }); }
+  }
+  // a boarding queue forming beside the gate desk on the right
+  crowd.queue([[6.2, -2.4], [6.2, -1.5], [6.2, -0.6], [6.2, 0.3], [6.2, 1.2]], -Math.PI / 2, { n: 5, interval: 9, exit: [3.2, -6.2], entry: [9.0, 3.0] });
+  // standing groups and travellers near the columns and planters
+  for (const [x, z, yaw, o] of [[-19, 6.5, 1.0, { bag: 'roll', phone: true }], [-18.2, 7.2, 4.1, { talkTo: true, bag: 'pack' }], [19.5, 12, 2.2, { phone: true }], [20.3, 12.8, 5.3, { talkTo: true, bag: 'roll' }], [0, 19, 3.1, { bag: 'roll' }], [1, 19.4, 3.3, { elder: true, bag: 'pack' }], [-3.5, 6.8, 1.7, { phone: true }], [11, -0.4, 0.2, { bag: 'roll' }]]) crowd.stander(x, z, yaw, o);
+  g.add(crowd.group);
+  g.userData.crowd = crowd; g.userData.update = (dt) => crowd.update(dt);
+  crowd.update(0.016);
+
   g.userData.dims = { HX, ZW, Z1, CROWN, ceil: vy(0) - 0.3 };
   return g;
 }

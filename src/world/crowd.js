@@ -52,7 +52,7 @@ export class Crowd {
   constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true } = {}) {
     if (density < 0.7) { nearMax = Math.min(nearMax, 14); nearR = Math.min(nearR, 9.5); }      // on a headset: fewer detailed people, and only the closest
     this.group = new THREE.Group(); this.group.name = 'Crowd';
-    this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
+    this.pace = 0.62; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
     const geos = geometries(), mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     this.meshes = {};
     for (const p of PARTS) {
@@ -129,6 +129,7 @@ export class Crowd {
 
   // ------------------------------------------------------------------ movement
   _go(p, tx, tz, v, dt) {
+    v *= this.pace;                                       // a calm pace for VR: people walk slower than in real life so you can take them in
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
     if (d < 0.06) return true;
     const step = Math.min(d, v * dt);

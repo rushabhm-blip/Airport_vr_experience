@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildPeopleGeometries, faceAtlas } from './peopleparts.js';
 import { GlbPeople } from './glbcrowd.js';
+import { shadowTextures } from './realism3d.js';
 
 /**
  * An airport crowd: walkers, runners, people waiting in queues, people seated or standing with luggage, families with children and
@@ -53,9 +54,10 @@ export class Crowd {
   constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true, glb = null } = {}) {
     if (density < 0.7) { nearMax = Math.min(nearMax, 14); nearR = Math.min(nearR, 9.5); }      // on a headset: fewer detailed people, and only the closest
     this.group = new THREE.Group(); this.group.name = 'Crowd';
-    this.pace = 0.62; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
+    this.pace = 0.45; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
     const geos = geometries(), mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     this.meshes = {};
+    { const T = shadowTextures(); this.shadow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), capacity); this.shadow.frustumCulled = false; this.shadow.renderOrder = -1; this.shadow.name = 'crowd-shadow'; this.group.add(this.shadow); this._sm = new THREE.Matrix4(); }
     for (const p of PARTS) {
       const m = new THREE.InstancedMesh(geos[p], mat, capacity * (p === 'cart' ? 1 : 1));
       m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3);
@@ -373,6 +375,7 @@ export class Crowd {
     }
     if (this.dmeshes) for (const k of this.dparts) { const m = this.dmeshes[k]; m.count = near; m.instanceMatrix.needsUpdate = true; }
     this.glb?.update(dt);
+    { let n = 0; for (const p of this.people) { if (p.mode === 'sit') continue; const r = 0.62 * p.scale; this._sm.makeScale(r * 2, 1, r * 2).setPosition(p.x, p.y + 0.012, p.z); this.shadow.setMatrixAt(n++, this._sm); } this.shadow.count = n; this.shadow.instanceMatrix.needsUpdate = true; }
     for (const k of PARTS) this.meshes[k].instanceMatrix.needsUpdate = true;
   }
 

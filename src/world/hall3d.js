@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeStatic } from './merge.js';
 import { terrazzoTexture } from './floors.js';
 import { Crowd } from './crowd.js';
+import { makeRealism, skylineRing } from './realism3d.js';
 import { makeProps } from './props3d.js';
 
 /**
@@ -31,6 +32,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   // ---- barrel-vaulted roof (a shallow arch along z), with light strips, downlights and skylights
   const span = HX * 2, sag = CROWN - EAVE, R = (span * span) / (8 * sag) + sag / 2, half = Math.asin(HX / R);
   const vy = (x) => CROWN - R + Math.sqrt(Math.max(0, R * R - x * x));
+  const RL = makeRealism(static_, { steel, white, dark, teal, navy, glow, vy });
   if (ceilTex) { ceilTex = ceilTex.clone(); ceilTex.wrapS = ceilTex.wrapT = THREE.RepeatWrapping; ceilTex.repeat.set(14, 12); ceilTex.needsUpdate = true; }
   const vault = new THREE.Mesh(new THREE.CylinderGeometry(R, R, Z1 - Z0, 96, 1, true, -half, 2 * half).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xeeece6, side: THREE.BackSide, toneMapped: false }));
   vault.position.set(0, CROWN - R, (Z0 + Z1) / 2); g.add(vault);
@@ -162,7 +164,25 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
 
   // ================= SHOPS, ADVERTS, KIOSKS AND FURNISHINGS =================
   const P = makeProps(static_, { steel, white, dark, teal, navy, glass, glow });
-  for (const a of plants) P.plant(...a);
+  for (const a of plants) { P.plant(...a); RL.blob(a[0], a[1], 0.95 * a[2]); }
+  // ---- realism: window sunlight, contact shadows, ceiling fittings, belts, doors and safety equipment
+  RL.sun([-HX, Z0], [HX, Z0], [0, 1], 11, { opacity: 0.4 }); RL.sun([-HX, Z0], [-HX, Z1], [1, 0], 9, { opacity: 0.34, shear: 0.3 }); RL.sun([HX, Z0], [HX, Z1], [-1, 0], 9, { opacity: 0.34, shear: -0.3 });
+  for (const cx of [-15, 15]) for (const cz of [-28, -16, -4, 8, 20]) RL.blob(cx, cz, 1.7);
+  for (const [cx, cz] of [[-18, -24], [0, -24], [18, -24], [-18, -10], [18, -10]]) {
+    RL.slab(cx, cz, 12.8, 4.6);
+    for (let i = 0; i < 6; i++) { const x = cx - 4.75 + 1.9 * i; RL.belt(x, cz + 1.62, 1); RL.belt(x, cz - 1.62, -1); }
+  }
+  RL.slab(11.2, -4.2, 6.4, 1.2); RL.slab(-11.2, -4.2, 6.4, 1.2); RL.slab(0, 15, 5.8, 2.0); RL.slab(-4.5, 19, 6.2, 1.4);
+  for (const x of [-20, -8, 8, 20]) RL.slab(x, 24.4, 9.6, 3.8);
+  RL.slab(24, -12, 12.4, 44.4);        // the floor in the shade under the mezzanine
+  for (const cx of [-15, 15]) for (const cz of [-16, -4, 8, 20]) RL.blob(cx - 1.6, cz + 0.4, 0.4);
+  for (const x of [-24, -8, 8, 24]) for (const z of [-28, -12, 4, 20]) RL.cctv(x, z);
+  for (const x of [-18, 0, 18]) for (const z of [-20, -4, 12]) RL.speaker(x, z);
+  for (let x = -26; x <= 26; x += 6) for (let z = -30; z <= 22; z += 6) RL.sprinkler(x, z);
+  for (const x of [-12, 12]) for (const z of [-30, -12, 6, 22]) RL.vent(x, z);
+  RL.exit(-27.4, 7.0, 24.6, Math.PI); RL.exit(27.4, 7.0, 24.6, Math.PI); RL.exit(-20, 7.4, -31.5, 0); RL.exit(20, 7.4, -31.5, 0);
+  RL.door(-27.5, 25.9, -1, 2.2); RL.door(27.5, 25.9, -1, 2.2); RL.extinguisher(-25.6, 1.3, 25.78, Math.PI); RL.extinguisher(25.6, 1.3, 25.78, Math.PI); RL.wallScreen(-24.6, 3.0, 25.85, Math.PI, 1.6, 0.9);
+  { const ring = skylineRing(58, 24); ring.position.z = -4; g.add(ring); }
   P.shop(-20, 25.6, -1, 9, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']); P.shop(-8, 25.6, -1, 9, 'CAFE & BAKERY', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']);
   P.shop(8, 25.6, -1, 9, 'BOOKS & GIFTS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(20, 25.6, -1, 9, 'PHARMACY', 0x2f8a3f, ['#ffffff', '#7bbf6a', '#5a8fd0', '#e0e0e0']);
   P.lightbox(-14, 7.3, 25.85, Math.PI, 7, 2.1, 'Fly Practice Air', 'Mumbai · Delhi · Chennai', '#15305a', '#12a3a1'); P.lightbox(0, 7.3, 25.85, Math.PI, 7, 2.1, 'Discover India', 'Your journey starts here', '#c0392b', '#e0a030'); P.lightbox(14, 7.3, 25.85, Math.PI, 7, 2.1, 'Welcome Aboard', 'Calm. Clear. Cared for.', '#2c5aa0', '#7de0ff');

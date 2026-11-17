@@ -6,6 +6,8 @@ import { tileTexture, cropTexture, photoTexture, panoTexture, IMG } from './imag
 import { buildHall3D } from './hall3d.js';
 import { buildGate3D } from './gate3d.js';
 import { loadAirportEnv } from './pbr.js';
+import { buildEntrance3D } from './entrance3d.js';
+const USE_ENTRANCE_3D = true;                       // the airport entrance as a real 3D place (false: the old photograph ring)
 
 /**
  * Two ways to look at the same lesson:
@@ -204,13 +206,17 @@ export class Environment {
       m.userData.R = 40; m.userData.H = this.stage.headY;
       m.name = 'Street ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = this.stage.headY; m.renderOrder = -8; m.visible = false; g.add(m); this.streets[name] = m;
     }
-    const key = home ? 'home-street-360' : 'airport-kerb-360', sphere = this.streets[key] || null;
+    // the airport entrance is now a real 3D place; the photographs stay only for the traveller's home street
+    if (!home) { this.entrance3d ??= buildEntrance3D({ renderer: this.renderer }); if (!this.entrance3d.parent) g.add(this.entrance3d); }
+    if (this.entrance3d) this.entrance3d.visible = !home;
+    const key = home ? 'home-street-360' : (USE_ENTRANCE_3D ? null : 'airport-kerb-360'), sphere = this.streets[key] || null;
     for (const [name, m] of Object.entries(this.streets)) m.visible = m === sphere;
     this.streetSphere = this.streets['home-street-360'];
     this.theme360 = !!sphere;                                         // true: a photograph supplies the road, the pavement and the building
+    this.entranceReal = !home && USE_ENTRANCE_3D;                     // true: the 3D entrance supplies them
     // without a photograph the old drawn ground (and the flat kerb photo ring) is used; with one, the photograph supplies all of it
-    if (this.kerbRing) this.kerbRing.visible = !sphere && !home;
-    for (const n of ['Ground', 'Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = !sphere && !home; }
+    if (this.kerbRing) this.kerbRing.visible = !sphere && !home && !USE_ENTRANCE_3D;
+    for (const n of ['Ground', 'Pave', 'Kerb']) { const o = g.getObjectByName(n); if (o) o.visible = !sphere && !home && !USE_ENTRANCE_3D; }
     if (this.homeRing) this.homeRing.visible = false;
     if (home && !sphere) this._legacyHomeRing(g);
   }

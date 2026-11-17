@@ -971,7 +971,7 @@ const phone = (d) => {
 
 /** The airport facade as one big photo, in the scenery (so it can be approached). The entrance sits at x = 0. Shown in mixed reality too. */
 function facadePlane(d, w, dist) {
-  if (d.app.env.theme360) return null;      // the 360 photograph already shows the terminal
+  if (d.app.env.theme360 || d.app.env.entranceReal) return null;      // the 360 photograph already shows the terminal
   const t = photoTexture('view-kerb'); if (!t) return null;
   const h = w * 1024 / 1536;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false, side: THREE.DoubleSide }));
@@ -1042,15 +1042,15 @@ function taxiBillboard(state = 'closed') {
 }
 
 /** Travellers on the forecourt in front of the terminal: arriving with trolleys and bags, heading for the doors, standing in groups. */
-function forecourtCrowd(d, seed = 31) {
+function forecourtCrowd(d, seed = 31, zShift = 0) {
   const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5, mid: { size: 6, radius: 9 } } : { size: 6, radius: 6, mid: { size: 18, radius: 15 } } }), rr = c.rng;
-  c.walker([[5.5, -1.2], [15, -1.2], [5.5, -2.8], [-14, -3.0]], { speed: 1.2, bag: 'roll' });
-  c.walker([[-6, -3.4], [-15, -3.4], [8, -3.0]], { speed: 1.1, bag: 'pack', elder: true });
-  c.trolley([[9, 3.2], [3.2, -1.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });
-  const lead = c.walker([[7, 1.4], [3.6, -1.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
+  c.walker([[5.5, -1.9], [15, -1.9], [5.5, -2.4], [-14, -2.2]], { speed: 1.2, bag: 'roll' });
+  c.walker([[-6, -2.4], [-15, -2.4], [8, -2.3]], { speed: 1.1, bag: 'pack', elder: true });
+  c.trolley([[9, 3.2], [3.2, -1.9], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });
+  const lead = c.walker([[7, 1.4], [3.6, -1.9], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
   c.walker([[13, 3.6], [-13, 3.6]], { run: true, bag: 'roll', speed: 1.0 });
   for (const [x, z, yaw, o] of [[-6.5, 1.6, 1.0, { bag: 'roll', phone: true }], [-5.7, 2.2, 4.2, { talkTo: true, bag: 'pack' }], [6.8, -0.6, 2.4, { phone: true }], [11, 2.5, 3.5, { talkTo: true, bag: 'roll' }], [-11.5, 0.2, 0.4, { bag: 'roll', elder: true }]]) c.stander(x, z, yaw, o);
-  c.update(0.016, null); d.stage.scenery.add(c.group); return c;
+  c.update(0.016, null); c.group.position.z = zShift; d.stage.scenery.add(c.group); return c;
 }
 
 /** A quick dark blink, so a change of place never pops. */
@@ -1140,7 +1140,7 @@ const cab = (d) => {
 
 /* ------------------------------------------------------------------ 1. at the kerb: the driver stops at the entrance; step out */
 const kerb = (d) => {
-  let doors, cab, driver, phase = 'cab', alive = false, rmCab, fc;
+  let doors, cab, driver, phase = 'cab', alive = false, rmCab, fc, ZS = 0;
   const mat = (c, r = 0.5, m = 0.1) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const box = (w, h, dd, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); b.castShadow = true; return b; };
   const api = {
@@ -1149,15 +1149,19 @@ const kerb = (d) => {
     help: 'The cab has stopped at the terminal. Tap Get out, and the entrance is straight ahead.',
     enter() {
       // the taxi you arrived in, parked beside you with its rear door open (a real photo, background removed)
-      d.app.env.setOutdoorTheme('airport'); fc = forecourtCrowd(d, 31);
+      d.app.env.setOutdoorTheme('airport');
+      ZS = d.app.env.entranceReal ? -4.2 : 0;                              // in 3D the kerb and the doors are further away, so the walk to the entrance is a real walk
+      if (d.app.env.entrance3d) d.app.env.entrance3d.position.z = ZS;
+      api.bounds = { x0: -3, x1: 3, z0: -3.2 + ZS, z1: 3 };
+      fc = forecourtCrowd(d, 31, ZS);
       cab = TAXI_3D ? taxi3D() : taxiBillboard('open');
       if (cab) { d.addScenery(cab, TAXI_3D ? { x: -2.7, z: 0.35, ry: 0, fixed: true } : { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); rmCab = d.obstacle(cab); cab.userData.openDoor?.(true, true); }
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-1.0, 0, 1.2]); driver.noPush = true; alive = true;
-      doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
+      doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 + ZS });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
-      const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 });
+      const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 + ZS });
       d.track(screenOverlay(ksign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures', arrow: '↑', state: { glow: false } }) }), false);
-      d.obstacle(d.addScenery(d.assets.make('luggage-trolley'), { x: 0.9, z: -1.2, ry: 0.4 }));
+      d.obstacle(d.addScenery(d.assets.make('luggage-trolley'), { x: 0.9, z: -1.2 + ZS, ry: 0.4 }));
       facadePlane(d, 17, 8.5);
       d.setPanel({ title: 'You have arrived.', body: 'Step out of the cab.', note: '', tone: 'normal', buttons: [{ id: 'out', label: 'Get out' }] });
     },
@@ -1176,13 +1180,13 @@ const kerb = (d) => {
       } });
       const say = (t0, f) => T.add({ delay: t0, dur: 0.01, done: () => { if (alive) f(); } });
       const k = quick ? 0.25 : 1;
-      const A = TAXI_3D ? P(-0.4, 1.2) : P(-1.0, 1.2), B = P(-1.05, -2.2), C = P(0.4, -1.35), D = TAXI_3D ? P(-1.75, 0.9) : P(-1.5, 0.1);
+      const A = TAXI_3D ? P(-0.4, 1.2) : P(-1.0, 1.2), B = P(-1.05, -2.2), C = P(0.4, -1.35 + ZS), D = TAXI_3D ? P(-1.75, 0.9) : P(-1.5, 0.1);
       say(0.8 * k, () => driver.playClip(/walk/i));
       walk(A, B, 0.8 * k, 3.4 * k);
       say(4.2 * k, () => { driver.playClip(/idle/i); driver.heading = Math.PI; bag.visible = true; bag.position.set(-1.45, lift, -2.15); });      // at the boot
       say(5.7 * k, () => driver.playClip(/walk/i));
       walk(B, C, 5.7 * k, 3.0 * k, true);
-      say(8.7 * k, () => { driver.playClip(/idle/i); bag.position.set(0.9, 0.3 + lift, -1.2); bag.rotation.y = 0.4; driver.say('Your bag is on the trolley.', 5); });
+      say(8.7 * k, () => { driver.playClip(/idle/i); bag.position.set(0.9, 0.3 + lift, -1.2 + ZS); bag.rotation.y = 0.4; driver.say('Your bag is on the trolley.', 5); });
       say(10.6 * k, () => driver.playClip(/walk/i));
       walk(C, D, 10.6 * k, 2.6 * k);
       say(13.2 * k, () => {
@@ -1198,7 +1202,7 @@ const kerb = (d) => {
       this.unload();                                                    // the driver gets your bag while you step out
       d.setPanel({ title: 'Walk to the entrance.', body: 'Walk up to the doors.', buttons: [] });
       d.say('Thank you, and have a good flight. Now walk to the entrance.'); driver?.say('Have a good flight!', 6);
-      d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance', radius: 1.5, onArrive: () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue') });
+      d.setStation({ point: new THREE.Vector3(0, 0, -2.5 + ZS), label: 'the entrance', radius: 1.5, onArrive: () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue') });
     },
     demo() { if (phase !== 'cab') return; d.runDemo([{ p: [0, d.h - 0.2, -0.9], dur: 1.0 }, { p: [0, d.h - 0.2, -1.3], dur: 0.6, press: true }], { say: 'Tap Get out, like this.', apply: () => this.out() }); },
   };
@@ -1216,7 +1220,7 @@ const arrival = (d) => {
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
-      d.app.env.setOutdoorTheme('airport'); fc = forecourtCrowd(d, 47);
+      d.app.env.setOutdoorTheme('airport'); if (d.app.env.entrance3d) d.app.env.entrance3d.position.z = 0; fc = forecourtCrowd(d, 47);
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });

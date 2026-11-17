@@ -199,6 +199,61 @@ export function buildEntrance3D({ renderer = null } = {}) {
   for (let x = -60; x <= 60; x += 15) { add(new THREE.CylinderGeometry(0.12, 0.2, 5.5, 10), bark, x, 2.75, (MZ0 + MZ1) / 2 + 0.3); for (let k = 0; k < 4; k++) median.push(['fern_02', x + Math.cos(k * 1.6) * 0.15, 5.4, (MZ0 + MZ1) / 2 + 0.3 + Math.sin(k * 1.6) * 0.15, k * 1.6 + x, 2.6]); }
   placeProps(g, median);
 
+
+  // =================== finer detail ===================
+  const dkSteel = std(0x474c52, { metalness: 0.8, roughness: 0.4 }), wood = std(0x9b7048, { roughness: 0.65 }), blackM = std(0x1c1d20, { roughness: 0.8 }), yellowM = std(0xf0bf10, { roughness: 0.6 });
+  // ---------- a zebra crossing from the kerb to the median, stop lines, road arrows, drains and manholes
+  for (let z = 0.6; z < 13.2; z += 0.95) add(new THREE.PlaneGeometry(3.4, 0.5).rotateX(-Math.PI / 2), paint, 11.5, -0.003, z);
+  add(new THREE.PlaneGeometry(0.3, 13.4).rotateX(-Math.PI / 2), paint, 9.6, -0.004, 6.4); add(new THREE.PlaneGeometry(0.3, 13.4).rotateX(-Math.PI / 2), paint, 13.4, -0.004, 6.4);
+  const arrow = (x, z, ry = 0) => { const gp = new THREE.Group(); gp.position.set(x, -0.002, z); gp.rotation.y = ry; g.add(gp); add(new THREE.PlaneGeometry(0.34, 2.2).rotateX(-Math.PI / 2), paint, 0, 0, 0, 0, gp); const tri = new THREE.Mesh(new THREE.CircleGeometry(0.6, 3).rotateX(-Math.PI / 2), paint); tri.position.set(0, 0, -1.35); tri.rotation.y = Math.PI / 2; gp.add(tri); };
+  for (const x of [-30, -18, -6, 28]) arrow(x, 4.5, Math.PI / 2);
+  for (const x of [-26, 4, 22]) { add(new THREE.PlaneGeometry(1.3, 0.55).rotateX(-Math.PI / 2), blackM, x, 0.002, KERB_Z + 0.6); for (let k = 0; k < 6; k++) add(new THREE.PlaneGeometry(1.1, 0.04).rotateX(-Math.PI / 2), steel, x, 0.004, KERB_Z + 0.4 + k * 0.1); }   // drain grates
+  for (const [x, z] of [[-14, 6.5], [-3, 11], [18, 8]]) { add(new THREE.CircleGeometry(0.38, 24).rotateX(-Math.PI / 2), dkSteel, x, 0.003, z); add(new THREE.RingGeometry(0.28, 0.32, 24).rotateX(-Math.PI / 2), steel, x, 0.004, z); }
+
+  // ---------- street furniture on the forecourt: signs, bins, benches, a trolley bay
+  const poleSign = (x, z, tex, w, h) => { add(new THREE.CylinderGeometry(0.045, 0.045, 2.6, 10), dkSteel, x, 1.3, z); add(new THREE.BoxGeometry(w, h, 0.04), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), x, 2.35, z - 0.02); };
+  const taxiTex = canvasTex(256, 256, (x, w, h) => { x.fillStyle = '#12306a'; x.fillRect(0, 0, w, h); x.fillStyle = '#f0bf10'; x.font = 'bold 84px Segoe UI, Arial'; x.textAlign = 'center'; x.fillText('TAXI', 128, 120); x.fillStyle = '#fff'; x.font = 'bold 38px Segoe UI, Arial'; x.fillText('Pre-paid', 128, 180); x.fillText('rank', 128, 224); });
+  const dropTex = canvasTex(256, 384, (x, w, h) => { x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.fillStyle = '#12306a'; x.fillRect(0, 0, w, 120); x.fillStyle = '#fff'; x.font = 'bold 40px Segoe UI, Arial'; x.textAlign = 'center'; x.fillText('Passenger', 128, 54); x.fillText('drop-off', 128, 100); x.fillStyle = '#c0392b'; x.font = 'bold 46px Segoe UI, Arial'; x.fillText('Max 10 min', 128, 200); x.fillStyle = '#222'; x.font = '30px Segoe UI, Arial'; x.fillText('No waiting', 128, 260); x.fillText('beyond this point', 128, 304); });
+  poleSign(-6.8, KERB_Z - 0.35, taxiTex, 0.7, 0.7); poleSign(7.4, KERB_Z - 0.35, dropTex, 0.65, 0.98);
+  for (const x of [-9.4, 10.2, -15.6]) { const bin = add(new THREE.CylinderGeometry(0.27, 0.24, 0.95, 18), dkSteel, x, 0.48, WALL_Z + 0.55); add(new THREE.CylinderGeometry(0.28, 0.28, 0.08, 18), steel, x, 0.97, WALL_Z + 0.55); add(new THREE.BoxGeometry(0.22, 0.1, 0.02), blackM, x, 0.7, WALL_Z + 0.82); }
+  for (const x of [-11.2, 12.4]) { for (let k = 0; k < 3; k++) { add(new THREE.BoxGeometry(1.7, 0.04, 0.13), wood, x, 0.45, WALL_Z + 0.55 + k * 0.15); add(new THREE.BoxGeometry(1.7, 0.1, 0.03), wood, x, 0.68 + k * 0.14, WALL_Z + 0.27); } for (const dx of [-0.75, 0.75]) add(new THREE.BoxGeometry(0.05, 0.45, 0.6), dkSteel, x + dx, 0.22, WALL_Z + 0.5); }
+  const trolley = (x, z, ry = 0) => { const gt = new THREE.Group(); gt.position.set(x, 0, z); gt.rotation.y = ry; g.add(gt);
+    add(new THREE.BoxGeometry(0.55, 0.035, 0.95), steel, 0, 0.26, 0, 0, gt); for (const dx of [-0.27, 0.27]) { add(new THREE.BoxGeometry(0.025, 0.5, 0.025), steel, dx, 0.5, 0.45, 0, gt); add(new THREE.BoxGeometry(0.025, 0.025, 0.95), steel, dx, 0.5, 0, 0, gt); add(new THREE.BoxGeometry(0.025, 0.5, 0.025), steel, dx, 0.5, -0.45, 0, gt); }
+    add(new THREE.BoxGeometry(0.58, 0.03, 0.03), blackM, 0, 1.0, -0.5, 0, gt); for (const dx of [-0.27, 0.27]) add(new THREE.BoxGeometry(0.03, 0.76, 0.03), steel, dx, 0.62, -0.5, 0, gt);
+    for (const [dx, dz] of [[-0.24, 0.42], [0.24, 0.42], [-0.24, -0.42], [0.24, -0.42]]) add(new THREE.SphereGeometry(0.05, 8, 6), blackM, dx, 0.07, dz, 0, gt); };
+  for (let k = 0; k < 7; k++) trolley(-19.5 + k * 0.1, WALL_Z + 0.9 + k * 0.3, 0);          // a nested row of trolleys against the glass
+  for (let k = 0; k < 5; k++) trolley(17.0 - k * 0.1, WALL_Z + 0.9 + k * 0.3, 0);
+  // CCTV domes and flag poles
+  for (const x of [-16, -7, 7, 16]) { add(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 8), dkSteel, x, 5.65, WALL_Z + 1.1); add(new THREE.SphereGeometry(0.13, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI), blackM, x, 5.4, WALL_Z + 1.1); }
+
+  // ---------- canopy underside: ribs, light strips and a hanging sign
+  for (let x = -33; x <= 33; x += 3) add(new THREE.BoxGeometry(0.12, 0.14, CZ - WALL_Z + 0.5), white, x, 5.82, (WALL_Z + CZ) / 2 - 0.15);
+  const hang = canvasTex(1024, 192, (x, w, h) => { x.fillStyle = '#0b2a5e'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; x.font = 'bold 104px Segoe UI, Arial'; x.fillText('Departures', 40, 124); x.fillStyle = '#ffd23f'; x.fillText('\u2191', 860, 124); x.fillStyle = '#12a3a1'; x.fillRect(0, h - 12, w, 12); });
+  const hs = add(new THREE.BoxGeometry(4.4, 0.8, 0.1), new THREE.MeshBasicMaterial({ map: hang, toneMapped: false }), 0, 4.9, WALL_Z + 0.6); for (const dx of [-1.8, 1.8]) add(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), steel, dx, 5.4, WALL_Z + 0.6);
+  // lettering on the building face
+  const face = canvasTex(2048, 256, (x, w, h) => { x.fillStyle = 'rgba(0,0,0,0)'; x.clearRect(0, 0, w, h); x.fillStyle = '#12306a'; x.font = 'bold 190px Segoe UI, Arial'; x.fillText('TERMINAL 2', 40, 200); x.fillStyle = '#12a3a1'; x.fillRect(1180, 90, 8, 120); x.fillStyle = '#12306a'; x.font = 'bold 120px Segoe UI, Arial'; x.fillText('Practice Air', 1240, 195); });
+  const lt = add(new THREE.PlaneGeometry(14, 1.75), new THREE.MeshBasicMaterial({ map: face, transparent: true, toneMapped: false }), -11, 10.4, WALL_Z - 0.36);
+
+  // ---------- the lobby seen through the glass: a row of check-in counters with their signs
+  const lobby = [];
+  for (let i = 0; i < 9; i++) { const x = -24 + i * 6; lobby.push(['checkin_counter', x, 0, WALL_Z - 10, 0, 0.95], ['checkin_counter', x + 1.9, 0, WALL_Z - 10, 0, 0.95], ['checkin_counter', x + 3.8, 0, WALL_Z - 10, 0, 0.95]); }
+  placeProps(g, lobby);
+  for (let i = 0; i < 9; i++) { const x = -22 + i * 6 + 1.9; add(new THREE.BoxGeometry(5.2, 0.7, 0.08), std(0x12306a, { roughness: 0.5, emissive: 0x0a1c40, emissiveIntensity: 0.6 }), x, 4.4, WALL_Z - 10.9); add(new THREE.BoxGeometry(5.2, 0.12, 0.1), std(0x12a3a1, { roughness: 0.4 }), x, 4.0, WALL_Z - 10.9); for (const dx of [-2.3, 2.3]) add(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 6), steel, x + dx, 5.15, WALL_Z - 10.9); }
+  const board = canvasTex(1024, 384, (x, w, h) => { x.fillStyle = '#05101f'; x.fillRect(0, 0, w, h); x.fillStyle = '#ffd23f'; x.font = 'bold 54px Segoe UI, Arial'; x.fillText('DEPARTURES', 30, 70); x.font = '40px Consolas, monospace'; ['10:40  MUMBAI    PA101  12', '11:10  DELHI     PA205  06', '11:30  CHENNAI   PA309  09', '12:05  KOLKATA   PA411  04'].forEach((t, i) => { x.fillStyle = i % 2 ? '#fff' : '#9ee7ff'; x.fillText(t, 30, 150 + i * 56); }); });
+  add(new THREE.BoxGeometry(4.2, 1.6, 0.1), new THREE.MeshBasicMaterial({ map: board, toneMapped: false }), 0, 3.6, WALL_Z - 6.2);
+  for (const dx of [-1.9, 1.9]) add(new THREE.CylinderGeometry(0.02, 0.02, 2.2, 6), steel, dx, 5.0, WALL_Z - 6.2);
+
+  // ---------- sky life: soft clouds and an aircraft crossing slowly
+  const cloudTex = canvasTex(256, 128, (x, w, h) => { const gr = x.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, h / 2); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, w, h); for (let k = 0; k < 5; k++) { x.beginPath(); x.arc(40 + k * 40, 64 + ((k * 13) % 3) * 8 - 8, 30 + (k % 2) * 10, 0, 7); x.fillStyle = 'rgba(255,255,255,0.5)'; x.fill(); } });
+  const cmat = new THREE.MeshBasicMaterial({ map: cloudTex, transparent: true, depthWrite: false, toneMapped: false, fog: false });
+  for (const [x, y, z, sc] of [[-30, 38, 45, 1.2], [15, 46, 30, 1.5], [40, 34, 55, 1.0], [-5, 52, 20, 1.7], [-48, 44, 12, 1.3], [55, 50, 8, 1.4]]) { const c = add(new THREE.PlaneGeometry(36 * sc, 14 * sc), cmat, x, y, z); c.rotation.x = -0.25; c.renderOrder = -7; }
+  const plane = new THREE.Group(); g.add(plane);
+  add(new THREE.CylinderGeometry(0.5, 0.42, 6.5, 14).rotateZ(Math.PI / 2), white, 0, 0, 0, 0, plane); add(new THREE.ConeGeometry(0.42, 1.4, 14).rotateZ(-Math.PI / 2), white, 3.9, 0, 0, 0, plane);
+  add(new THREE.BoxGeometry(1.4, 0.06, 6.4), white, 0.4, -0.1, 0, 0, plane); add(new THREE.BoxGeometry(0.9, 1.1, 0.08), std(0x12a3a1, { roughness: 0.5 }), -2.9, 0.7, 0, 0, plane); add(new THREE.BoxGeometry(0.7, 0.05, 2.2), white, -2.9, 0.1, 0, 0, plane);
+  plane.position.set(-70, 48, 40); plane.rotation.z = 0.06;
+  const prevUpdate = g.userData.update; let tPlane = 0;
+  g.userData.update = (dt) => { prevUpdate?.(dt); tPlane += dt; plane.position.x = -70 + ((tPlane * 3.4) % 140); plane.position.y = 48 + Math.sin(tPlane * 0.2) * 1.5; };
+
   // ---------- soft contact shadows under the columns, planters and bollards
   const T = shadowTextures(), sh = new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blob = (x, z, r) => { const m = add(flat, sh, x, 0.012, z); m.scale.set(r * 2, 1, r * 2); };

@@ -96,7 +96,7 @@ export class GlbPeople {
       e.root.position.set(p.x, p.y, p.z); e.root.rotation.y = p.yaw; e.root.scale.set(s * wide, s, s * (0.96 + (wide - 0.92) * 0.4));
       const moving = p.stride > 0.05, k = Math.min(1, dt * 6);
       e.wW += ((moving ? 1 : 0) - e.wW) * k; e.wI = 1 - e.wW; e.aW.setEffectiveWeight(e.wW); e.aI.setEffectiveWeight(Math.max(0.001, e.wI));
-      e.aW.setEffectiveTimeScale(Math.max(0.25, Math.min(1.6, (p.vNow || 0.7) / 1.25))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
+      e.aW.setEffectiveTimeScale(Math.max(0.55, Math.min(1.5, (p.vNow || 0.7) / 0.95))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
       e.mixer.update(dt);
       if (p.bag === 'roll' && e.bones.arm) { const a = window.__arm ?? [-0.75, 0, 0.42], f = window.__fore ?? [0.25, 0, 0]; this._hold(e.bones.arm, a); this._hold(e.bones.fore, f); }     // the right hand takes the suitcase handle, held low and a little behind
     }

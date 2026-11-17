@@ -58,10 +58,21 @@ export function makeAccessories(model) {
   return out;
 }
 
+// six saree colourways (body cloth and pallu), swapped onto the one saree model
+const SAREE_FIELD = [0x8c1b2a, 0x0a5c3c, 0x1c3f9e, 0xd1901a, 0xa31260, 0x0a6166];
+let sareeTex = null;
+function loadSareeTextures() {
+  if (sareeTex) return sareeTex;
+  const base = new URL('../../assets/people/cloth/', import.meta.url).href, tl = new THREE.TextureLoader();
+  const mk = (n) => { const t = tl.load(base + n + '.webp'); t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  sareeTex = { body: [0, 1, 2, 3, 4, 5].map((k) => mk('saree_body_' + k)), pallu: [0, 1, 2, 3, 4, 5].map((k) => mk('saree_pallu_' + k)) };
+  return sareeTex;
+}
+
 let cache = null;
 export function loadGlbPeople() {
   if (cache) return cache;
-  const load = (base, suffix) => Promise.all([...FEMALE, ...MALE].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]))).then((list) => Object.fromEntries(list)).catch(() => null);
+  const load = (base, suffix) => Promise.all([...FEMALE, ...MALE, 'saree-woman'].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]).catch((e) => (n === 'saree-woman' ? [n, null] : Promise.reject(e))))).then((list) => Object.fromEntries(list)).catch(() => null);      // the saree body is optional
   cache = Promise.all([load(BASE, '-lite.glb'), load(BASE_MID, '-mid.glb')]).then(([lite, mid]) => (lite ? { lite, mid } : null));     // the close-up set, and a lighter set for the next ring out
   return cache;
 }
@@ -82,31 +93,33 @@ export const tint = (mat, hex, boost = 1) => {
 };
 
 export class GlbPeople {
-  constructor(parent, { size = 12, radius = 9, mid = null } = {}) {
+  constructor(parent, { size = 12, radius = 9, mid = null, sarees = 2 } = {}) {
     this.group = new THREE.Group(); this.group.name = 'GlbPeople'; parent.add(this.group);
-    this.size = size; this.radius = radius; this.mid = mid; this.entries = []; this.ready = false; this.bound = new Map();
-    loadGlbPeople().then((sets) => { if (!sets || this.disposed) return; this._build(sets.lite, this.size, 'near'); if (this.mid && sets.mid) this._build(sets.mid, this.mid.size, 'mid'); this.ready = true; });
+    this.size = size; this.radius = radius; this.mid = mid; this.sarees = sarees; this.entries = []; this.ready = false; this.bound = new Map();
+    loadGlbPeople().then((sets) => { if (!sets || this.disposed) return; this._build(sets.lite, this.size, 'near', this.sarees); if (this.mid && sets.mid) this._build(sets.mid, this.mid.size, 'mid', this.mid.sarees ?? 4); this.ready = true; });
   }
 
-  _build(models, count, tier) {
-    for (let i = 0; i < count; i++) {
-      const name = i < count / 2 ? FEMALE[i % 3] : MALE[i % 3], g = models[name];
+  _build(models, count, tier, sarees = 0) {
+    const list = Array.from({ length: count }, (_, i) => (i < count / 2 ? FEMALE[i % 3] : MALE[i % 3]));
+    if (models['saree-woman']) for (let i = 0; i < sarees; i++) list.push('saree-woman');
+    for (const name of list) {
+      const g = models[name];
       const model = cloneSkinned(g.scene);
       model.traverse((o) => { if (o.isMesh) { o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); o.frustumCulled = false; o.castShadow = false; } });
       const acc = tier === 'near' ? makeAccessories(model) : null;
       const box = new THREE.Box3().setFromObject(model), h = box.max.y - box.min.y;
       const root = new THREE.Group(); root.add(model); model.scale.setScalar(1.74 / h); root.visible = false; this.group.add(root);
       const mixer = new THREE.AnimationMixer(model), idle = g.animations.find((a) => a.name === 'Idle'), walk = g.animations.find((a) => a.name === 'Walk');
-      const aI = mixer.clipAction(idle).play(), aW = mixer.clipAction(walk).play(); aI.setEffectiveWeight(1); aW.setEffectiveWeight(0);
+      const aI = mixer.clipAction(idle).play(), aW = walk ? mixer.clipAction(walk).play() : null; aI.setEffectiveWeight(1); aW?.setEffectiveWeight(0);      // the saree body has no walk: sarees stand, queue and gesture
       const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ tier, name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: name === 'saree-woman' ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
   }
 
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
-    tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 1.0);
+    tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 1.0); if (m['Skin body']) m['Skin body'].color.set(SKIN_TONES[p.skinIdx ?? 2]);
     if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.1 : 1);
     if (m.Beard) tint(m.Beard, HAIR_TONES[p.hairIdx ?? 0], 1);
     const cloth = p.female ? r(DRESS, 1) : r(CLOTH, 1);
@@ -114,14 +127,20 @@ export class GlbPeople {
     if (m['Uniform shirt']) tint(m['Uniform shirt'], cloth);
     if (m['Uniform trousers']) tint(m['Uniform trousers'], r(TROUSER, 2));
     if (m.Shoes) tint(m.Shoes, r([0x1c1c1e, 0x3a2a1d, 0xe8e8e8, 0x2a3a5a, 0x5a4a3a], 4));
-    for (const k of ['Outfit', 'Uniform shirt', 'Uniform trousers']) if (m[k]) { m[k].map = null; m[k].roughness = 0.85; m[k].needsUpdate = true; }      // plain cloth instead of the knit pattern
+    for (const k of (e.kind === 'saree' ? [] : ['Outfit', 'Uniform shirt', 'Uniform trousers'])) if (m[k]) { m[k].map = null; m[k].roughness = 0.85; m[k].needsUpdate = true; }      // plain cloth instead of the knit pattern
+    if (e.kind === 'saree') {
+      const k = (p.seedA >>> 2) % 6, T = loadSareeTextures();
+      if (m.Saree) { m.Saree.map = T.body[k]; m.Saree.needsUpdate = true; }
+      if (m['Saree pallu']) { m['Saree pallu'].map = T.pallu[k]; m['Saree pallu'].needsUpdate = true; }
+      if (m.Blouse) { m.Blouse.map = null; m.Blouse.color.set(SAREE_FIELD[k]); m.Blouse.roughness = 0.6; m.Blouse.needsUpdate = true; }
+    }
     const A = e.acc, rr = (k) => ((p.seedA >>> k) % 100) / 100, elder = (p.hairIdx ?? 0) >= 4;
     if (A) {
       const f = !!p.female;
       if (A.bindi) A.bindi.visible = f && rr(3) < 0.8;
       if (A.glasses) A.glasses.visible = elder ? rr(5) < 0.55 : rr(5) < 0.12;
       for (const k of ['bangleL', 'bangleR']) if (A[k]) { A[k].visible = f && rr(9) < 0.85; A[k].material.color.set([0xd4a437, 0xd4a437, 0xb3262e, 0x2f7d4a, 0x2c5aa0][((p.seedA >>> 11) % 5)]); }
-      if (A.sash) { A.sash.visible = f && rr(13) < 0.6; A.sash.material.color.set(r(DRESS, 5)); }
+      if (A.sash) { A.sash.visible = e.kind !== 'saree' && f && rr(13) < 0.6; A.sash.material.color.set(r(DRESS, 5)); }
     }
     e.root.userData.wide = 0.92 + (((p.seedA >>> 3) % 20) / 100);          // build: narrower to broader
   }
@@ -133,7 +152,7 @@ export class GlbPeople {
     const Rn = this.radius, Rm = this.mid ? Math.max(this.mid.radius, Rn) : Rn, far = (Rm + 1.5) ** 2;
     for (const [p, e] of [...this.bound]) {                                           // release those that left, sat down or are gone
       const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2;
-      if (d2 > far || p.mode === 'sit') { e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
+      if (d2 > far || p.mode === 'sit' || (e.kind === 'saree' && p.stride > 0.05)) { e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
     }
     const want = []; for (const p of people) { if (p.mode === 'sit') continue; const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2; if (d2 < far) want.push([d2, p]); }
     want.sort((a, b) => a[0] - b[0]);
@@ -145,7 +164,8 @@ export class GlbPeople {
       else if (this.mid && nMid < this.mid.size && d2 < (Rm + hy('mid')) ** 2) { tier = 'mid'; nMid++; }
       if (was && was !== tier) { const e = p.glb; e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
       if (!tier || p.glb) continue;
-      const pool = this.entries.filter((e) => !e.who && e.tier === tier), free = pool.find((e) => e.female === p.female) || pool[0]; if (!free) continue;
+      const pool = this.entries.filter((e) => !e.who && e.tier === tier), still = p.female && p.dress && p.stride < 0.05 && (p.mode === 'idle' || p.mode === 'queue');
+      const free = (still && pool.find((e) => e.kind === 'saree')) || pool.find((e) => e.kind !== 'saree' && e.female === p.female) || pool.find((e) => e.kind !== 'saree'); if (!free) continue;
       free.who = p; this.bound.set(p, free); p.glb = free; this._dress(free, p); free.root.visible = true; free.phase = Math.random() * 3;
     }
   }
@@ -155,8 +175,8 @@ export class GlbPeople {
       const s = p.scale * (p.child ? 1 : 1), wide = e.root.userData.wide ?? 1;
       e.root.position.set(p.x, p.y, p.z); e.root.rotation.y = p.yaw; e.root.scale.set(s * wide, s, s * (0.96 + (wide - 0.92) * 0.4));
       const moving = p.stride > 0.05, k = Math.min(1, dt * 6);
-      e.wW += ((moving ? 1 : 0) - e.wW) * k; e.wI = 1 - e.wW; e.aW.setEffectiveWeight(e.wW); e.aI.setEffectiveWeight(Math.max(0.001, e.wI));
-      e.aW.setEffectiveTimeScale(Math.max(0.55, Math.min(1.5, (p.vNow || 0.7) / 0.95))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
+      if (e.aW) { e.wW += ((moving ? 1 : 0) - e.wW) * k; e.wI = 1 - e.wW; e.aW.setEffectiveWeight(e.wW); } e.aI.setEffectiveWeight(Math.max(0.001, e.wI));
+      e.aW?.setEffectiveTimeScale(Math.max(0.55, Math.min(1.5, (p.vNow || 0.7) / 0.95))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
       e.mixer.update(dt);
       if (e.tier === 'near') this._life(e, p, dt);
       if (p.bag === 'roll' && e.bones.arm) { const a = window.__arm ?? [-0.75, 0, 0.42], f = window.__fore ?? [0.25, 0, 0]; this._hold(e.bones.arm, a); this._hold(e.bones.fore, f); }     // the right hand takes the suitcase handle, held low and a little behind
@@ -193,7 +213,7 @@ export class GlbPeople {
 const STAFF_LOOK = { checkin: [0xa56b44, true], crew: [0xb67e53, true], security: [0x935c3a, true], gate: [0xa56b44, false], guard: [0x7e4d2e, false], driver: [0x935c3a, false] };
 export function indianiseStaff(model, kind) {
   const look = STAFF_LOOK[kind]; if (!look) return null;
-  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') tint(m, look[0]); else if (m.name === 'Hair') tint(m, 0x0e0b09); else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
+  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') tint(m, look[0]); else if (m.name === 'Skin body') m.color.set(look[0]); else if (m.name === 'Hair') tint(m, 0x0e0b09); else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
   const acc = makeAccessories(model);
   if (acc.bindi) acc.bindi.visible = look[1]; for (const k of ['bangleL', 'bangleR']) if (acc[k]) acc[k].visible = look[1];
   if (acc.sash) acc.sash.visible = false; if (acc.glasses) acc.glasses.visible = false;

@@ -1151,7 +1151,7 @@ const kerb = (d) => {
       // the taxi you arrived in, parked beside you with its rear door open (a real photo, background removed)
       d.app.env.setOutdoorTheme('airport');
       ZS = d.app.env.entranceReal ? -4.2 : 0;                              // in 3D the kerb and the doors are further away, so the walk to the entrance is a real walk
-      if (d.app.env.entrance3d) d.app.env.entrance3d.position.z = ZS;
+      d.app.env.entranceBase.set(0, 0, ZS);
       api.bounds = { x0: -3, x1: 3, z0: -3.2 + ZS, z1: 3 };
       fc = forecourtCrowd(d, 31, ZS);
       cab = TAXI_3D ? taxi3D() : taxiBillboard('open');
@@ -1220,7 +1220,7 @@ const arrival = (d) => {
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
-      d.app.env.setOutdoorTheme('airport'); if (d.app.env.entrance3d) d.app.env.entrance3d.position.z = 0; fc = forecourtCrowd(d, 47);
+      d.app.env.setOutdoorTheme('airport'); d.app.env.entranceBase.set(0, 0, 0); fc = forecourtCrowd(d, 47);
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });

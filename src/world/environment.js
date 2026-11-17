@@ -159,6 +159,7 @@ export class Environment {
     m.position.y = this.stage.headY; m.rotation.y = -1.57; this.stage.root.add(m); return m;      // turned so the first view is the sofa
   }
   _outdoorGroup() {
+    this.entranceBase ??= new THREE.Vector3();
     if (this.outdoor) return this.outdoor;
     const g = this.outdoor = new THREE.Group(); g.name = 'Outdoor'; g.visible = false;
     const speckle = (base, dots, repeat, lines = null) => {   // a small repeating ground texture, drawn here so there is nothing to download
@@ -328,7 +329,10 @@ export class Environment {
   update(dt, headLocal, camera) {
     this.tweens.step(dt);
     for (const h of [this.hall3d, this.gate3d]) if (h?.visible) h.userData.update?.(dt, camera);       // the crowds in the 3D hall and gate lounge
-    if (this.entrance3d?.visible) this.entrance3d.userData.update?.(dt);                                  // traffic on the road
+    if (this.entrance3d?.visible) {
+      this.entrance3d.userData.update?.(dt);                                                                // traffic on the road
+      const sc = this.stage.scenery.position, b = this.entranceBase; this.entrance3d.position.set(b.x + sc.x, 0, b.z + sc.z);   // the entrance moves with you when you walk, like everything else in the scene
+    }
     if (this.driveSpeed && this.roadTex) this.roadTex.offset.y += this.driveSpeed * dt;     // the road streams past while the cab drives
     const a = this.vig.material.uniforms.amt;
     a.value += (this.vigTarget - a.value) * Math.min(1, dt * 5);

@@ -3,7 +3,7 @@ import { mergeStatic } from './merge.js';
 import { terrazzoTexture } from './floors.js';
 import { applyPbr, pbrMap } from './pbr.js';
 import { placeProps } from './realprops.js';
-import { Crowd } from './crowd.js';
+import { Crowd, blockersFrom } from './crowd.js';
 import { makeRealism, skylineRing } from './realism3d.js';
 import { makeProps } from './props3d.js';
 
@@ -191,15 +191,17 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   P.lightbox(-14, 7.3, 25.85, Math.PI, 7, 2.1, 'Fly Practice Air', 'Mumbai · Delhi · Chennai', '#15305a', '#12a3a1'); P.lightbox(0, 7.3, 25.85, Math.PI, 7, 2.1, 'Discover India', 'Your journey starts here', '#c0392b', '#e0a030'); P.lightbox(14, 7.3, 25.85, Math.PI, 7, 2.1, 'Welcome Aboard', 'Calm. Clear. Cared for.', '#2c5aa0', '#7de0ff');
   P.clock(-4, 7.0, 25.8, Math.PI); P.clock(4, 7.0, 25.8, Math.PI);
   for (let i = 0; i < 4; i++) { real.push(['kiosk', 8 + i * 1.25, 0, -4.2, window.__kry ?? 0, 0.85], ['kiosk', -8 - i * 1.25, 0, -4.2, window.__kry ?? 0, 0.85]); }
-  placeProps(g, real.concat(counters), envMap);
+  const realHolder = placeProps(g, real.concat(counters), envMap);
   for (const cx of [-15, 15]) for (const cz of [-16, -4, 8, 20]) P.bin(cx - 1.6, cz + 0.4);
   for (const z of [13, 14.3]) { P.vending(-29.2, z, Math.PI / 2, z === 13 ? 0xd63a3a : 0x2c6bd0); P.vending(29.2, z, -Math.PI / 2, z === 13 ? 0x2c6bd0 : 0x1f8a70); }
   P.lightbox(-29.88, 4.2, -2, Math.PI / 2, 5, 1.8, 'Lounge', 'Level 2', '#15305a', '#35c6c2'); P.lightbox(-29.88, 4.2, 8, Math.PI / 2, 5, 1.8, 'Wi-Fi Free', 'Practice-Air-Guest', '#7a1f2b', '#d97b3c');
 
+  const solid = blockersFrom(static_, 0.18);                 // what people must walk round, measured before the shapes are merged
   mergeStatic(static_);                       // a few hundred shapes become a handful of draw calls
 
   // ================= PEOPLE =================
   const crowd = new Crowd({ capacity: 150, seed: 11, density, glb: density < 0.7 ? { size: 4, radius: 5, mid: { size: 8, radius: 9 } } : { size: 6, radius: 6, mid: { size: 24, radius: 15 } } });
+  crowd.blockers = solid; crowd.watch(realHolder, 0.18);
   const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
   // queues in front of the check-in counters (they shuffle forward and are served)
   const lane = (cx, cz, i, side, n) => {

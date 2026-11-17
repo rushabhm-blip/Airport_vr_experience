@@ -50,11 +50,24 @@ function geometries() {
   };
 }
 
+/** Solid floor footprints (x/z boxes) of the things under `root` that a person must walk round: anything taller than a knee and lower than a head. */
+export function blockersFrom(root, margin = 0.2, each = false) {
+  root.updateWorldMatrix(true, true); const out = [], inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), b = new THREE.Box3(), v = new THREE.Vector3();
+  const items = each ? root.children.flatMap((c) => (c.children.length > 40 ? c.children : [c])) : root.children;
+  for (const o of items) {
+    if (o.userData?.walkThrough || o.visible === false) continue;
+    b.setFromObject(o); if (b.isEmpty()) continue; b.applyMatrix4(inv); b.getSize(v);
+    if (v.y < 0.4 || b.min.y > 1.3 || (v.x < 0.22 && v.z < 0.22) || v.x * v.z > 500) continue;
+    out.push({ x0: b.min.x - margin, x1: b.max.x + margin, z0: b.min.z - margin, z1: b.max.z + margin, fromWatch: each });
+  }
+  return out;
+}
+
 export class Crowd {
   constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true, glb = null } = {}) {
     if (density < 0.7) { nearMax = Math.min(nearMax, 14); nearR = Math.min(nearR, 9.5); }      // on a headset: fewer detailed people, and only the closest
     this.group = new THREE.Group(); this.group.name = 'Crowd';
-    this.pace = 0.5; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
+    this.pace = 0.5; this.blockers = []; this._watch = []; this._wt = 0; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
     const geos = geometries(), mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     this.meshes = {};
     { const T = shadowTextures(); this.shadow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), capacity); this.shadow.frustumCulled = false; this.shadow.renderOrder = -1; this.shadow.name = 'crowd-shadow'; this.group.add(this.shadow); this._sm = new THREE.Matrix4(); }
@@ -133,16 +146,26 @@ export class Crowd {
   trolley(path, opts = {}) { const p = this.walker(path, { ...opts, speed: opts.speed ?? 1.0 }); if (p) p.bag = 'cart'; return p; }
 
   // ------------------------------------------------------------------ movement
+  /** Is (x, z) clear of every solid thing (walls, counters, seats, planters, furniture the step placed)? */
+  _free(x, z) { const B = this.blockers; for (let i = 0; i < B.length; i++) { const b = B[i]; if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return false; } return true; }
+
   _go(p, tx, tz, v, dt) {
     v *= this.pace;                                       // a calm pace for VR: people walk slower than in real life so you can take them in
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
     if (d < 0.06) return true;
     p.vNow = v;
     const step = Math.min(d, v * dt);
-    p.x += (dx / d) * step; p.z += (dz / d) * step;
-    p.yaw += wrapPi(Math.atan2(dx, dz) - p.yaw) * Math.min(1, dt * 7);
-    p.stride = Math.min(1, v / 1.2) * (p.run ? 1.5 : 1);
-    p.phase += v * dt * (p.child ? 3.4 : 2.5) * (p.run ? 0.85 : 1);
+    let mx = (dx / d) * step, mz = (dz / d) * step, heading = Math.atan2(dx, dz), moved = true;
+    if (this.blockers.length && d > 0.9 && (p.mode === "loop" || p.mode === "path") && this._free(p.x, p.z) && !this._free(p.x + (mx / step) * 0.45, p.z + (mz / step) * 0.45)) {
+      // something solid is ahead: walk round it instead of through it (a wall, a counter, a planter, a trolley)
+      moved = false; const base = Math.atan2(mz, mx), sp = step, s = p.side ?? (p.side = this.rng() < 0.5 ? 1 : -1);
+      for (const da of [0.6, 1.2, 1.9, 2.5]) for (const sd of [s, -s]) { const a = base + da * sd, ux = Math.cos(a), uz = Math.sin(a); if (this._free(p.x + ux * 0.45, p.z + uz * 0.45)) { mx = ux * sp; mz = uz * sp; heading = Math.atan2(mx, mz); moved = true; break; } }
+      if (!moved) { p.stuck = (p.stuck || 0) + dt; if (p.stuck > 1.4) { p.stuck = 0; p.side = -s; return true; } mx = mz = 0; }   // boxed in: wait, then give up on this waypoint
+    } else p.stuck = 0;
+    p.x += mx; p.z += mz;
+    if (moved) p.yaw += wrapPi(heading - p.yaw) * Math.min(1, dt * 7);
+    p.stride = moved ? Math.min(1, v / 1.2) * (p.run ? 1.5 : 1) : 0; if (!moved) p.vNow = 0;
+    if (moved) p.phase += v * dt * (p.child ? 3.4 : 2.5) * (p.run ? 0.85 : 1);
     return false;
   }
 
@@ -357,7 +380,11 @@ export class Crowd {
   }
 
   /** Frame update with LOD: the nearest people get the detailed model, everyone else the simple one. */
+  /** Keep the solid footprints of loaded furniture (objects that arrive a moment after the room is built) up to date. */
+  watch(obj, margin = 0.2) { this._watch.push({ obj, margin, n: -1, boxes: [] }); }
+
   update(dt, camera = null) {
+    if (this._watch.length && (this._wt -= dt) <= 0) { this._wt = 0.8; let changed = false; for (const w of this._watch) { const n = w.obj.children.length; if (n !== w.n) { w.n = n; w.boxes = blockersFrom(w.obj, w.margin, true); changed = true; } } if (changed) this.blockers = this.blockers.filter((b) => !b.fromWatch).concat(...this._watch.map((w) => w.boxes)); }
     dt = Math.min(dt, 0.1); this.time += dt;
     this._updateQueues(dt);
     let near = 0; const R2 = (this.nearR ?? 15) ** 2, detail = !!this.dmeshes && !!camera;

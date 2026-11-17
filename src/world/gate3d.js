@@ -3,7 +3,7 @@ import { mergeStatic } from './merge.js';
 import { terrazzoTexture } from './floors.js';
 import { applyPbr, pbrMap } from './pbr.js';
 import { placeProps } from './realprops.js';
-import { Crowd } from './crowd.js';
+import { Crowd, blockersFrom } from './crowd.js';
 import { makeRealism, skylineRing } from './realism3d.js';
 import { makeProps } from './props3d.js';
 
@@ -149,7 +149,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (const x of [-12, 12]) for (const z of [-4, 7, 18]) RL.vent(x, z);
   RL.exit(-23.5, 5.2, 19.5, Math.PI); RL.exit(23.5, 5.2, 19.5, Math.PI); RL.extinguisher(-10, 1.3, 21.8, Math.PI); RL.extinguisher(10, 1.3, 21.8, Math.PI); RL.wallScreen(-25.7, 2.4, 14, Math.PI / 2, 1.6, 0.9); RL.door(-24, 21.9, -1, 2.2);
   for (const x of [-18, 18]) real.push(['korean_fire_extinguisher_01', x, 0, 21.4, Math.PI, 1.0]);
-  placeProps(g, real.concat(seatBlocks), envMap);
+  const realHolder = placeProps(g, real.concat(seatBlocks), envMap);
   { const ring = skylineRing(56, 24); ring.position.z = -22; g.add(ring); }
   P.shop(-16, 21.6, -1, 8, 'CAFE', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']); P.shop(0, 21.6, -1, 8, 'NEWS & BOOKS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(16, 21.6, -1, 8, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']);
   for (const z of [4, 10, 16]) { P.lightbox(-25.88, 3.4, z, Math.PI / 2, 4.6, 1.7, ['Fly Practice Air', 'Visit Kerala', 'Meet the Taj'][(z / 6) | 0 ? 0 : 1], 'Book at practiceair.example', '#15305a', '#12a3a1'); P.lightbox(25.88, 3.4, z, -Math.PI / 2, 4.6, 1.7, ['Discover Goa', 'Welcome Aboard', 'Fly Calm'][((z / 6) | 0) % 3], 'Your journey starts here', '#c0392b', '#e0a030'); }
@@ -159,10 +159,12 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (const z of [8, 9.2, 10.4]) P.vending(25.2, z, -Math.PI / 2, [0xd63a3a, 0x2c6bd0, 0x1f8a70][((z - 8) / 1.2) | 0]);
   P.play(19.5, 17.5);
 
+  const solid = blockersFrom(static_, 0.18);
   mergeStatic(static_);
 
   // ================= PEOPLE =================
   const crowd = new Crowd({ capacity: 130, seed: 23, density, glb: density < 0.7 ? { size: 4, radius: 5, mid: { size: 8, radius: 9 } } : { size: 6, radius: 6, mid: { size: 24, radius: 15 } } });
+  crowd.blockers = solid; crowd.watch(realHolder, 0.18);
   const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
   // seated, rows facing the windows and back-to-back rows: most seats taken, bags at their feet, phones in hand
   const sit = (x0, z, n, yaw, p = 0.62) => { for (let i = 0; i < n; i++) if (rr() < p) crowd.sitter(x0 + i * 0.56, z + 0.04, yaw, { phone: rr() < 0.45, bag: rr() < 0.45 ? 'roll' : null, elder: rr() < 0.35 }); };

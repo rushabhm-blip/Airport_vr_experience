@@ -1041,16 +1041,24 @@ function taxiBillboard(state = 'closed') {
   m.userData.open = keyedCrop('cab-side-door-open'); m.userData.closed = keyedCrop('cab-side-closed'); return m;
 }
 
+/** Railings along the kerb, with a gap at the doors: you walk through the gap, not through the posts. (Invisible: the 3D entrance draws the bollards.) */
+function kerbRail(d, z) { for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.BoxGeometry(40, 1, 0.3), new THREE.MeshBasicMaterial({ visible: false })); d.addScenery(m, { x: s * 21.3, z }); d.obstacle(m); } }
+
 /** Travellers on the forecourt in front of the terminal: arriving with trolleys and bags, heading for the doors, standing in groups. */
 function forecourtCrowd(d, seed = 31, zShift = 0) {
   const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5, mid: { size: 6, radius: 9 } } : { size: 6, radius: 6, mid: { size: 18, radius: 15 } } }), rr = c.rng;
-  c.walker([[5.5, -1.9], [15, -1.9], [5.5, -2.4], [-14, -2.2]], { speed: 1.2, bag: 'roll' });
-  c.walker([[-6, -2.4], [-15, -2.4], [8, -2.3]], { speed: 1.1, bag: 'pack', elder: true });
-  c.trolley([[9, 3.2], [3.2, -1.9], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });
-  const lead = c.walker([[7, 1.4], [3.6, -1.9], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
+  c.walker([[5.5, -0.7], [15, -0.7], [5.5, -0.9], [-14, -0.8]], { speed: 1.2, bag: 'roll' });
+  c.walker([[-6, -0.8], [-15, -0.8], [8, -0.7]], { speed: 1.1, bag: 'pack', elder: true });
+  c.trolley([[9, 3.2], [3.2, -0.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });
+  const lead = c.walker([[7, 1.4], [3.6, -0.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
   c.walker([[13, 3.6], [-13, 3.6]], { run: true, bag: 'roll', speed: 1.0 });
   for (const [x, z, yaw, o] of [[-6.5, 1.6, 1.0, { bag: 'roll', phone: true }], [-5.7, 2.2, 4.2, { talkTo: true, bag: 'pack' }], [6.8, -0.6, 2.4, { phone: true }], [11, 2.5, 3.5, { talkTo: true, bag: 'roll' }], [-11.5, 0.2, 0.4, { bag: 'roll', elder: true }]]) c.stander(x, z, yaw, o);
-  c.update(0.016, null); c.group.position.z = zShift; d.stage.scenery.add(c.group); return c;
+  c.group.position.z = zShift; d.stage.scenery.add(c.group);
+  // what people may not walk through: the building and its kerb-side railings (the pavement is closed to them except at the doors), plus whatever this step has put down (the cab, a trolley, the desk)
+  const base = [{ x0: -90, x1: 90, z0: -14, z1: -1.3 }]; let clock = 0;
+  const sync = () => { d.stage.root.updateMatrixWorld(true); const sc = d.stage.scenery.position; c.blockers = base.concat(d._boxes(0.32).map((b) => ({ x0: b.x0 - sc.x, x1: b.x1 - sc.x, z0: b.z0 - sc.z - zShift, z1: b.z1 - sc.z - zShift }))); };
+  const upd = c.update.bind(c); c.update = (dt, cam) => { if ((clock -= dt) <= 0) { clock = 0.4; sync(); } upd(dt, cam); };
+  sync(); c.update(0.016, null); return c;
 }
 
 /** A quick dark blink, so a change of place never pops. */
@@ -1161,7 +1169,8 @@ const kerb = (d) => {
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const ksign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(ksign, { x: 0, y: 0.15, z: -2.7 + ZS });
       d.track(screenOverlay(ksign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures', arrow: '↑', state: { glow: false } }) }), false);
-      d.obstacle(d.addScenery(d.assets.make('luggage-trolley'), { x: 0.9, z: -1.2 + ZS, ry: 0.4 }));
+      d.obstacle(d.addScenery(d.assets.make('luggage-trolley'), { x: 1.7, z: 0.1 + ZS, ry: 0.4 }));      // beside the path, on the pavement side of the road, not on the kerb
+      if (d.app.env.entranceReal) kerbRail(d, -1.75 + ZS);
       facadePlane(d, 17, 8.5);
       d.setPanel({ title: 'You have arrived.', body: 'Step out of the cab.', note: '', tone: 'normal', buttons: [{ id: 'out', label: 'Get out' }] });
     },
@@ -1180,13 +1189,17 @@ const kerb = (d) => {
       } });
       const say = (t0, f) => T.add({ delay: t0, dur: 0.01, done: () => { if (alive) f(); } });
       const k = quick ? 0.25 : 1;
-      const A = TAXI_3D ? P(-0.4, 1.2) : P(-1.0, 1.2), B = P(-1.05, -2.2), C = P(0.4, -1.35 + ZS), D = TAXI_3D ? P(-1.75, 0.9) : P(-1.5, 0.1);
+      const A = TAXI_3D ? P(-0.4, 1.2) : P(-1.0, 1.2), B = P(-1.05, -2.2), C = P(0.8, -0.55), D = TAXI_3D ? P(-1.75, 0.9) : P(-1.5, 0.1);
       say(0.8 * k, () => driver.playClip(/walk/i));
       walk(A, B, 0.8 * k, 3.4 * k);
       say(4.2 * k, () => { driver.playClip(/idle/i); driver.heading = Math.PI; bag.visible = true; bag.position.set(-1.45, lift, -2.15); });      // at the boot
       say(5.7 * k, () => driver.playClip(/walk/i));
       walk(B, C, 5.7 * k, 3.0 * k, true);
-      say(8.7 * k, () => { driver.playClip(/idle/i); bag.position.set(0.9, 0.3 + lift, -1.2 + ZS); bag.rotation.y = 0.4; driver.say('Your bag is on the trolley.', 5); });
+      say(8.7 * k, () => {
+        driver.playClip(/idle/i); bag.position.set(0.55, lift, -0.45); bag.rotation.y = 0; driver.say('Here is your bag. Take it with you.', 5);
+        d.carry?.removeFromParent(); d.carry = bag; d.stage.root.attach(bag);                       // from now on the bag is yours: it stays by your side as you walk
+        const p0 = bag.position.clone(), r0 = bag.rotation.y; T.add({ delay: quick ? 0.05 : 0.5, dur: quick ? 0.1 : 0.9, update: (e) => { bag.position.set(p0.x + (0.42 - p0.x) * e, lift, p0.z + (-0.16 - p0.z) * e); bag.rotation.y = r0 * (1 - e); } });
+      });
       say(10.6 * k, () => driver.playClip(/walk/i));
       walk(C, D, 10.6 * k, 2.6 * k);
       say(13.2 * k, () => {
@@ -1200,7 +1213,7 @@ const kerb = (d) => {
     out() {
       if (phase !== 'cab') return; phase = 'walk'; d.voice.success();
       this.unload();                                                    // the driver gets your bag while you step out
-      d.setPanel({ title: 'Walk to the entrance.', body: 'Walk up to the doors.', buttons: [] });
+      d.setPanel({ title: 'Walk to the entrance.', body: 'Your driver hands you your bag. Take it with you to the doors.', buttons: [] });
       d.say('Thank you, and have a good flight. Now walk to the entrance.'); driver?.say('Have a good flight!', 6);
       d.setStation({ point: new THREE.Vector3(0, 0, -2.5 + ZS), label: 'the entrance', radius: 1.5, onArrive: () => d.success('You are at the entrance.', 'Continue to the document check.', 'Continue') });
     },
@@ -1211,7 +1224,7 @@ const kerb = (d) => {
 
 /* ------------------------------------------------------------------ 3. arrive at the terminal and enter */
 const arrival = (d) => {
-  let deskSide = 0, guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, rmDesk, fc;
+  let deskSide = 0, Z2 = 0, guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, rmDesk, fc;
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   const api = {
@@ -1220,10 +1233,11 @@ const arrival = (d) => {
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
-      deskSide = 0; d.app.env.setOutdoorTheme('airport'); d.app.env.entranceBase.set(0, 0, 0); fc = forecourtCrowd(d, 47);
-      doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
+      deskSide = 0; d.app.env.setOutdoorTheme('airport'); Z2 = d.app.env.entranceReal ? -1.1 : 0; d.app.env.entranceBase.set(0, 0, Z2); fc = forecourtCrowd(d, 47, Z2);
+      api.bounds = { x0: -2.6, x1: 2.6, z0: -2.9 + Z2, z1: 3.5 }; if (d.app.env.entranceReal) kerbRail(d, -1.75 + Z2);
+      doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 + Z2 });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
-      const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });
+      const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 + Z2 });
       rmDoors = d.obstacle(doors);      // shut until the guard has checked you
       const st = { glow: false };
       signSurf = screenOverlay(sign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures · Entry 3', arrow: '↑', state: st }) });
@@ -1233,7 +1247,7 @@ const arrival = (d) => {
       guard = d.addStaff('guard', 'Entry guard · practice', desk, [0.15, 0, -0.75]);
       photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.6]);
       d.addSupport(-0.8, 0.8, -1.3 - 0.38, -1.3 + 0.38, 1.027);
-      d.addScenery(d.assets.make('luggage-trolley'), { x: -1.8, z: -1.0, ry: 0.4 });
+      d.addScenery(d.assets.make('luggage-trolley'), { x: -1.9, z: -0.1, ry: 0.4 });
       zoneMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: COLORS.tealGlow, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
       zoneMesh.position.set(0, 1.032, 0.03); desk.add(zoneMesh);
       d.setStation({ point: new THREE.Vector3(0, 0, -1.3), label: "the guard's desk", radius: 1.4 });
@@ -1268,9 +1282,9 @@ const arrival = (d) => {
       if (phase !== 'docs') return; phase = 'walk'; d.voice.success();
       d.setPanel({ title: 'Thank you. You may go in.', body: 'Walk through the doors.', note: '', buttons: [] });
       for (const a of [0, 1]) doors.userData.actions?.toggle(a);
-      rmDoors?.(); rmDesk?.(); deskSide = 1; api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4, z1: 3.5 };   // the doors are open: you may walk through
+      rmDoors?.(); rmDesk?.(); deskSide = 1; api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4 + Z2, z1: 3.5 };   // the doors are open: you may walk through
       d.say('Thank you. You may go in. Walk through the doors.'); guard?.say('Thank you. Please go in.');
-      d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance doors', radius: 1.2, onArrive: () => { finished = true; d.success('You are inside Terminal 2.', 'Ticket and ID checked. Next, find your airline\'s check-in counter.'); } });
+      d.setStation({ point: new THREE.Vector3(0, 0, -2.5 + Z2), label: 'the entrance doors', radius: 1.2, onArrive: () => { finished = true; d.success('You are inside Terminal 2.', 'Ticket and ID checked. Next, find your airline\'s check-in counter.'); } });
     },
     demo() {
       if (finished) return;

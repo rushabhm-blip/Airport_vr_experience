@@ -424,6 +424,8 @@ export class Director {
     if (token !== this._token) return; // another goto superseded this one
     if (step.table !== false) this._buildMat();   // the lap table exists only where there are things to hold
     this.step = step;                  // only live once its scene exists
+    if (this.carry && !/^(kerb|arrival)$/.test(step.id)) { this.carry.removeFromParent(); this.carry = null; }      // the bag from the cab stays with you only until the check-in desk
+    if (step.id === 'kerb' && this.carry) { this.carry.removeFromParent(); this.carry = null; }
     this.log.start(STEP_IDS[i]);
     this.pres.mode = 'scene'; this.pres.stack.length = 0; this.pres.conversation = null;
     this.phone.attach();

@@ -89,7 +89,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
 
   // ---- planters with leafy plants
   const plants = [], plant = (x, z, s = 1) => { plants.push([x, z, s]); };      // drawn later, with the leafy plant model
-  for (const [x, z] of [[-9, -17], [9, -17], [-9, -3], [9, -3], [-24, -12], [24, -12], [-24, 6], [24, 6], [-6, 12], [6, 12], [-26, -28], [26, -28]]) plant(x, z, 1.1);
+  for (const [x, z] of [[-9, -17], [9, -17], [-13.4, -4.2], [13.4, -4.2], [-24, -12], [24, -12], [-24, 6], [24, 6], [-6, 12], [6, 12], [-26, -28], [26, -28]]) plant(x, z, 1.1);
 
   // ---- seating lounge to the left and right
   const bench = (x, z, n, ry = 0) => { for (let i = 0; i < n; i++) { const g2 = new THREE.Group(); const sx = i * 0.62; const seat = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.1, 0.52), seatMat), back = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.45, 0.08), seatMat), leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.5), steel);

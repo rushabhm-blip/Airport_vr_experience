@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { applyPbr, loadAirportEnv } from './pbr.js';
 import { shadowTextures, skylineRing } from './realism3d.js';
 import { placeProps, propGroup } from './realprops.js';
+import { addEntrancePictures } from './entrancepics.js';
 
 /**
  * The terminal entrance as a real 3D place, modelled on the photograph: a road with painted lines, a yellow and black striped kerb,
@@ -136,7 +137,6 @@ export function buildEntrance3D({ renderer = null } = {}) {
     for (let k = 0; k < 4; k++) palms.push(['fern_02', x + Math.cos(k * 1.6) * 0.15, h - 0.1, z + Math.sin(k * 1.6) * 0.15, k * 1.6 + x, r * 1.4]);
   };
   for (const x of [-27, -20, -14, -8, -1.5, 1.5, 8, 14, 20, 27]) tree(x, WALL_Z - 4.5 - ((x * 13) % 3), 3.6, 1.3);          // atrium trees seen through the glass
-  for (let x = -44; x <= 44; x += 9) tree(x + ((x * 7) % 3), 35 + ((x * 11) % 3), 5.5, 2.3);                                    // street trees across the road
   placeProps(g, palms);
 
   // =================== the road side: median, far carriageway, car park and buildings ===================
@@ -163,10 +163,7 @@ export function buildEntrance3D({ renderer = null } = {}) {
 
   // ---------- buildings behind: a multi-storey car park and a glass hotel tower
   const slabTex = canvasTex(512, 256, (x, w, h) => { x.fillStyle = '#c9c8c2'; x.fillRect(0, 0, w, h); for (let r = 0; r < 4; r++) { x.fillStyle = '#d9d8d2'; x.fillRect(0, r * 64, w, 8); x.fillStyle = '#3d4044'; x.fillRect(0, r * 64 + 14, w, 40); for (let c = 0; c < 16; c++) { x.fillStyle = '#b3b2ac'; x.fillRect(c * 32 + 14, r * 64 + 14, 4, 40); } } }, 3, 1);
-  add(new THREE.BoxGeometry(52, 13, 18), std(0xffffff, { roughness: 0.85, map: slabTex }), 14, 6.5, 66);
   const glassTex = canvasTex(256, 512, (x, w, h) => { x.fillStyle = '#7fa9c4'; x.fillRect(0, 0, w, h); for (let r = 0; r < 24; r++) for (let c = 0; c < 8; c++) { x.fillStyle = (r * 7 + c * 3) % 5 === 0 ? '#e9f3f7' : '#3f6e8c'; x.fillRect(c * 32 + 3, r * 21 + 3, 26, 15); } }, 1, 1);
-  add(new THREE.BoxGeometry(16, 36, 16), std(0xffffff, { roughness: 0.2, metalness: 0.2, map: glassTex }), -34, 18, 62);
-  add(new THREE.BoxGeometry(30, 16, 14), std(0xdcd8cf, { roughness: 0.8 }), -58, 8, 50);
 
   // ---------- an overhead sign for DEPARTURES over the near carriageway, and street lamps along the median
   const signTex = canvasTex(1024, 256, (x, w, h) => { x.fillStyle = '#12306a'; x.fillRect(0, 0, w, h); x.strokeStyle = '#fff'; x.lineWidth = 8; x.strokeRect(10, 10, w - 20, h - 20); x.fillStyle = '#fff'; x.font = 'bold 110px Segoe UI, Arial, sans-serif'; x.fillText('Departures', 60, 150); x.font = 'bold 70px Segoe UI, Arial, sans-serif'; x.fillStyle = '#ffd23f'; x.fillText('Terminal 2', 60, 225); x.fillStyle = '#fff'; x.fillText('\u2192', 860, 190); });
@@ -177,13 +174,6 @@ export function buildEntrance3D({ renderer = null } = {}) {
   for (let x = -66; x <= 66; x += 14) { add(new THREE.CylinderGeometry(0.1, 0.15, 8.2, 12), steel, x, 4.1, (MZ0 + MZ1) / 2); add(new THREE.BoxGeometry(3.4, 0.1, 0.1), steel, x + 1.6, 8.1, (MZ0 + MZ1) / 2 - 0.0); add(new THREE.BoxGeometry(0.9, 0.12, 0.35), lampGlow, x + 3.2, 8.0, (MZ0 + MZ1) / 2); add(new THREE.BoxGeometry(3.4, 0.1, 0.1), steel, x - 1.6, 8.1, (MZ0 + MZ1) / 2); add(new THREE.BoxGeometry(0.9, 0.12, 0.35), lampGlow, x - 3.2, 8.0, (MZ0 + MZ1) / 2); }
 
   // ---------- parked cars in the car park: three instanced meshes, so forty cars cost three draw calls
-  { const N = 44, body = new THREE.InstancedMesh(new THREE.BoxGeometry(1.8, 0.62, 4.2), std(0xffffff, { roughness: 0.35, metalness: 0.4 }), N), cab = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 0.55, 2.2), std(0x1b2430, { roughness: 0.15, metalness: 0.5 }), N), wheels = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 14).rotateZ(Math.PI / 2), std(0x111214, { roughness: 0.9 }), N * 4);
-    const cols = [0xf2f2f0, 0xd7d9dc, 0x23262b, 0x8a1f1f, 0x1d3f7a, 0x9aa0a6, 0xe9e3d4, 0x3d4a3a], M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), Sc = new THREE.Vector3(1, 1, 1), C = new THREE.Color();
-    let n = 0;
-    for (let row = 0; row < 2 && n < N; row++) for (let x = -62; x <= 62 && n < N; x += 3.1) { if (((x * 5 + row * 3) | 0) % 7 === 0) continue; const z = row ? 52 : 41, ry = row ? Math.PI : 0;
-      Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry); M.compose(V.set(x, 0.62, z), Q, Sc); body.setMatrixAt(n, M); M.compose(V.set(x, 1.2, z - 0.2 * Math.cos(ry)), Q, Sc); cab.setMatrixAt(n, M); body.setColorAt(n, C.setHex(cols[n % cols.length]));
-      let k = 0; for (const [dx, dz] of [[-0.86, -1.35], [0.86, -1.35], [-0.86, 1.35], [0.86, 1.35]]) { M.compose(V.set(x + dx, 0.34, z + dz), Q, Sc); wheels.setMatrixAt(n * 4 + k++, M); } n++; }
-    body.count = cab.count = n; wheels.count = n * 4; body.instanceColor.needsUpdate = true; g.add(body, cab, wheels); }
 
   // ---------- life on the road: real taxis (the Rodin model) driving slowly along the far carriageway, one stopped at the kerb across
   const movers = [];
@@ -196,7 +186,6 @@ export function buildEntrance3D({ renderer = null } = {}) {
   // ---------- median planting: ferns and palms between the lamps
   const median = [];
   for (let x = -66; x <= 66; x += 4.5) median.push(['fern_02', x, 0.16, (MZ0 + MZ1) / 2 + ((x * 3) % 1) * 0.6, x * 1.3, 1.0]);
-  for (let x = -60; x <= 60; x += 15) { add(new THREE.CylinderGeometry(0.12, 0.2, 5.5, 10), bark, x, 2.75, (MZ0 + MZ1) / 2 + 0.3); for (let k = 0; k < 4; k++) median.push(['fern_02', x + Math.cos(k * 1.6) * 0.15, 5.4, (MZ0 + MZ1) / 2 + 0.3 + Math.sin(k * 1.6) * 0.15, k * 1.6 + x, 2.6]); }
   placeProps(g, median);
 
 
@@ -246,11 +235,10 @@ export function buildEntrance3D({ renderer = null } = {}) {
   // ---------- sky life: soft clouds and an aircraft crossing slowly
   const cloudTex = canvasTex(256, 128, (x, w, h) => { const gr = x.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, h / 2); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, w, h); for (let k = 0; k < 5; k++) { x.beginPath(); x.arc(40 + k * 40, 64 + ((k * 13) % 3) * 8 - 8, 30 + (k % 2) * 10, 0, 7); x.fillStyle = 'rgba(255,255,255,0.5)'; x.fill(); } });
   const cmat = new THREE.MeshBasicMaterial({ map: cloudTex, transparent: true, depthWrite: false, toneMapped: false, fog: false });
-  for (const [x, y, z, sc] of [[-30, 38, 45, 1.2], [15, 46, 30, 1.5], [40, 34, 55, 1.0], [-5, 52, 20, 1.7], [-48, 44, 12, 1.3], [55, 50, 8, 1.4]]) { const c = add(new THREE.PlaneGeometry(36 * sc, 14 * sc), cmat, x, y, z); c.rotation.x = -0.25; c.renderOrder = -7; }
   const plane = new THREE.Group(); g.add(plane);
   add(new THREE.CylinderGeometry(0.5, 0.42, 6.5, 14).rotateZ(Math.PI / 2), white, 0, 0, 0, 0, plane); add(new THREE.ConeGeometry(0.42, 1.4, 14).rotateZ(-Math.PI / 2), white, 3.9, 0, 0, 0, plane);
   add(new THREE.BoxGeometry(1.4, 0.06, 6.4), white, 0.4, -0.1, 0, 0, plane); add(new THREE.BoxGeometry(0.9, 1.1, 0.08), std(0x12a3a1, { roughness: 0.5 }), -2.9, 0.7, 0, 0, plane); add(new THREE.BoxGeometry(0.7, 0.05, 2.2), white, -2.9, 0.1, 0, 0, plane);
-  plane.position.set(-70, 48, 40); plane.rotation.z = 0.06;
+  plane.visible = false; plane.position.set(-70, 48, 40); plane.rotation.z = 0.06;
   const prevUpdate = g.userData.update; let tPlane = 0;
   g.userData.update = (dt) => { prevUpdate?.(dt); tPlane += dt; plane.position.x = -70 + ((tPlane * 3.4) % 140); plane.position.y = 48 + Math.sin(tPlane * 0.2) * 1.5; };
 
@@ -269,9 +257,8 @@ export function buildEntrance3D({ renderer = null } = {}) {
     add(new THREE.BoxGeometry(1.3, 0.07, 1.7), std(body, { roughness: 0.6 }), 0, 1.72, 0.25, 0, ga); for (const [dx, dz] of [[-0.6, -0.5], [0.6, -0.5], [-0.6, 0.95], [0.6, 0.95]]) add(new THREE.BoxGeometry(0.04, 1.0, 0.04), dkSteel, dx, 1.2, dz, 0, ga);
     add(new THREE.BoxGeometry(1.1, 0.8, 0.04), new THREE.MeshStandardMaterial({ color: 0x9fc9d8, roughness: 0.05, transparent: true, opacity: 0.35 }), 0, 1.25, -0.5, 0.0, ga);
     add(new THREE.BoxGeometry(0.9, 0.4, 0.6), std(roof, { roughness: 0.5 }), 0, 0.55, -1.2, 0, ga); add(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 14).rotateZ(Math.PI / 2), blackM, 0, 0.28, -1.35, 0, ga); for (const dx of [-0.55, 0.55]) add(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 14).rotateZ(Math.PI / 2), blackM, dx, 0.28, 0.9, 0, ga); };
-  auto(-12, 31.0 - 0.2, Math.PI / 2, 0x1f1f22, 0xf0bf10); auto(-4, 31.0 - 0.2, Math.PI / 2, 0x138808, 0xf0bf10); auto(10, 31.0 - 0.2, -Math.PI / 2, 0x1f1f22, 0xf0bf10);
   const busTex = canvasTex(1024, 256, (x, w, h) => { x.fillStyle = '#f4f5f6'; x.fillRect(0, 0, w, h); x.fillStyle = '#12a3a1'; x.fillRect(0, 150, w, 34); x.fillStyle = '#12306a'; x.fillRect(0, 184, w, 14); x.fillStyle = '#26323c'; for (let k = 0; k < 8; k++) x.fillRect(40 + k * 118, 36, 100, 90); x.fillStyle = '#12306a'; x.font = 'bold 36px Segoe UI, Arial'; x.fillText('Practice Air   Airport shuttle', 150, 232); });
-  const bus = new THREE.Group(); bus.position.set(-40, 0, 27.4); g.add(bus);
+  const bus = new THREE.Group(); bus.position.set(-40, 0, 27.4); bus.visible = false; g.add(bus);
   { const bm = new THREE.Mesh(new THREE.BoxGeometry(9.4, 3.0, 2.5), [std(0xf4f5f6), std(0xf4f5f6), std(0xf4f5f6), std(0x777b80), new THREE.MeshStandardMaterial({ map: busTex, roughness: 0.4 }), new THREE.MeshStandardMaterial({ map: busTex, roughness: 0.4 })]); bm.position.y = 1.7; bus.add(bm);
     for (const dx of [-3, 3]) for (const dz of [-1.05, 1.05]) add(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 18).rotateX(Math.PI / 2), blackM, dx, 0.5, dz, 0, bus); }
   const prevU = g.userData.update; let tF = 0;
@@ -286,10 +273,10 @@ export function buildEntrance3D({ renderer = null } = {}) {
   for (const x of [-14, -8.2, -6.2, 6.2, 8.2, 14]) blob(x, WALL_Z + 0.75, 1.3);
 
   // ---------- the far distance: a low skyline and trees beyond the road
-  const sk = skylineRing(58, 22); sk.position.set(0, 0, 0); g.add(sk);
 
   // ---------- reflections from a real airport panorama, once it has loaded
   if (renderer) loadAirportEnv(renderer).then((e) => { if (!e) return; for (const m of envMats) { m.envMap = e; m.needsUpdate = true; } });
+  addEntrancePictures(g, { MZ0, MZ1, KERB_Z, WALL_Z }).then((p) => { if (p) { const u = g.userData.update; g.userData.update = (dt, cam) => { u?.(dt); p.update(dt, cam); }; } }).catch((e) => console.warn("entrance pictures", e));
   g.userData.dispose = () => { g.removeFromParent(); };
   return g;
 }

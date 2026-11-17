@@ -330,7 +330,7 @@ export class Environment {
     this.tweens.step(dt);
     for (const h of [this.hall3d, this.gate3d]) if (h?.visible) h.userData.update?.(dt, camera);       // the crowds in the 3D hall and gate lounge
     if (this.entrance3d?.visible) {
-      this.entrance3d.userData.update?.(dt);                                                                // traffic on the road
+      this.entrance3d.userData.update?.(dt, camera);                                                                // traffic on the road
       const sc = this.stage.scenery.position, b = this.entranceBase; this.entrance3d.position.set(b.x + sc.x, 0, b.z + sc.z);   // the entrance moves with you when you walk, like everything else in the scene
     }
     if (this.driveSpeed && this.roadTex) this.roadTex.offset.y += this.driveSpeed * dt;     // the road streams past while the cab drives

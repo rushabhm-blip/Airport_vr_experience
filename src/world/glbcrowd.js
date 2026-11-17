@@ -12,7 +12,7 @@ const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
 const FEMALE = ['checkin', 'crew', 'security'], MALE = ['driver', 'gate', 'guard'];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
-const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25];
+const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xe0b48e, 0xeec7a3, 0xd6a478];
 const HAIR_TONES = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
 const CLOTH = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
 const DRESS = [0xa3223a, 0x1f7a5c, 0x1e4fa0, 0xe0a030, 0x8e2a6e, 0xc94f7c, 0x0f7f86, 0xd9641c, 0x5b3a8c, 0xf1e8d0, 0xb4472b, 0x2c7a3f];

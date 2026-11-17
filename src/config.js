@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-18 · v89 · saree-wearing women (6 colourways), Indian cabin crew';
+export const BUILD = '2026-11-18 · v90 · mixed crowd skin tones (mostly warm brown, some lighter)';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

@@ -14,7 +14,7 @@ import { shadowTextures } from './realism3d.js';
  */
 const PARTS = ['torso', 'head', 'hair', 'skirt', 'thighL', 'thighR', 'shinL', 'shinR', 'shoeL', 'shoeR', 'armL', 'armR', 'handL', 'handR', 'suitcase', 'handle', 'pack', 'cart'];
 
-const SKIN = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25];
+const SKIN = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xe0b48e, 0xeec7a3, 0xd6a478];
 const HAIR = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
 const SHIRT = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
 const TROUSER = [0x2b3040, 0x3a3f4c, 0x57534b, 0x1f2630, 0x6b5a45, 0x41556b, 0x2a2a2a];
@@ -90,7 +90,7 @@ export class Crowd {
     const p = {
       x: o.x ?? 0, z: o.z ?? 0, yaw: o.yaw ?? 0, y: o.y ?? 0, scale: child ? 0.6 + r() * 0.06 : (female ? 0.93 : 1) * (0.95 + r() * 0.1),
       female, child, mode: 'idle', phase: r() * 6.28, speed: 1.15, run: false, t: r() * 5, bag: o.bag ?? null, bagColor: this.pick(BAGS), pose: o.pose ?? null,
-      skin: SKIN[[0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5][(r() * 12) | 0]], shirt: this.pick(SHIRT), trouser: this.pick(TROUSER), dress: female && !child && r() < 0.4 ? this.pick(SAREE) : 0,
+      skin: SKIN[[0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6, 6, 7, 8, 6][(r() * 17) | 0]],       // a mixed crowd: mostly warm brown tones, with lighter ones too shirt: this.pick(SHIRT), trouser: this.pick(TROUSER), dress: female && !child && r() < 0.4 ? this.pick(SAREE) : 0,
       hair: elder ? this.pick(HAIR.slice(4)) : this.pick(HAIR.slice(0, 4)), shoe: 0x1c1c1e, stride: 0, onDone: null, path: null, pi: 0, leader: null, offset: null, idx: -1, spin: r() * 6,
     };
     p.skinIdx = Math.max(0, SKIN.indexOf(p.skin)); p.hairIdx = Math.max(0, HAIR.indexOf(p.hair)); p.seedA = (r() * 4294967295) >>> 0; p.vNow = 0;

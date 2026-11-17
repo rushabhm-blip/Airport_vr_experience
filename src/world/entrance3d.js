@@ -78,29 +78,40 @@ export function buildEntrance3D({ renderer = null } = {}) {
 
   // ---------- canopy: deep blue underside with downlights, a white edge with a teal band
   const blue = std(0x143a78, { roughness: 0.55, emissive: 0x08183a, emissiveIntensity: 0.7 });
-  const slope = (zA, yA, zB, yB, w) => { const len = Math.hypot(zB - zA, yB - yA), m = add(new THREE.PlaneGeometry(w, len).rotateX(Math.PI / 2), blue, 0, (yA + yB) / 2, (zA + zB) / 2); m.rotation.x = Math.atan2(yB - yA, zB - zA); return m; };
-  const CZ = 5.6;                                                                       // the canopy's front edge
-  const under = add(new THREE.PlaneGeometry(wallX * 2, WALL_Z - CZ > 0 ? 1 : CZ - WALL_Z + 0.2).rotateX(Math.PI / 2), blue, 0, 5.9, (WALL_Z + CZ) / 2);
-  under.rotation.x = 0;                                                                  // laid flat, facing down
-  under.geometry.dispose(); under.geometry = new THREE.PlaneGeometry(wallX * 2, CZ - WALL_Z + 0.2).rotateX(Math.PI / 2);
-  under.position.y = 5.9; under.position.z = (WALL_Z + CZ) / 2;
-  const edge = add(new THREE.BoxGeometry(wallX * 2, 0.7, 0.34), white, 0, 6.15, CZ); add(new THREE.BoxGeometry(wallX * 2, 0.2, 0.36), std(0x12a3a1, { roughness: 0.4 }), 0, 5.9, CZ);
-  for (let x = -30; x <= 30; x += 3) for (let z = WALL_Z + 1.2; z < CZ - 0.6; z += 2.4) add(new THREE.CircleGeometry(0.11, 16).rotateX(Math.PI / 2), glow, x + ((z * 7) % 1) * 0.0, 5.88, z);
+  const CZ = 5.4, CURVE = (x) => CZ + 1.5 * Math.cos(x * 0.085) - 0.6 * Math.cos(x * 0.21);       // the canopy's sweeping front edge
+  { const N = 68, pos = [], idx = [];
+    for (let i = 0; i <= N; i++) { const x = -wallX + (2 * wallX * i) / N; pos.push(x, 5.9, WALL_Z - 0.1, x, 5.9, CURVE(x)); }
+    for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const u = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x143a78, roughness: 0.55, emissive: 0x08183a, emissiveIntensity: 0.7, side: THREE.DoubleSide })); g.add(u);
+    const teal = std(0x12a3a1, { roughness: 0.4 });
+    for (let i = 0; i < N; i++) {
+      const x0 = -wallX + (2 * wallX * i) / N, x1 = -wallX + (2 * wallX * (i + 1)) / N, z0 = CURVE(x0), z1 = CURVE(x1), len = Math.hypot(x1 - x0, z1 - z0) + 0.02, ry = -Math.atan2(z1 - z0, x1 - x0), mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+      add(new THREE.BoxGeometry(len, 0.75, 0.32), white, mx, 6.2, mz, ry); add(new THREE.BoxGeometry(len, 0.22, 0.34), teal, mx, 5.88, mz, ry);
+    }
+    for (let x = -30; x <= 30; x += 3) for (let z = WALL_Z + 1.3; z < CURVE(x) - 0.7; z += 2.3) add(new THREE.CircleGeometry(0.12, 16).rotateX(Math.PI / 2), glow, x, 5.88, z);
+  }
   const fascia = add(new THREE.BoxGeometry(wallX * 2, 1.0, 0.3), white, 0, 6.8, WALL_Z); fascia.name = 'WallFascia';   // the face of the building above the glass
-  add(new THREE.BoxGeometry(wallX * 2, 6, 0.3), std(0xdfe0dd, { roughness: 0.6 }), 0, 9.8, WALL_Z - 0.2);
+  const clad = std(0xe6e7e4, { roughness: 0.55 }); withEnv(clad, 0.6); add(new THREE.BoxGeometry(wallX * 2, 6, 0.3), clad, 0, 9.8, WALL_Z - 0.2);
+  const joint = std(0x9aa0a4, { roughness: 0.7 });
+  for (let x = -wallX; x <= wallX; x += 2.4) add(new THREE.BoxGeometry(0.04, 6, 0.04), joint, x, 9.8, WALL_Z - 0.03);
+  for (const y of [8.0, 10.0, 12.0]) add(new THREE.BoxGeometry(wallX * 2, 0.04, 0.04), joint, 0, y, WALL_Z - 0.03);
+  add(new THREE.BoxGeometry(wallX * 2, 0.5, 0.34), std(0x12a3a1, { roughness: 0.4 }), 0, 7.5, WALL_Z - 0.05);
+  add(new THREE.BoxGeometry(wallX * 2, 0.06, 0.4), steel, 0, 12.8, WALL_Z - 0.2);
 
   // ---------- white Y-shaped columns holding the canopy
   const colMat = std(0xf3f3ef, { roughness: 0.42 }); withEnv(colMat, 0.8);
   const Y = (x, z) => {
     const col = new THREE.Group(); col.position.set(x, 0, z); g.add(col);
-    add(new THREE.CylinderGeometry(0.24, 0.32, 3.5, 28), colMat, 0, 1.75, 0, 0, col);
-    add(new THREE.CylinderGeometry(0.4, 0.4, 0.22, 24), steel, 0, 0.11, 0, 0, col);
+    add(new THREE.CylinderGeometry(0.3, 0.46, 3.3, 32), colMat, 0, 1.65, 0, 0, col);
+    add(new THREE.CylinderGeometry(0.56, 0.6, 0.18, 28), steel, 0, 0.09, 0, 0, col);
     for (const s of [-1, 1]) {
-      const a = new THREE.Vector3(0, 3.45, 0), b = new THREE.Vector3(s * 1.9, 5.85, -0.55), len = a.distanceTo(b);
-      const br = add(new THREE.CylinderGeometry(0.15, 0.24, len, 22), colMat, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, 0, col);
+      const a = new THREE.Vector3(0, 3.2, 0), b = new THREE.Vector3(s * 2.1, 5.9, -0.6), len = a.distanceTo(b);
+      const br = add(new THREE.CylinderGeometry(0.19, 0.31, len, 28), colMat, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, 0, col);
       br.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      add(new THREE.CylinderGeometry(0.34, 0.34, 0.1, 24), steel, b.x, 5.86, b.z, 0, col);                                   // a flange where it meets the canopy
     }
-    add(new THREE.SphereGeometry(0.34, 18, 12), colMat, 0, 3.5, 0, 0, col);
+    add(new THREE.SphereGeometry(0.44, 24, 16), colMat, 0, 3.25, 0, 0, col);
   };
   for (const x of [-12, -4.6, 4.6, 12]) Y(x, -1.55);
   Y(-20, -1.55); Y(20, -1.55);
@@ -119,7 +130,15 @@ export function buildEntrance3D({ renderer = null } = {}) {
     for (let k = 0; k < 4; k++) real.push(['fern_02', x - 0.45 + k * 0.3, 0.7, WALL_Z + z + (k % 2 ? 0.2 : -0.2), k * 2.1 + x, 1.2]);
   }
   const holder = placeProps(g, real);
-
+  const bark = std(0x5b4636, { roughness: 1 }), leaves = [std(0x2f7d3a, { roughness: 0.85, flatShading: true }), std(0x3d9448, { roughness: 0.85, flatShading: true }), std(0x28692f, { roughness: 0.85, flatShading: true })];
+  const palms = [];
+  const tree = (x, z, h = 3.4, r = 1.5) => {                          // a slender trunk topped with real fern fronds, like a palm
+    add(new THREE.CylinderGeometry(0.1, 0.17, h, 10), bark, x, h / 2, z);
+    for (let k = 0; k < 4; k++) palms.push(['fern_02', x + Math.cos(k * 1.6) * 0.15, h - 0.1, z + Math.sin(k * 1.6) * 0.15, k * 1.6 + x, r * 1.4]);
+  };
+  for (const x of [-27, -20, -14, -8, -1.5, 1.5, 8, 14, 20, 27]) tree(x, WALL_Z - 4.5 - ((x * 13) % 3), 3.6, 1.3);          // atrium trees seen through the glass
+  for (let x = -44; x <= 44; x += 9) tree(x + ((x * 7) % 3), 30 + ((x * 11) % 5), 5, 2.2);                                    // street trees across the road
+  placeProps(g, palms);
   // ---------- soft contact shadows under the columns, planters and bollards
   const T = shadowTextures(), sh = new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blob = (x, z, r) => { const m = add(flat, sh, x, 0.012, z); m.scale.set(r * 2, 1, r * 2); };

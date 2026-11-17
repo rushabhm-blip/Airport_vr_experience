@@ -1211,7 +1211,7 @@ const kerb = (d) => {
 
 /* ------------------------------------------------------------------ 3. arrive at the terminal and enter */
 const arrival = (d) => {
-  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, rmDesk, fc;
+  let deskSide = 0, guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, rmDesk, fc;
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   const api = {
@@ -1220,7 +1220,7 @@ const arrival = (d) => {
     help: 'Your booking says Terminal 2. The sign at the entrance must say the same. The guard checks your ticket and your photo ID before you may go in.',
     helpShort: 'Sign must match the booking',
     enter() {
-      d.app.env.setOutdoorTheme('airport'); d.app.env.entranceBase.set(0, 0, 0); fc = forecourtCrowd(d, 47);
+      deskSide = 0; d.app.env.setOutdoorTheme('airport'); d.app.env.entranceBase.set(0, 0, 0); fc = forecourtCrowd(d, 47);
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
       const sign = d.assets.make('terminal-sign', { unique: ['EditableScreen'] }); d.addScenery(sign, { x: 0, y: 0.15, z: -2.7 });
@@ -1256,6 +1256,7 @@ const arrival = (d) => {
     exit() { fc?.dispose(); fc = null; },
     update(dt) {
       fc?.update(dt, d.app.camera);
+      if (deskSide && desk.position.x > -2.6) { desk.position.x = Math.max(-2.6, desk.position.x - dt * 1.2); }      // the guard steps aside with the desk, leaving the way to the doors clear
       zoneMesh.material.opacity = phase === 'docs' ? 0.2 + 0.25 * pulse() : 0;
       if (phase !== 'docs') return;
       const b = !booking.userData.heldBy && inZone(booking), i = !id.userData.heldBy && inZone(id);
@@ -1267,7 +1268,7 @@ const arrival = (d) => {
       if (phase !== 'docs') return; phase = 'walk'; d.voice.success();
       d.setPanel({ title: 'Thank you. You may go in.', body: 'Walk through the doors.', note: '', buttons: [] });
       for (const a of [0, 1]) doors.userData.actions?.toggle(a);
-      rmDoors?.(); rmDesk?.(); api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4, z1: 3.5 };   // the doors are open: you may walk through
+      rmDoors?.(); rmDesk?.(); deskSide = 1; api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4, z1: 3.5 };   // the doors are open: you may walk through
       d.say('Thank you. You may go in. Walk through the doors.'); guard?.say('Thank you. Please go in.');
       d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance doors', radius: 1.2, onArrive: () => { finished = true; d.success('You are inside Terminal 2.', 'Ticket and ID checked. Next, find your airline\'s check-in counter.'); } });
     },

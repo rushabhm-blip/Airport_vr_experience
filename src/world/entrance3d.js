@@ -254,6 +254,31 @@ export function buildEntrance3D({ renderer = null } = {}) {
   const prevUpdate = g.userData.update; let tPlane = 0;
   g.userData.update = (dt) => { prevUpdate?.(dt); tPlane += dt; plane.position.x = -70 + ((tPlane * 3.4) % 140); plane.position.y = 48 + Math.sin(tPlane * 0.2) * 1.5; };
 
+
+  // ---------- flags on tall poles by the kerb, auto-rickshaws and an airport shuttle bus on the road
+  const flagTex = canvasTex(256, 170, (x, w, h) => { x.fillStyle = '#ff9933'; x.fillRect(0, 0, w, h / 3); x.fillStyle = '#fff'; x.fillRect(0, h / 3, w, h / 3); x.fillStyle = '#138808'; x.fillRect(0, 2 * h / 3, w, h / 3 + 1); x.strokeStyle = '#000080'; x.lineWidth = 3; x.beginPath(); x.arc(w / 2, h / 2, 17, 0, 7); x.stroke(); for (let k = 0; k < 12; k++) { x.beginPath(); x.moveTo(w / 2, h / 2); x.lineTo(w / 2 + 17 * Math.cos(k * Math.PI / 6), h / 2 + 17 * Math.sin(k * Math.PI / 6)); x.stroke(); } });
+  const airTex = canvasTex(256, 170, (x, w, h) => { x.fillStyle = '#12a3a1'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; x.beginPath(); x.moveTo(60, 120); x.lineTo(130, 30); x.lineTo(150, 36); x.lineTo(110, 124); x.fill(); x.font = 'bold 30px Segoe UI, Arial'; x.fillText('Practice Air', 118, 120); });
+  const flags = [];
+  [[-3.6, flagTex], [-2.4, airTex], [2.4, airTex], [3.6, flagTex]].forEach(([x, tex], i) => {
+    add(new THREE.CylinderGeometry(0.05, 0.075, 8.4, 12), steel, x, 4.2, KERB_Z - 0.9); add(new THREE.SphereGeometry(0.09, 10, 8), yellowM, x, 8.45, KERB_Z - 0.9);
+    const pivot = new THREE.Group(); pivot.position.set(x, 7.6, KERB_Z - 0.9); g.add(pivot);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, toneMapped: false })); fl.position.set(0.76, 0, 0); pivot.add(fl); flags.push({ pivot, ph: i * 1.3 });
+  });
+  const auto = (x, z, ry, body = 0x1f1f22, roof = 0xf0bf10) => { const ga = new THREE.Group(); ga.position.set(x, 0, z); ga.rotation.y = ry; g.add(ga);
+    add(new THREE.BoxGeometry(1.25, 0.5, 2.3), std(roof, { roughness: 0.5 }), 0, 0.62, 0, 0, ga); add(new THREE.BoxGeometry(1.2, 0.6, 1.2), std(body, { roughness: 0.5 }), 0, 0.5, 0.3, 0, ga);
+    add(new THREE.BoxGeometry(1.3, 0.07, 1.7), std(body, { roughness: 0.6 }), 0, 1.72, 0.25, 0, ga); for (const [dx, dz] of [[-0.6, -0.5], [0.6, -0.5], [-0.6, 0.95], [0.6, 0.95]]) add(new THREE.BoxGeometry(0.04, 1.0, 0.04), dkSteel, dx, 1.2, dz, 0, ga);
+    add(new THREE.BoxGeometry(1.1, 0.8, 0.04), new THREE.MeshStandardMaterial({ color: 0x9fc9d8, roughness: 0.05, transparent: true, opacity: 0.35 }), 0, 1.25, -0.5, 0.0, ga);
+    add(new THREE.BoxGeometry(0.9, 0.4, 0.6), std(roof, { roughness: 0.5 }), 0, 0.55, -1.2, 0, ga); add(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 14).rotateZ(Math.PI / 2), blackM, 0, 0.28, -1.35, 0, ga); for (const dx of [-0.55, 0.55]) add(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 14).rotateZ(Math.PI / 2), blackM, dx, 0.28, 0.9, 0, ga); };
+  auto(-12, 31.0 - 0.2, Math.PI / 2, 0x1f1f22, 0xf0bf10); auto(-4, 31.0 - 0.2, Math.PI / 2, 0x138808, 0xf0bf10); auto(10, 31.0 - 0.2, -Math.PI / 2, 0x1f1f22, 0xf0bf10);
+  const busTex = canvasTex(1024, 256, (x, w, h) => { x.fillStyle = '#f4f5f6'; x.fillRect(0, 0, w, h); x.fillStyle = '#12a3a1'; x.fillRect(0, 150, w, 34); x.fillStyle = '#12306a'; x.fillRect(0, 184, w, 14); x.fillStyle = '#26323c'; for (let k = 0; k < 8; k++) x.fillRect(40 + k * 118, 36, 100, 90); x.fillStyle = '#12306a'; x.font = 'bold 36px Segoe UI, Arial'; x.fillText('Practice Air   Airport shuttle', 150, 232); });
+  const bus = new THREE.Group(); bus.position.set(-40, 0, 27.4); g.add(bus);
+  { const bm = new THREE.Mesh(new THREE.BoxGeometry(9.4, 3.0, 2.5), [std(0xf4f5f6), std(0xf4f5f6), std(0xf4f5f6), std(0x777b80), new THREE.MeshStandardMaterial({ map: busTex, roughness: 0.4 }), new THREE.MeshStandardMaterial({ map: busTex, roughness: 0.4 })]); bm.position.y = 1.7; bus.add(bm);
+    for (const dx of [-3, 3]) for (const dz of [-1.05, 1.05]) add(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 18).rotateX(Math.PI / 2), blackM, dx, 0.5, dz, 0, bus); }
+  const prevU = g.userData.update; let tF = 0;
+  g.userData.update = (dt) => { prevU?.(dt); tF += dt; bus.position.x += 3.6 * dt; if (bus.position.x > 62) bus.position.x = -62; for (const f of flags) f.pivot.rotation.y = Math.sin(tF * 1.6 + f.ph) * 0.35 - 0.2; };
+  // uplights at the foot of the columns, glowing white
+  for (const x of [-20, -12, -4.6, 4.6, 12, 20]) add(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 12), glow, x + 0.55, 0.04, -1.55 + 0.55);
+
   // ---------- soft contact shadows under the columns, planters and bollards
   const T = shadowTextures(), sh = new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blob = (x, z, r) => { const m = add(flat, sh, x, 0.012, z); m.scale.set(r * 2, 1, r * 2); };

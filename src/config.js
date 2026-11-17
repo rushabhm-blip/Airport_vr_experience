@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-12 · v72 · more entrance detail: crossing, signs, furniture, lobby counters, sky';
+export const BUILD = '2026-11-12 · v73 · flags, auto-rickshaws, shuttle bus, uplights';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

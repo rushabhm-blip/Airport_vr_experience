@@ -5,7 +5,6 @@ import { Tweens, wrapAngle, damp, disposeObject } from '../util.js';
 import { STEPS, STEP_IDS, OPTIONAL_STEPS } from './steps.js';
 import { Staff } from '../world/staff.js';
 import { Phone } from '../world/phone.js';
-import { makePointingHand } from '../world/hand.js';
 import { Presentation } from './presentation.mjs';
 import { JourneyLog } from './journey-log.mjs';
 import { cardScale, CARD } from './rules.mjs';
@@ -135,36 +134,18 @@ export class Director {
   /** A translucent teal "guide hand" (pointing finger + pulse ring) that performs steps for the learner. */
   guideHand() {
     if (this._hand) return this._hand;
-    // A lit, translucent right hand: pointing index finger, curled fingers, thumb, palm, wrist and cuff. The fingertip is the origin.
-    const skin = new THREE.MeshLambertMaterial({ color: 0x4fe6d8, emissive: 0x14867e, emissiveIntensity: 0.55, transparent: true, opacity: 0.8, depthTest: false, toneMapped: false });
-    const cuffMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9fe8e1, emissiveIntensity: 0.6, transparent: true, opacity: 0.85, depthTest: false, toneMapped: false });
-    const g = new THREE.Group(), hand = new THREE.Group();
-    const part = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); hand.add(m); return m; };
-    const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 14).rotateX(Math.PI / 2);        // lies along z
-    // index finger: two joints with a slight natural bend; its tip is at z = 0
-    part(cap(0.0082, 0.034), skin, 0, 0, 0.0252);
-    part(cap(0.0088, 0.036), skin, 0, -0.003, 0.0645, -0.1);
-    // the other three fingers are curled under: rounded knuckles side by side
-    [[-0.0185, 0.0088], [-0.0372, 0.0085], [-0.0545, 0.0072]].forEach(([x, r]) => {
-      part(cap(r, 0.022), skin, x, -0.011, 0.084, 0.35);
-      part(cap(r * 0.95, 0.016), skin, x, -0.027, 0.074, 1.2);
-    });
-    // thumb tucked alongside the index finger
-    part(cap(0.0088, 0.026), skin, 0.0185, -0.01, 0.083, 0.2, -0.5);
-    part(cap(0.0095, 0.024), skin, 0.027, -0.012, 0.112, 0.2, -0.25);
-    // palm and back of the hand
-    const palm = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), skin); palm.scale.set(0.034, 0.0185, 0.052); palm.position.set(-0.016, -0.002, 0.135); hand.add(palm);
-    // wrist, then a cuff band so the hand reads as a hand and not a blob
-    part(new THREE.CylinderGeometry(0.0235, 0.0275, 0.075, 18).rotateX(Math.PI / 2), skin, -0.016, -0.002, 0.2);
-    part(new THREE.CylinderGeometry(0.0285, 0.0285, 0.014, 20).rotateX(Math.PI / 2), cuffMat, -0.016, -0.002, 0.245);
-    hand.rotation.set(0.5, 0, 0.1);       // fingers a little higher than the wrist, like a hand reaching up from below
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 14, 10), cuffMat); tip.scale.set(1, 1, 1);          // a bright fingertip dot
+    // A real photographed right hand (pointing, tapping, pinching), cut out with no background, drawn as a flat picture that turns to face you.
+    // The fingertip is the origin, so the demo can place it exactly on a button.
+    const g = new THREE.Group(), H = 0.3, BASE = new URL('../../assets/hand/', import.meta.url).href;
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.038, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false, toneMapped: false, side: THREE.DoubleSide }));
-    g.add(hand, tip, ring); g.userData.ring = ring;
+    const mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.05, depthTest: false, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, opacity: 0, color: 0xffffff });
+    const pic = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); pic.renderOrder = 40; ring.renderOrder = 41;
+    const loader = new THREE.TextureLoader(), poses = {}; let manifest = null;
+    const setPose = (name) => { const p = poses[name], m = manifest?.[name]; if (!p || !m) return; mat.map = p; mat.opacity = 0.97; mat.needsUpdate = true; const w = H * m.aspect; pic.scale.set(w, H, 1); pic.position.set(-(m.tip[0] - 0.5) * w, (m.tip[1] - 0.5) * H, 0.002); g.userData.pose = name; };
+    fetch(BASE + 'manifest.json').then((r) => r.json()).then((mf) => { manifest = mf; for (const n of Object.keys(mf)) { const tx = loader.load(BASE + 'hand-' + n + '.webp', () => { if (!g.userData.pose && n === 'point') setPose('point'); }); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4; poses[n] = tx; } }).catch(() => {});
+    pic.onBeforeRender = (r, s, cam) => { const w = cam.getWorldPosition(new THREE.Vector3()); g.worldToLocal(w); pic.rotation.y = Math.atan2(w.x, w.z); pic.rotation.z = -0.1; };
+    g.add(pic, ring); g.userData.ring = ring; g.userData.setPose = setPose; g.userData.pose = null;
     g.traverse((m) => { if (m.isMesh) m.renderOrder = 40; });
-    // swap in the realistic model once it has loaded; the simple hand above stays if it cannot be fetched
-    const realSkin = new THREE.MeshStandardMaterial({ color: 0x4fe6d8, emissive: 0x14867e, emissiveIntensity: 0.5, roughness: 0.6, toneMapped: false });      // solid: a see-through hand shows its own back and front blended together and looks distorted
-    makePointingHand(realSkin).then((real) => { if (real) { g.remove(hand); g.add(real); tip.visible = false; } }).catch(() => {});
     g.visible = false;
     this.stage.root.add(g);
     return (this._hand = g);
@@ -221,11 +202,12 @@ export class Director {
       this.tweens.add({ delay: t, dur, update: (e) => {
         if (id !== this._demoId) return;
         hand.position.lerpVectors(from, to, e);
+        hand.userData.setPose?.(carry ? 'grab' : 'point');
         if (carry) { carry.position.copy(hand.position).add(new THREE.Vector3(0, -0.03, 0.02)); if (rx) carry.rotation.x = THREE.MathUtils.lerp(rx[0], rx[1], e); }
       }, done: () => {
         if (id !== this._demoId) return;
         f.act?.();
-        if (f.press) this.tweens.add({ dur: 0.5, update: (e) => { hand.userData.ring.material.opacity = 1 - e; hand.userData.ring.scale.setScalar(1 + e * 1.6); } });
+        if (f.press) this.tweens.add({ dur: 0.5, update: (e) => { if (id === this._demoId) hand.userData.setPose?.(e < 0.7 ? 'tap' : 'point'); hand.userData.ring.material.opacity = 1 - e; hand.userData.ring.scale.setScalar(1 + e * 1.6); } });
       } });
       t += dur + (f.hold ?? (f.press ? 0.55 : 0.12)) * K; prev = to;
     }

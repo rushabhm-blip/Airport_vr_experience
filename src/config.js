@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-17 · v80 · boarding pass card sits in front of the printer';
+export const BUILD = '2026-11-18 · v81 · real photographed guide hand';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

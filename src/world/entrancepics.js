@@ -56,7 +56,7 @@ export async function addEntrancePictures(g, { MZ0, MZ1, KERB_Z, WALL_Z }) {
 
   // ---------- traffic on the far carriageway: buses and vans driving past (the learner sees them side-on)
   const traffic = [['bus-teal', 3.1, 23.4, 1, -40, 3.6], ['taxivan-white', 1.8, 29.4, -1, 25, 4.2], ['bus-grey', 3.2, 29.6, -1, -30, 3.2], ['taxivan-silver', 1.8, 23.2, 1, 30, 4.4], ['sedan-black', 1.42, 23.0, 1, 0, 5.2], ['suv-white', 1.75, 29.0, -1, 50, 4.8]];
-  for (const [n, h, z, dir, x0, v] of traffic) { const m = pic(n, { x: x0, z, h, mode: 'fixed', flip: dir > 0 !== FACES_RIGHT.has(n) }); if (m) movers.push({ m, v: v * dir }); }
+  for (const [n, h, z, dir, x0, v] of traffic) { const m = pic(n, { x: x0, z, h, mode: 'fixed', flip: (dir > 0) === FACES_RIGHT.has(n) }); if (m) movers.push({ m, v: v * dir }); }
 
   // ---------- road signs on poles along the median, facing the near carriageway
   const steel = new THREE.MeshStandardMaterial({ color: 0xaab0b6, metalness: 0.8, roughness: 0.35 });
@@ -75,7 +75,7 @@ export async function addEntrancePictures(g, { MZ0, MZ1, KERB_Z, WALL_Z }) {
   const clouds = ['cloud-1', 'cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6'];
   clouds.forEach((n, i) => { const c = pic(n, { x: -55 + i * 22, z: 44 + (i % 3) * 8, y: 26 + (i % 3) * 9, w: 30 + (i % 2) * 14, mode: 'fixed', order: -6 }); if (c) { c.material = c.material.clone(); c.material.depthWrite = false; c.material.opacity = 0.92; drifters.push({ m: c, v: 0.5 + (i % 3) * 0.25 }); } });
   const planes = [['plane-4', 46, 3.4, 1, -70], ['plane-1', 36, 2.6, -1, 60]];
-  for (const [n, y, v, dir, x0] of planes) { const m = pic(n, { x: x0, z: 58, y, w: 14, mode: 'fixed', flip: dir > 0 !== FACES_RIGHT.has(n), order: -4 }); if (m) movers.push({ m, v: v * dir, wrap: 85 }); }
+  for (const [n, y, v, dir, x0] of planes) { const m = pic(n, { x: x0, z: 58, y, w: 14, mode: 'fixed', flip: (dir > 0) === FACES_RIGHT.has(n), order: -4 }); if (m) movers.push({ m, v: v * dir, wrap: 85 }); }
 
   const cam = new THREE.Vector3();
   const update = (dt, camera) => {

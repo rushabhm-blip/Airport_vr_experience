@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-12 · v58 · AI-made check-in counters (Rodin)';
+export const BUILD = '2026-11-12 · v59 · natural check-in islands';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

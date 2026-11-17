@@ -70,17 +70,17 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   // ---- check-in islands: back-to-back counters, a navy and teal canopy over each, and queue stanchions in front
   const counters = [];
   const island = (cx, cz, n) => {
-    const len = n * 1.9;
+    const len = n * 2.1;
     for (const side of [-1, 1]) for (let i = 0; i < n; i++) {
-      const x = cx - len / 2 + 0.95 + i * 1.9, z = cz + side * 0.95;
-      counters.push(['checkin_counter', x, 0, z, side > 0 ? (window.__cry ?? 0) : (window.__cry ?? 0) + Math.PI, 0.98]);
+      const x = cx - len / 2 + 1.05 + i * 2.1, z = cz + side * 1.3;
+      counters.push(['checkin_counter', x, 0, z, side > 0 ? 0 : Math.PI, 0.9]);
     }
-    add(new THREE.BoxGeometry(len + 0.4, 0.5, 3.6), navy, cx, 5.0, cz);              // canopy
-    add(new THREE.BoxGeometry(len + 0.42, 0.14, 3.62), teal, cx, 4.68, cz);
-    add(new THREE.BoxGeometry(len, 0.06, 2.4), glow, cx, 4.64, cz);                    // light under it
+    add(new THREE.BoxGeometry(len + 0.4, 0.5, 4.4), navy, cx, 5.0, cz);              // canopy
+    add(new THREE.BoxGeometry(len + 0.42, 0.14, 4.42), teal, cx, 4.68, cz);
+    add(new THREE.BoxGeometry(len, 0.06, 3.2), glow, cx, 4.64, cz);                    // light under it
     for (const sx of [-len / 2 + 0.5, len / 2 - 0.5]) add(new THREE.CylinderGeometry(0.03, 0.03, vy(cx) - 5.2, 8), steel, cx + sx, 5.2 + (vy(cx) - 5.2) / 2, cz);
     for (let i = -1; i <= 1; i += 2) for (let k = 0; k < Math.floor(len / 2.2); k++) {      // stanchions and belts in front of the counters
-      const px = cx - len / 2 + 1 + k * 2.2, pz = cz + i * 3.2;
+      const px = cx - len / 2 + 1 + k * 2.2, pz = cz + i * 4.0;
       add(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 8), steel, px, 0.5, pz); add(new THREE.CylinderGeometry(0.2, 0.22, 0.03, 14), steel, px, 0.02, pz);
       if (k > 0) add(new THREE.BoxGeometry(2.2, 0.05, 0.02), navy, px - 1.1, 0.88, pz);
     }
@@ -170,7 +170,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   RL.sun([-HX, Z0], [HX, Z0], [0, 1], 11, { opacity: 0.4 }); RL.sun([-HX, Z0], [-HX, Z1], [1, 0], 9, { opacity: 0.34, shear: 0.3 }); RL.sun([HX, Z0], [HX, Z1], [-1, 0], 9, { opacity: 0.34, shear: -0.3 });
   for (const cx of [-15, 15]) for (const cz of [-28, -16, -4, 8, 20]) RL.blob(cx, cz, 1.7);
   for (const [cx, cz] of [[-18, -24], [0, -24], [18, -24], [-18, -10], [18, -10]]) {
-    RL.slab(cx, cz, 12.8, 4.6);
+    RL.slab(cx, cz, 13.4, 5.6);
 
   }
   RL.slab(11.2, -4.2, 6.4, 1.2); RL.slab(-11.2, -4.2, 6.4, 1.2); RL.slab(0, 15, 5.8, 2.0); RL.slab(-4.5, 19, 6.2, 1.4);
@@ -202,8 +202,8 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
   // queues in front of the check-in counters (they shuffle forward and are served)
   const lane = (cx, cz, i, side, n) => {
-    const x = cx - 4.75 + 1.9 * i, slots = []; for (let k = 0; k < 5; k++) slots.push([x + (rr() - 0.5) * 0.1, cz + side * (1.95 + k * 0.85)]);
-    crowd.queue(slots, side > 0 ? Math.PI : 0, { n, interval: 12 + rr() * 8, exit: [x + 7, cz + side * 2.4], entry: [x + 7, cz + side * 5.6] });
+    const x = cx - 5.25 + 2.1 * i, slots = []; for (let k = 0; k < 5; k++) slots.push([x + (rr() - 0.5) * 0.1, cz + side * (2.8 + k * 0.85)]);
+    crowd.queue(slots, side > 0 ? Math.PI : 0, { n, interval: 12 + rr() * 8, exit: [x + 7, cz + side * 3.2], entry: [x + 7, cz + side * 6.4] });
   };
   lane(-18, -24, 1, 1, 4); lane(-18, -24, 3, -1, 3); lane(0, -24, 2, 1, 5); lane(0, -24, 4, 1, 3); lane(18, -24, 1, 1, 4); lane(18, -24, 2, -1, 3);
   lane(-18, -10, 3, 1, 3); lane(18, -10, 2, 1, 4); lane(18, -10, 4, -1, 3); lane(0, -24, 0, -1, 3);

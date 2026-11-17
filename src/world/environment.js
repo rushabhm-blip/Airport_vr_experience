@@ -195,7 +195,7 @@ export class Environment {
    * Which street the outdoor scene shows: 'airport' (the terminal forecourt photo ring) or 'home' (the street outside the traveller's
    * home: three photographs, one in front and one on each side, on a curved backdrop at about 14 m).
    */
-  setOutdoorTheme(theme) {
+  setOutdoorTheme(theme, { ride = false } = {}) {
     const g = this._outdoorGroup(), home = theme === 'home';
     if (!this.kerbRing) this.kerbRing = g.children.find((o) => o.isMesh && o.geometry?.type === 'CylinderGeometry' && o.geometry.parameters.radiusTop === 60);
     // one 360-degree photograph per theme; each is drawn after the sky and turned so that the first view faces the main subject
@@ -208,8 +208,8 @@ export class Environment {
       m.name = 'Street ' + name; m.scale.x = -1; m.rotation.y = -1.57; m.position.y = this.stage.headY; m.renderOrder = -8; m.visible = false; g.add(m); this.streets[name] = m;
     }
     // the airport entrance is now a real 3D place; the photographs stay only for the traveller's home street
-    if (!home) { this.entrance3d ??= buildEntrance3D({ renderer: this.renderer }); if (!this.entrance3d.parent) g.add(this.entrance3d); }
-    if (this.entrance3d) this.entrance3d.visible = !home;
+    if (!home && !ride) { this.entrance3d ??= buildEntrance3D({ renderer: this.renderer }); if (!this.entrance3d.parent) g.add(this.entrance3d); }
+    if (this.entrance3d) this.entrance3d.visible = !home && !ride;                 // on the cab ride the road video fills the windows, so the 3D place stays out of the way
     const key = home ? 'home-street-360' : (USE_ENTRANCE_3D ? null : 'airport-kerb-360'), sphere = this.streets[key] || null;
     for (const [name, m] of Object.entries(this.streets)) m.visible = m === sphere;
     this.streetSphere = this.streets['home-street-360'];

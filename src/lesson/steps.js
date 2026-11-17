@@ -1125,7 +1125,7 @@ const cab = (d) => {
       road?.play('road-drive', false, 0.86);                                         // the road moves past the windscreen; the side windows slide
       this.leg(d.reduceMotion ? 0.6 : 9.2, () => {
         if (phase !== 'ride') return;
-        d.app.env.setOutdoorTheme('airport');                                        // the airport comes into view
+        d.app.env.setOutdoorTheme('airport', { ride: true });                        // the airport comes into view (in the video; the 3D entrance appears at the kerb)
         road?.play('road-arrival', false);                                           // the second clip: along the road and up to the terminal
         this.leg(d.reduceMotion ? 0.6 : 9.8, () => { road?.stop(); d.success('Terminal 2.', 'The cab has stopped at the entrance.', 'Continue'); });
       });
@@ -1152,7 +1152,7 @@ const kerb = (d) => {
       d.app.env.setOutdoorTheme('airport');
       ZS = d.app.env.entranceReal ? -4.2 : 0;                              // in 3D the kerb and the doors are further away, so the walk to the entrance is a real walk
       d.app.env.entranceBase.set(0, 0, ZS);
-      api.bounds = { x0: -3, x1: 3, z0: -3.2 + ZS, z1: 3 };
+      api.bounds = { x0: -12, x1: 12, z0: -3.2 + ZS, z1: 7 };                  // the forecourt and the road are real: you can walk along them
       fc = forecourtCrowd(d, 31, ZS);
       cab = TAXI_3D ? taxi3D() : taxiBillboard('open');
       if (cab) { d.addScenery(cab, TAXI_3D ? { x: -2.7, z: 0.35, ry: 0, fixed: true } : { x: -1.55, z: 0.35, ry: Math.PI / 2, fixed: true }); rmCab = d.obstacle(cab); cab.userData.openDoor?.(true, true); }
@@ -1211,7 +1211,7 @@ const kerb = (d) => {
 
 /* ------------------------------------------------------------------ 3. arrive at the terminal and enter */
 const arrival = (d) => {
-  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, fc;
+  let guard, desk, zoneMesh, doors, booking, id, bookingCardS, phase = 'sign', signSurf, finished = false, rmDoors, rmDesk, fc;
   const zone = { min: new THREE.Vector3(-0.62, 0.95, -0.3), max: new THREE.Vector3(0.62, 1.6, 0.36) };
   const inZone = (o) => { const p = desk.worldToLocal(o.getWorldPosition(new THREE.Vector3())); return p.x > zone.min.x && p.x < zone.max.x && p.y > zone.min.y && p.y < zone.max.y && p.z > zone.min.z && p.z < zone.max.z; };
   const api = {
@@ -1229,7 +1229,7 @@ const arrival = (d) => {
       signSurf = screenOverlay(sign, { pxW: 1024, paint: paintSign({ lines: ['Terminal 2'], sub: 'Departures · Entry 3', arrow: '↑', state: st }) });
       d.track(signSurf, false);
       desk = new THREE.Group(); desk.add(d.assets.make('information-desk'));
-      d.addScenery(desk, { x: 0, z: -1.3, fixed: true }); d.obstacle(desk);
+      d.addScenery(desk, { x: 0, z: -1.3, fixed: true }); rmDesk = d.obstacle(desk);
       guard = d.addStaff('guard', 'Entry guard · practice', desk, [0.15, 0, -0.75]);
       photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.6]);
       d.addSupport(-0.8, 0.8, -1.3 - 0.38, -1.3 + 0.38, 1.027);
@@ -1267,7 +1267,7 @@ const arrival = (d) => {
       if (phase !== 'docs') return; phase = 'walk'; d.voice.success();
       d.setPanel({ title: 'Thank you. You may go in.', body: 'Walk through the doors.', note: '', buttons: [] });
       for (const a of [0, 1]) doors.userData.actions?.toggle(a);
-      rmDoors?.(); api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4, z1: 3.5 };   // the doors are open: you may walk through
+      rmDoors?.(); rmDesk?.(); api.bounds = { x0: -2.6, x1: 2.6, z0: -4.4, z1: 3.5 };   // the doors are open: you may walk through
       d.say('Thank you. You may go in. Walk through the doors.'); guard?.say('Thank you. Please go in.');
       d.setStation({ point: new THREE.Vector3(0, 0, -2.5), label: 'the entrance doors', radius: 1.2, onArrive: () => { finished = true; d.success('You are inside Terminal 2.', 'Ticket and ID checked. Next, find your airline\'s check-in counter.'); } });
     },

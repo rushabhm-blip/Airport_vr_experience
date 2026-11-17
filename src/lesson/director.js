@@ -861,7 +861,12 @@ export class Director {
     let mx = (fx * -s.y + rx * s.x) * sp, mz = (fz * -s.y + rz * s.x) * sp;
     this.stage.root.updateMatrixWorld(true);          // measure the furniture where it is now
     const boxes = this._boxes(0.28), blocked = (x, z) => boxes.some((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1);
-    if (blocked(mx, mz)) { if (!blocked(mx, 0)) mz = 0; else if (!blocked(0, mz)) mx = 0; else { mx = 0; mz = 0; } }
+    if (blocked(mx, mz)) {                                     // something is in the way: slide along it, or steer around it, instead of stopping
+      let ok = false; const sp2 = Math.hypot(mx, mz), base = Math.atan2(mz, mx);
+      if (!blocked(mx, 0) && Math.abs(mx) > 0.35 * sp2) { mz = 0; ok = true; } else if (!blocked(0, mz) && Math.abs(mz) > 0.35 * sp2) { mx = 0; ok = true; }
+      if (!ok) for (const da of [0.55, -0.55, 1.05, -1.05, 1.5, -1.5]) { const tx = Math.cos(base + da) * sp2 * 0.9, tz = Math.sin(base + da) * sp2 * 0.9; if (!blocked(tx, tz)) { mx = tx; mz = tz; ok = true; break; } }
+      if (!ok) { mx = 0; mz = 0; }
+    }
     const sc = this.stage.scenery, hall = this.app.env.virtual, pull = this.stage.pull;
     let nx = sc.position.x - mx, nz = sc.position.z - mz;
     const b = this._bounds();

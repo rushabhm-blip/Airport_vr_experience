@@ -19,3 +19,10 @@ export function placeProps(group, items, envMap = null) {
   });
   return holder;
 }
+
+/** One real prop as a group (a clone made once the file has loaded), for code that wants to animate or hide it. onReady(scene) runs after loading. */
+export function propGroup(name, scale = 1, ry = 0, onReady = null) {
+  const g = new THREE.Group(); g.name = 'Prop-' + name;
+  load(name).then((scene) => { if (!scene) return; const m = scene.clone(true); m.scale.setScalar(scale); m.rotation.y = ry; m.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } }); g.add(m); g.userData.body = m; onReady?.(m); });
+  return g;
+}

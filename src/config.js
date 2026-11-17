@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-12 · v63 · planters moved clear of kiosks';
+export const BUILD = '2026-11-12 · v64 · real 3D cab (Rodin) that pulls up and brakes';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

@@ -5,6 +5,7 @@ import { Surface } from '../ui/surface.js';
 import { COLORS } from '../config.js';
 import { FONT, roundRect } from '../util.js';
 import { cloneSkinned } from '../assets.js';
+import { indianiseStaff } from './glbcrowd.js';
 
 const HEIGHT = { checkin: 1.66, security: 1.76, gate: 1.66, crew: 1.66, guard: 1.76, driver: 1.72 };
 
@@ -62,6 +63,8 @@ export class Staff {
     const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3());
     model.scale.setScalar(h / Math.max(0.5, size.y)); model.position.y = -box.min.y * model.scale.y;
     this.root.add(model); this.character = model;
+    try { model.updateMatrixWorld(true); this.acc = indianiseStaff(model, this.kind); } catch (e) { console.warn('staff look', e.message); }
+    this.spine = model.getObjectByName('Spine2') || model.getObjectByName('mixamorigSpine2'); this.glance = { t: 2 + Math.random() * 3, y: 0, tgt: 0 };
     this.mixer = new THREE.AnimationMixer(model);
     this.clips = clips;
     const idle = (this.wantClip && clips.find((c) => this.wantClip.test(c.name))) || clips.find((c) => /idle|stand|breath/i.test(c.name)) || clips[0];
@@ -89,7 +92,12 @@ export class Staff {
     if (Math.abs(diff) > 1.05) this.bodyYaw += diff * Math.min(1, dt * 2.2);     // an intentional body turn, not constant billboarding
     this.root.rotation.y = this.heading != null ? this.heading : this.bodyYaw;       // heading: set while the person is walking somewhere, so they face where they go
     diff = Math.atan2(Math.sin(want - this.bodyYaw), Math.cos(want - this.bodyYaw));
-    if (this.headBone) this.headBone.rotation.y = THREE.MathUtils.clamp(diff, -0.6, 0.6) * 0.6;
+    // attention: follow the learner with the head, with small natural drifts, and a gentle nod while a line is being said
+    this.glance.t -= dt; if (this.glance.t <= 0) { this.glance.tgt = (Math.random() - 0.5) * 0.28; this.glance.t = 1.2 + Math.random() * 3.5; }
+    this.glance.y += (this.glance.tgt - this.glance.y) * Math.min(1, dt * 2.5);
+    const nod = this.bubble ? Math.sin(this.t * 2.3) * 0.05 + 0.03 : 0;
+    if (this.headBone) { this.headBone.rotation.y = THREE.MathUtils.clamp(diff, -0.6, 0.6) * 0.6 + this.glance.y; this.headBone.rotation.x += nod + Math.sin(this.t * 0.6) * 0.015; }
+    if (this.spine) this.spine.rotation.x += Math.sin(this.t * 1.7) * 0.012;                // breathing
     if (this.blinkTargets) {
       this.blinkT -= dt; if (this.blinkT <= 0) { this.blinkLeft = 0.14; this.blinkT = 2.5 + Math.random() * 3.5; }
       const v = this.blinkLeft > 0 ? 1 : 0; this.blinkLeft = Math.max(0, this.blinkLeft - dt);

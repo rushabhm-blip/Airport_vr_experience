@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cloneSkinned } from '../assets.js';
 
 /**
@@ -7,14 +8,55 @@ import { cloneSkinned } from '../assets.js';
  * Six bodies, made different from each other by skin tone, hair colour, clothes, height and build. Each person near you is given one
  * of these and follows the crowd's own movement (walking, standing, queueing). Seated people stay with the crowd's own seated model.
  */
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
 const FEMALE = ['checkin', 'crew', 'security'], MALE = ['driver', 'gate', 'guard'];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
-const SKIN_TONES = [0xf3cfb0, 0xe0b48e, 0xc99063, 0xa97248, 0x8a5a3a, 0x6a4430];
-const HAIR_TONES = [0x1a1410, 0x2c2018, 0x4a3426, 0x120f0c, 0x6a6a6a, 0xb8b8b8, 0xd6d6d6];
-const CLOTH = [0xc2573a, 0x2f6f9f, 0x7aa05a, 0xd8b04a, 0x8a5a9b, 0xe9e4da, 0x395a5a, 0xb03a48, 0x4b8f8a, 0xe8c9a0, 0x3d4f91, 0xf3f0e8, 0x7a8c3a, 0xd97b3c, 0x1f8a70, 0xc0392b];
-const DRESS = [0xc0392b, 0x1f8a70, 0x2c5aa0, 0xe0a030, 0x8e3a7a, 0xd45a8a, 0x138d90, 0xe9e4da, 0x3d4f91, 0xd97b3c];
+const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25];
+const HAIR_TONES = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
+const CLOTH = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
+const DRESS = [0xa3223a, 0x1f7a5c, 0x1e4fa0, 0xe0a030, 0x8e2a6e, 0xc94f7c, 0x0f7f86, 0xd9641c, 0x5b3a8c, 0xf1e8d0, 0xb4472b, 0x2c7a3f];
 const TROUSER = [0x2b3040, 0x3a3f4c, 0x57534b, 0x1f2630, 0x6b5a45, 0x41556b, 0x2a2a2a, 0x8a8470];
+
+/**
+ * Small Indian details built straight onto the skeleton at its rest pose: a bindi, glass/gold bangles, spectacles, and a dupatta draped across the chest.
+ * Geometry is made in the model's own space (metres, rest pose) and moved into each bone's space, so it follows the animation.
+ */
+export function makeAccessories(model) {
+  model.updateMatrixWorld(true);
+  const bone = (n) => model.getObjectByName(n), rest = (b) => new THREE.Matrix4().copy(b.matrixWorld).invert();
+  const skins = []; model.traverse((o) => { if (o.isSkinnedMesh) { o.skeleton.update(); skins.push(o); } });
+  const rc = new THREE.Raycaster(), SKIP = /^(Hair|Eyes|Eyebrows|Eyelashes|Beard)$/;
+  // z of the first body or clothing surface seen from the front at (x, y); `only` restricts it to one material (the bare skin, for the bindi)
+  const hit = (x, y, only = null) => { rc.set(new THREE.Vector3(x, y, 0.8), new THREE.Vector3(0, 0, -1)); for (const h of rc.intersectObjects(skins, false)) { const mt = Array.isArray(h.object.material) ? h.object.material[h.face.materialIndex] : h.object.material, n = mt?.name || ''; if (only ? n === only : !SKIP.test(n)) return h.point.z; } return null; };
+  const mk = (geo, bn, mat) => { const b = bone(bn); if (!b) return null; geo.applyMatrix4(rest(b)); const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.visible = false; m.castShadow = false; b.add(m); return m; };
+  const out = {};
+  // bindi on the forehead
+  const zf = hit(0, 1.503, 'Skin') ?? 0.105; out.bindi = mk(new THREE.CircleGeometry(0.0065, 12).translate(0, 1.503, zf + 0.0012), 'Head', new THREE.MeshStandardMaterial({ color: 0xb01020, roughness: 0.6 }));
+  // spectacles: two thin rims and a bridge in front of the eyes
+  const rim = (x) => new THREE.TorusGeometry(0.0135, 0.0012, 6, 18).translate(x, 1.474, 0.137);
+  out.glasses = mk(mergeGeometries([rim(0.028), rim(-0.028), new THREE.BoxGeometry(0.014, 0.002, 0.002).translate(0, 1.478, 0.137), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(0.0415, 1.474, 0.102), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(-0.0415, 1.474, 0.102)]), 'Head', new THREE.MeshStandardMaterial({ color: 0x2a2623, roughness: 0.4, metalness: 0.4 }));
+  // bangles on both wrists: a stack of thin rings around the forearm, just above the hand
+  const rings = [];
+  for (const side of ['Left', 'Right']) {
+    const f = bone(side + 'ForeArm'), h = bone(side + 'Hand'); if (!f || !h) continue;
+    const a = new THREE.Vector3().setFromMatrixPosition(f.matrixWorld), c = new THREE.Vector3().setFromMatrixPosition(h.matrixWorld), dir = c.clone().sub(a).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir), base = a.clone().lerp(c, 0.84);
+    const g = mergeGeometries(Array.from({ length: 6 }, (_, k) => new THREE.TorusGeometry(0.029, 0.0036, 6, 16).applyQuaternion(q).translate(...base.clone().addScaledVector(dir, -k * 0.0085).toArray())));
+    out['bangle' + side[0]] = mk(g, side + 'ForeArm', new THREE.MeshStandardMaterial({ color: 0xd4a437, roughness: 0.3, metalness: 0.8 }));
+  }
+  // dupatta: a soft band over the left shoulder, across the chest to the right hip, following the body surface
+  const A = [0.095, 1.30], B = [-0.125, 0.985], N = 9, pos = [], idx = [], W = 0.04;
+  const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy), px = -dy / L, py = dx / L;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, cx = A[0] + dx * t, cy = A[1] + dy * t;
+    for (const sgn of [1, -1]) { const x = cx + px * W * sgn, y = cy + py * W * sgn, z = hit(x, y) ?? 0.12; pos.push(x, y, z + 0.011); }
+    if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+  }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); sg.setIndex(idx); sg.computeVertexNormals();
+  out.sash = mk(sg, 'Spine2', new THREE.MeshStandardMaterial({ color: 0xe0a030, roughness: 0.8, side: THREE.DoubleSide }));
+  return out;
+}
 
 let cache = null;
 export function loadGlbPeople() {
@@ -33,7 +75,7 @@ const avgOf = (mat) => {
   mat.userData.avg = a; return a;
 };
 /** Re-colour a material so its average colour becomes `hex`, keeping the texture's pattern. */
-const tint = (mat, hex, boost = 1) => {
+export const tint = (mat, hex, boost = 1) => {
   const want = new THREE.Color(hex);
   if (!mat.map) { mat.color.copy(want).multiplyScalar(boost); return; }
   const a = avgOf(mat); mat.color.setRGB(Math.min(4, want.r / Math.max(0.03, a[0])) * boost, Math.min(4, want.g / Math.max(0.03, a[1])) * boost, Math.min(4, want.b / Math.max(0.03, a[2])) * boost);
@@ -51,32 +93,43 @@ export class GlbPeople {
       const name = i < count / 2 ? FEMALE[i % 3] : MALE[i % 3], g = models[name];
       const model = cloneSkinned(g.scene);
       model.traverse((o) => { if (o.isMesh) { o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); o.frustumCulled = false; o.castShadow = false; } });
+      const acc = tier === 'near' ? makeAccessories(model) : null;
       const box = new THREE.Box3().setFromObject(model), h = box.max.y - box.min.y;
       const root = new THREE.Group(); root.add(model); model.scale.setScalar(1.74 / h); root.visible = false; this.group.add(root);
       const mixer = new THREE.AnimationMixer(model), idle = g.animations.find((a) => a.name === 'Idle'), walk = g.animations.find((a) => a.name === 'Walk');
       const aI = mixer.clipAction(idle).play(), aW = mixer.clipAction(walk).play(); aI.setEffectiveWeight(1); aW.setEffectiveWeight(0);
-      const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
+      const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ tier, name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
   }
 
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
     tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 1.0);
-    if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.35 : 1);
+    if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.1 : 1);
     if (m.Beard) tint(m.Beard, HAIR_TONES[p.hairIdx ?? 0], 1);
     const cloth = p.female ? r(DRESS, 1) : r(CLOTH, 1);
     if (m.Outfit) tint(m.Outfit, p.female ? cloth : (e.name === 'gate' ? r([0x22303f, 0x3a3f4c, 0x57534b, 0x6b5a45, 0x2a2a2a, 0x41556b], 3) : cloth));
     if (m['Uniform shirt']) tint(m['Uniform shirt'], cloth);
     if (m['Uniform trousers']) tint(m['Uniform trousers'], r(TROUSER, 2));
     if (m.Shoes) tint(m.Shoes, r([0x1c1c1e, 0x3a2a1d, 0xe8e8e8, 0x2a3a5a, 0x5a4a3a], 4));
+    for (const k of ['Outfit', 'Uniform shirt', 'Uniform trousers']) if (m[k]) { m[k].map = null; m[k].roughness = 0.85; m[k].needsUpdate = true; }      // plain cloth instead of the knit pattern
+    const A = e.acc, rr = (k) => ((p.seedA >>> k) % 100) / 100, elder = (p.hairIdx ?? 0) >= 4;
+    if (A) {
+      const f = !!p.female;
+      if (A.bindi) A.bindi.visible = f && rr(3) < 0.8;
+      if (A.glasses) A.glasses.visible = elder ? rr(5) < 0.55 : rr(5) < 0.12;
+      for (const k of ['bangleL', 'bangleR']) if (A[k]) { A[k].visible = f && rr(9) < 0.85; A[k].material.color.set([0xd4a437, 0xd4a437, 0xb3262e, 0x2f7d4a, 0x2c5aa0][((p.seedA >>> 11) % 5)]); }
+      if (A.sash) { A.sash.visible = f && rr(13) < 0.6; A.sash.material.color.set(r(DRESS, 5)); }
+    }
     e.root.userData.wide = 0.92 + (((p.seedA >>> 3) % 20) / 100);          // build: narrower to broader
   }
 
   /** Give the nearest standing or walking people a real character (the full one very close, the lighter one further out); free the ones that moved away. */
   assign(people, cam) {
     if (!this.ready) return;
+    this.cam = cam;
     const Rn = this.radius, Rm = this.mid ? Math.max(this.mid.radius, Rn) : Rn, far = (Rm + 1.5) ** 2;
     for (const [p, e] of [...this.bound]) {                                           // release those that left, sat down or are gone
       const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2;
@@ -105,11 +158,44 @@ export class GlbPeople {
       e.wW += ((moving ? 1 : 0) - e.wW) * k; e.wI = 1 - e.wW; e.aW.setEffectiveWeight(e.wW); e.aI.setEffectiveWeight(Math.max(0.001, e.wI));
       e.aW.setEffectiveTimeScale(Math.max(0.55, Math.min(1.5, (p.vNow || 0.7) / 0.95))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
       e.mixer.update(dt);
+      if (e.tier === 'near') this._life(e, p, dt);
       if (p.bag === 'roll' && e.bones.arm) { const a = window.__arm ?? [-0.75, 0, 0.42], f = window.__fore ?? [0.25, 0, 0]; this._hold(e.bones.arm, a); this._hold(e.bones.fore, f); }     // the right hand takes the suitcase handle, held low and a little behind
     }
+  }
+
+  /** Small human details on top of the animation: breathing, a slow weight shift, and head glances (towards you when you are close and in front of them, otherwise a casual look round). */
+  _life(e, p, dt) {
+    const b = e.bones, T = (this.clock = (this.clock || 0) + 0), t = performance.now() / 1000;
+    this._qa ??= new THREE.Quaternion(); this._ea ??= new THREE.Euler();
+    const turn = (bone, x, y, z) => { if (bone) bone.quaternion.multiply(this._qa.setFromEuler(this._ea.set(x, y, z))); };
+    e.gT -= dt;
+    if (e.gT <= 0) {
+      const c = this.cam, dx = c ? c.x - p.x : 0, dz = c ? c.z - p.z : 0, dist = Math.hypot(dx, dz), rel = c ? wrapPi(Math.atan2(dx, dz) - p.yaw) : 9;
+      if (c && dist < 4.5 && Math.abs(rel) < 1.7 && Math.random() < 0.55) { e.gy = Math.max(-1, Math.min(1, rel)); e.gp = -0.06; }       // a glance at you
+      else { e.gy = (Math.random() - 0.5) * 1.3; e.gp = (Math.random() - 0.5) * 0.2; }
+      e.hold = 0.9 + Math.random() * 1.6; e.gT = e.hold + 1.5 + Math.random() * 4.5;
+    }
+    if (e.hold > 0) e.hold -= dt; else { e.gy = 0; e.gp = 0; }
+    const k = Math.min(1, dt * (e.hold > 0 ? 5 : 2.2));
+    e.hy += (e.gy - e.hy) * k; e.hp += (e.gp - e.hp) * k;
+    const moving = e.wW > 0.5;
+    turn(b.neck, e.hp * 0.4, e.hy * 0.4, 0); turn(b.head, e.hp * 0.6, e.hy * 0.6, 0);
+    turn(b.chest, Math.sin(t * 1.7 + e.phase) * 0.012, 0, 0);                                    // breathing
+    if (!moving) turn(b.hips, 0, Math.sin(t * 0.37 + e.phase) * 0.03, Math.sin(t * 0.5 + e.phase) * 0.03);         // shifting weight from foot to foot
   }
 
   _hold(b, eu) { if (!b?.userData.rest) return; this._q ??= new THREE.Quaternion(); this._e ??= new THREE.Euler(); b.quaternion.copy(b.userData.rest).multiply(this._q.setFromEuler(this._e.set(eu[0], eu[1], eu[2]))); }
 
   dispose() { this.disposed = true; this.group.removeFromParent(); for (const e of this.entries) e.model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); }); }
+}
+
+/** Make one of the named staff characters look like the people they serve: warm brown skin, black hair, a bindi and bangles for the women. */
+const STAFF_LOOK = { checkin: [0xa56b44, true], crew: [0xb67e53, true], security: [0x935c3a, true], gate: [0xa56b44, false], guard: [0x7e4d2e, false], driver: [0x935c3a, false] };
+export function indianiseStaff(model, kind) {
+  const look = STAFF_LOOK[kind]; if (!look) return null;
+  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') tint(m, look[0]); else if (m.name === 'Hair') tint(m, 0x0e0b09); else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
+  const acc = makeAccessories(model);
+  if (acc.bindi) acc.bindi.visible = look[1]; for (const k of ['bangleL', 'bangleR']) if (acc[k]) acc[k].visible = look[1];
+  if (acc.sash) acc.sash.visible = false; if (acc.glasses) acc.glasses.visible = false;
+  return acc;
 }

@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-18 · v87 · overlap sweep: packing card clear of bags, crew off seat row';
+export const BUILD = '2026-11-18 · v88 · Indian people, natural movement, staff glances and breathing';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

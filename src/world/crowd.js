@@ -14,11 +14,11 @@ import { shadowTextures } from './realism3d.js';
  */
 const PARTS = ['torso', 'head', 'hair', 'skirt', 'thighL', 'thighR', 'shinL', 'shinR', 'shoeL', 'shoeR', 'armL', 'armR', 'handL', 'handR', 'suitcase', 'handle', 'pack', 'cart'];
 
-const SKIN = [0xf0c9a6, 0xdcae86, 0xc78d5f, 0xa96f47, 0x8b5a3b, 0x6d4529];
-const HAIR = [0x15110d, 0x241a12, 0x3a2a1d, 0x1a1a1a, 0x6e6e6e, 0xb9b9b9, 0xd8d8d8];
-const SHIRT = [0xc2573a, 0x2f6f9f, 0x7aa05a, 0xd8b04a, 0x8a5a9b, 0xe9e4da, 0x395a5a, 0xb03a48, 0x4b8f8a, 0xe8c9a0, 0x3d4f91, 0xf3f0e8, 0x7a8c3a, 0xd97b3c];
+const SKIN = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25];
+const HAIR = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
+const SHIRT = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
 const TROUSER = [0x2b3040, 0x3a3f4c, 0x57534b, 0x1f2630, 0x6b5a45, 0x41556b, 0x2a2a2a];
-const SAREE = [0xc0392b, 0x1f8a70, 0x2c5aa0, 0xe0a030, 0x8e3a7a, 0xd45a8a, 0x138d90];
+const SAREE = [0xa3223a, 0x1f7a5c, 0x1e4fa0, 0xe0a030, 0x8e2a6e, 0xc94f7c, 0x0f7f86, 0xd9641c, 0x5b3a8c, 0xb4472b, 0x2c7a3f];
 const BAGS = [0x1d3557, 0x7a1f2b, 0x2b2b2b, 0x1f6f5a, 0xb5651d, 0x4a4a8a, 0x8a8a8a, 0xe07a3a];
 
 const rngOf = (seed) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -67,7 +67,7 @@ export class Crowd {
   constructor({ capacity = 70, seed = 7, density = 1, nearMax = 36, nearR = 15, detailed = true, glb = null } = {}) {
     if (density < 0.7) { nearMax = Math.min(nearMax, 14); nearR = Math.min(nearR, 9.5); }      // on a headset: fewer detailed people, and only the closest
     this.group = new THREE.Group(); this.group.name = 'Crowd';
-    this.pace = 0.5; this.blockers = []; this._watch = []; this._wt = 0; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
+    this.pace = 0.8; this.blockers = []; this._watch = []; this._wt = 0; this.people = []; this.queues = []; this.cap = capacity; this.density = density; this.rng = rngOf(seed); this.time = 0;
     const geos = geometries(), mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     this.meshes = {};
     { const T = shadowTextures(); this.shadow = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), capacity); this.shadow.frustumCulled = false; this.shadow.renderOrder = -1; this.shadow.name = 'crowd-shadow'; this.group.add(this.shadow); this._sm = new THREE.Matrix4(); }
@@ -149,36 +149,57 @@ export class Crowd {
   /** Is (x, z) clear of every solid thing (walls, counters, seats, planters, furniture the step placed)? */
   _free(x, z) { const B = this.blockers; for (let i = 0; i < B.length; i++) { const b = B[i]; if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return false; } return true; }
 
-  _go(p, tx, tz, v, dt) {
-    v *= this.pace;                                       // a calm pace for VR: people walk slower than in real life so you can take them in
+  _go(p, tx, tz, v, dt, last = true) {
+    // Natural walking: each person has a slowly drifting pace, speeds up and brakes gradually, slows for sharp turns and for the final stop,
+    // turns at a limited rate (so paths curve round waypoints instead of pivoting on them) and cuts the corner a little on the way.
+    v *= this.pace * (1 + 0.07 * Math.sin(p.t * 0.35 + p.spin));
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
-    if (d < 0.06) return true;
-    p.vNow = v;
+    if (d < (last ? 0.06 : 0.4)) return true;
+    const err = wrapPi(Math.atan2(dx, dz) - p.yaw);
+    const target = v * (last ? Math.min(1, 0.3 + d / 0.9) : 1) * Math.max(0.3, 1 - Math.abs(err) / 1.7);
+    p.v ??= 0; const acc = target > p.v ? 1.1 : 2.0; p.v += Math.max(-acc * dt, Math.min(acc * dt, target - p.v));
+    v = p.v; p.vNow = v; p._mv = true;
     const step = Math.min(d, v * dt);
     let mx = (dx / d) * step, mz = (dz / d) * step, heading = Math.atan2(dx, dz), moved = true;
-    if (this.blockers.length && d > 0.9 && (p.mode === "loop" || p.mode === "path") && this._free(p.x, p.z) && !this._free(p.x + (mx / step) * 0.45, p.z + (mz / step) * 0.45)) {
+    if (step > 1e-5 && this.blockers.length && d > 0.9 && (p.mode === "loop" || p.mode === "path") && this._free(p.x, p.z) && !this._free(p.x + (mx / step) * 0.45, p.z + (mz / step) * 0.45)) {
       // something solid is ahead: walk round it instead of through it (a wall, a counter, a planter, a trolley)
       moved = false; const base = Math.atan2(mz, mx), sp = step, s = p.side ?? (p.side = this.rng() < 0.5 ? 1 : -1);
       for (const da of [0.6, 1.2, 1.9, 2.5]) for (const sd of [s, -s]) { const a = base + da * sd, ux = Math.cos(a), uz = Math.sin(a); if (this._free(p.x + ux * 0.45, p.z + uz * 0.45)) { mx = ux * sp; mz = uz * sp; heading = Math.atan2(mx, mz); moved = true; break; } }
       if (!moved) { p.stuck = (p.stuck || 0) + dt; if (p.stuck > 1.4) { p.stuck = 0; p.side = -s; return true; } mx = mz = 0; }   // boxed in: wait, then give up on this waypoint
     } else p.stuck = 0;
     p.x += mx; p.z += mz;
-    if (moved) p.yaw += wrapPi(heading - p.yaw) * Math.min(1, dt * 7);
+    const rate = 1.8 + ((p.seedA >>> 7) % 10) * 0.1;                      // radians per second this person can turn
+    if (moved) p.yaw += Math.max(-rate * dt, Math.min(rate * dt, wrapPi(heading - p.yaw)));
     p.stride = moved ? Math.min(1, v / 1.2) * (p.run ? 1.5 : 1) : 0; if (!moved) p.vNow = 0;
     if (moved) p.phase += v * dt * (p.child ? 3.4 : 2.5) * (p.run ? 0.85 : 1);
     return false;
   }
 
+  /** Keep a little personal space: walkers ease sideways round anyone they would brush past. */
+  _separate(dt) {
+    const P = this.people, R = 0.62;
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i]; if (!a._mv || a.mode === 'sit') continue;
+      for (let j = 0; j < P.length; j++) {
+        if (i === j) continue; const b = P[j]; if (b.mode === 'sit' || (a.mode === 'follow' && a.leader === b) || (b.mode === 'follow' && b.leader === a)) continue;
+        const dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz; if (d2 > R * R || d2 < 1e-6) continue;
+        const d = Math.sqrt(d2), push = (R - d) * Math.min(1, dt * 2.5) * (b._mv ? 0.5 : 1);
+        const nx = a.x + (dx / d) * push, nz = a.z + (dz / d) * push; if (this._free(nx, nz)) { a.x = nx; a.z = nz; }
+      }
+    }
+  }
+
   _step(p, dt) {
-    p.t += dt; p.stride = 0; p.vNow = 0;
+    p.t += dt; p.stride = 0; p.vNow = 0; p._mv = false;
     switch (p.mode) {
       case 'loop': {
-        const a = p.path[p.pi]; if (this._go(p, a[0], a[1], p.speed * (p.run ? 2.6 : 1), dt)) p.pi = (p.pi + 1) % p.path.length;
+        if (p.wait > 0) { p.wait -= dt; break; }
+        const a = p.path[p.pi]; if (this._go(p, a[0], a[1], p.speed * (p.run ? 2.6 : 1), dt, false)) { p.pi = (p.pi + 1) % p.path.length; if (!p.run && this.rng() < 0.06) p.wait = 1.5 + this.rng() * 3.5; }      // now and then someone stops to look at a board or their phone
         break;
       }
       case 'path': {
         if (p.wait > 0) { p.wait -= dt; break; }
-        const a = p.path[p.pi]; if (this._go(p, a[0], a[1], p.speed, dt)) { p.pi++; if (p.pi >= p.path.length) { const f = p.onDone; p.onDone = null; p.mode = 'idle'; f?.(); } }
+        const a = p.path[p.pi]; if (this._go(p, a[0], a[1], p.speed, dt, p.pi >= p.path.length - 1)) { p.pi++; if (p.pi >= p.path.length) { const f = p.onDone; p.onDone = null; p.mode = 'idle'; f?.(); } }
         break;
       }
       case 'queue': {
@@ -193,6 +214,7 @@ export class Crowd {
       }
       default: break;
     }
+    if (!p._mv && p.v) p.v = Math.max(0, p.v - 2.5 * dt);
   }
 
   _updateQueues(dt) {
@@ -389,8 +411,9 @@ export class Crowd {
     this._updateQueues(dt);
     let near = 0; const R2 = (this.nearR ?? 15) ** 2, detail = !!this.dmeshes && !!camera;
     if (detail) { camera.getWorldPosition(this._cam); this.group.worldToLocal(this._cam); this.glb?.assign(this.people, this._cam); }
+    for (const p of this.people) this._step(p, dt);
+    this._separate(dt);
     for (const p of this.people) {
-      this._step(p, dt);
       const d2 = detail ? (p.x - this._cam.x) ** 2 + (p.z - this._cam.z) ** 2 + ((p.y - this._cam.y + 1.4) ** 2) * 0.3 : Infinity;
       if (d2 < R2 && near < this.dn) {
         if (!p.looked) { this._look(p); p.looked = true; }

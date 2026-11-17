@@ -719,7 +719,7 @@ const seat = (d) => {
       W = new THREE.Group(); d.addScenery(W, { fixed: true });
       for (const z of [-1.5, -4.5]) { const b = d.assets.make('jetbridge-section', { actions: false }); b.position.set(0, 0, z); W.add(b); }
       door = d.assets.make('aircraft-entry-door'); door.userData.noMerge = true; door.position.set(0, 0, -6.1); W.add(door);
-      crew = d.addStaff('crew', 'Cabin crew · practice', W, [0.4, 0, -6.95]); crew.root.userData.noMerge = true;
+      crew = d.addStaff('crew', 'Cabin crew · practice', W, [0.4, 0, -6.8]); crew.root.userData.noMerge = true;
       const exitSign = labelSurface('EXIT', { w: 0.36, px: 420 }); exitSign.mesh.userData.noMerge = true; exitSign.mesh.position.set(0, 2.2, -5.95); W.add(exitSign.mesh); d.track(exitSign, false);
 
       ROWS.forEach((num, k) => {
@@ -899,7 +899,7 @@ const packing = (d) => {
         ],
         footer: 'Pack electronics together at home. At security you take out just one pouch, so nothing gets mixed up.',
       });
-      d.addSurface(card, { pos: [0.5, d.h + 0.1, -1.0], ry: faceUser(0.5, -1.0), interactive: false, follow: { yaw: -0.5, dist: 1.5, scale: 1.6, dy: 0.02 } });
+      d.addSurface(card, { pos: [0.5, d.h + 0.1, -1.0], ry: faceUser(0.5, -1.0), interactive: false, follow: { yaw: -0.5, dist: 1.5, scale: 1.6, dy: 0.2 } });
       d.setPanel({ eyebrow: 'Airport practice · 2 of 9', title: 'Pack at home, not at the airport.', body: 'Practice limits: cabin bag 7 kg, checked bag 15 kg. Check your own airline for real limits.', note: 'Drag each item into its glowing box', tone: 'normal', tasks: tasks(), buttons: [{ id: 'show', label: 'Show me' }, { id: 'help', label: 'Ask for help', kind: 'secondary' }] });
     },
     onButton(id) { if (id === 'show') d.startAssist(); if (id === 'help') d.help(); },

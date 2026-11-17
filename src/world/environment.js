@@ -328,6 +328,7 @@ export class Environment {
   update(dt, headLocal, camera) {
     this.tweens.step(dt);
     for (const h of [this.hall3d, this.gate3d]) if (h?.visible) h.userData.update?.(dt, camera);       // the crowds in the 3D hall and gate lounge
+    if (this.entrance3d?.visible) this.entrance3d.userData.update?.(dt);                                  // traffic on the road
     if (this.driveSpeed && this.roadTex) this.roadTex.offset.y += this.driveSpeed * dt;     // the road streams past while the cab drives
     const a = this.vig.material.uniforms.amt;
     a.value += (this.vigTarget - a.value) * Math.min(1, dt * 5);

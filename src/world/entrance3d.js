@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { applyPbr, loadAirportEnv } from './pbr.js';
 import { shadowTextures, skylineRing } from './realism3d.js';
-import { placeProps } from './realprops.js';
+import { placeProps, propGroup } from './realprops.js';
 
 /**
  * The terminal entrance as a real 3D place, modelled on the photograph: a road with painted lines, a yellow and black striped kerb,
@@ -27,12 +27,11 @@ export function buildEntrance3D({ renderer = null } = {}) {
 
   // ---------- road
   const road = std(0xffffff, { roughness: 0.95 }); applyPbr(road, 'asphalt_02', 24, 24, { normal: 0.8, rough: 1, tint: 0xb8bcc0 });
-  const roadMesh = add(new THREE.PlaneGeometry(120, 70).rotateX(-Math.PI / 2), road, 0, -0.02, KERB_Z + 35); rep(road, 36, 20);
+  const roadMesh = add(new THREE.PlaneGeometry(160, 15.2).rotateX(-Math.PI / 2), road, 0, -0.02, KERB_Z + 7.6); rep(road, 48, 5);
   // painted lines: dashed white lane marks and a solid line near the kerb
   const paint = std(0xf2f2f0, { roughness: 0.7 });
   for (let x = -40; x <= 40; x += 4) add(new THREE.PlaneGeometry(1.8, 0.16).rotateX(-Math.PI / 2), paint, x, -0.005, 9.5);
   add(new THREE.PlaneGeometry(120, 0.14).rotateX(-Math.PI / 2), paint, 0, -0.005, 3.2);
-  for (let x = -40; x <= 40; x += 4) add(new THREE.PlaneGeometry(1.8, 0.16).rotateX(-Math.PI / 2), paint, x, -0.005, 19);
 
   // ---------- kerb: striped face, light top
   const yel = std(0xf0bf10, { roughness: 0.6 }), blk = std(0x1b1c1e, { roughness: 0.7 }), top = std(0xb9b9b3, { roughness: 0.8 });
@@ -137,8 +136,69 @@ export function buildEntrance3D({ renderer = null } = {}) {
     for (let k = 0; k < 4; k++) palms.push(['fern_02', x + Math.cos(k * 1.6) * 0.15, h - 0.1, z + Math.sin(k * 1.6) * 0.15, k * 1.6 + x, r * 1.4]);
   };
   for (const x of [-27, -20, -14, -8, -1.5, 1.5, 8, 14, 20, 27]) tree(x, WALL_Z - 4.5 - ((x * 13) % 3), 3.6, 1.3);          // atrium trees seen through the glass
-  for (let x = -44; x <= 44; x += 9) tree(x + ((x * 7) % 3), 30 + ((x * 11) % 5), 5, 2.2);                                    // street trees across the road
+  for (let x = -44; x <= 44; x += 9) tree(x + ((x * 7) % 3), 35 + ((x * 11) % 3), 5.5, 2.3);                                    // street trees across the road
   placeProps(g, palms);
+
+  // =================== the road side: median, far carriageway, car park and buildings ===================
+  const canvasTex = (w, h, draw, rx = 1, ry = 1) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; return t; };
+  const grassTex = canvasTex(256, 256, (x) => { x.fillStyle = '#58803f'; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 4200; i++) { x.fillStyle = ['#4a7335', '#66904a', '#6f9a52', '#3f6a2e'][i % 4]; x.globalAlpha = 0.5; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 2 + Math.random() * 3); } }, 40, 40);
+  const grass = std(0xffffff, { roughness: 1, map: grassTex });
+  add(new THREE.PlaneGeometry(260, 200).rotateX(-Math.PI / 2), grass, 0, -0.04, 40);                                  // the ground under everything, so there is never a bare horizon
+  // median: a grass strip with stone edges between the two carriageways
+  const MZ0 = 14.0, MZ1 = 17.2;
+  add(new THREE.BoxGeometry(160, 0.16, MZ1 - MZ0), grass, 0, 0.0, (MZ0 + MZ1) / 2); (g.children[g.children.length - 1].material = std(0xffffff, { roughness: 1, map: grassTex.clone() })).map.repeat.set(60, 2);
+  for (const z of [MZ0, MZ1]) add(new THREE.BoxGeometry(160, 0.2, 0.3), top, 0, 0.08, z);
+  // far carriageway, with a dashed centre line
+  const road2 = std(0xffffff, { roughness: 0.95 }); applyPbr(road2, 'asphalt_02', 24, 24, { normal: 0.8, rough: 1, tint: 0xa9adb1 });
+  add(new THREE.PlaneGeometry(160, 14.4).rotateX(-Math.PI / 2), road2, 0, -0.02, 24.4); rep(road2, 48, 5);
+  for (let x = -76; x <= 76; x += 5) add(new THREE.PlaneGeometry(2.2, 0.16).rotateX(-Math.PI / 2), paint, x, -0.005, 24.4);
+  for (const z of [MZ1 + 0.4, 31.2 - 0.4]) add(new THREE.PlaneGeometry(160, 0.14).rotateX(-Math.PI / 2), paint, 0, -0.005, z);
+  add(new THREE.BoxGeometry(160, 0.2, 0.3), top, 0, 0.08, 31.6);
+  // the far pavement, then a car park of tarmac with bay lines
+  const walk2 = std(0xffffff, { roughness: 0.6 }); applyPbr(walk2, 'large_floor_tiles_02', 40, 4, { normal: 0.5, rough: 0.7, tint: 0xc9cdd0 });
+  add(new THREE.PlaneGeometry(160, 4).rotateX(-Math.PI / 2), walk2, 0, 0.004, 33.8); rep(walk2, 80, 4);
+  const lot = std(0xffffff, { roughness: 1 }); applyPbr(lot, 'asphalt_02', 24, 24, { normal: 0.7, rough: 1, tint: 0x8f9398 });
+  add(new THREE.PlaneGeometry(160, 30).rotateX(-Math.PI / 2), lot, 0, -0.01, 52.8); rep(lot, 48, 10);
+  for (let x = -60; x <= 60; x += 3.1) { add(new THREE.PlaneGeometry(0.1, 5).rotateX(-Math.PI / 2), paint, x, -0.004, 41); add(new THREE.PlaneGeometry(0.1, 5).rotateX(-Math.PI / 2), paint, x, -0.004, 52); }
+
+  // ---------- buildings behind: a multi-storey car park and a glass hotel tower
+  const slabTex = canvasTex(512, 256, (x, w, h) => { x.fillStyle = '#c9c8c2'; x.fillRect(0, 0, w, h); for (let r = 0; r < 4; r++) { x.fillStyle = '#d9d8d2'; x.fillRect(0, r * 64, w, 8); x.fillStyle = '#3d4044'; x.fillRect(0, r * 64 + 14, w, 40); for (let c = 0; c < 16; c++) { x.fillStyle = '#b3b2ac'; x.fillRect(c * 32 + 14, r * 64 + 14, 4, 40); } } }, 3, 1);
+  add(new THREE.BoxGeometry(52, 13, 18), std(0xffffff, { roughness: 0.85, map: slabTex }), 14, 6.5, 66);
+  const glassTex = canvasTex(256, 512, (x, w, h) => { x.fillStyle = '#7fa9c4'; x.fillRect(0, 0, w, h); for (let r = 0; r < 24; r++) for (let c = 0; c < 8; c++) { x.fillStyle = (r * 7 + c * 3) % 5 === 0 ? '#e9f3f7' : '#3f6e8c'; x.fillRect(c * 32 + 3, r * 21 + 3, 26, 15); } }, 1, 1);
+  add(new THREE.BoxGeometry(16, 36, 16), std(0xffffff, { roughness: 0.2, metalness: 0.2, map: glassTex }), -34, 18, 62);
+  add(new THREE.BoxGeometry(30, 16, 14), std(0xdcd8cf, { roughness: 0.8 }), -58, 8, 50);
+
+  // ---------- an overhead sign for DEPARTURES over the near carriageway, and street lamps along the median
+  const signTex = canvasTex(1024, 256, (x, w, h) => { x.fillStyle = '#12306a'; x.fillRect(0, 0, w, h); x.strokeStyle = '#fff'; x.lineWidth = 8; x.strokeRect(10, 10, w - 20, h - 20); x.fillStyle = '#fff'; x.font = 'bold 110px Segoe UI, Arial, sans-serif'; x.fillText('Departures', 60, 150); x.font = 'bold 70px Segoe UI, Arial, sans-serif'; x.fillStyle = '#ffd23f'; x.fillText('Terminal 2', 60, 225); x.fillStyle = '#fff'; x.fillText('\u2192', 860, 190); });
+  for (const x of [-9, 9]) add(new THREE.CylinderGeometry(0.16, 0.2, 7.5, 14), steel, x, 3.75, 8.8);
+  add(new THREE.BoxGeometry(18.4, 0.3, 0.3), steel, 0, 7.4, 8.8);
+  add(new THREE.BoxGeometry(11, 2.4, 0.16), new THREE.MeshBasicMaterial({ map: signTex, toneMapped: false }), 0, 6.1, 8.7);
+  const lampGlow = new THREE.MeshBasicMaterial({ color: 0xfff0cc, toneMapped: false });
+  for (let x = -66; x <= 66; x += 14) { add(new THREE.CylinderGeometry(0.1, 0.15, 8.2, 12), steel, x, 4.1, (MZ0 + MZ1) / 2); add(new THREE.BoxGeometry(3.4, 0.1, 0.1), steel, x + 1.6, 8.1, (MZ0 + MZ1) / 2 - 0.0); add(new THREE.BoxGeometry(0.9, 0.12, 0.35), lampGlow, x + 3.2, 8.0, (MZ0 + MZ1) / 2); add(new THREE.BoxGeometry(3.4, 0.1, 0.1), steel, x - 1.6, 8.1, (MZ0 + MZ1) / 2); add(new THREE.BoxGeometry(0.9, 0.12, 0.35), lampGlow, x - 3.2, 8.0, (MZ0 + MZ1) / 2); }
+
+  // ---------- parked cars in the car park: three instanced meshes, so forty cars cost three draw calls
+  { const N = 44, body = new THREE.InstancedMesh(new THREE.BoxGeometry(1.8, 0.62, 4.2), std(0xffffff, { roughness: 0.35, metalness: 0.4 }), N), cab = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 0.55, 2.2), std(0x1b2430, { roughness: 0.15, metalness: 0.5 }), N), wheels = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 14).rotateZ(Math.PI / 2), std(0x111214, { roughness: 0.9 }), N * 4);
+    const cols = [0xf2f2f0, 0xd7d9dc, 0x23262b, 0x8a1f1f, 0x1d3f7a, 0x9aa0a6, 0xe9e3d4, 0x3d4a3a], M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), Sc = new THREE.Vector3(1, 1, 1), C = new THREE.Color();
+    let n = 0;
+    for (let row = 0; row < 2 && n < N; row++) for (let x = -62; x <= 62 && n < N; x += 3.1) { if (((x * 5 + row * 3) | 0) % 7 === 0) continue; const z = row ? 52 : 41, ry = row ? Math.PI : 0;
+      Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry); M.compose(V.set(x, 0.62, z), Q, Sc); body.setMatrixAt(n, M); M.compose(V.set(x, 1.2, z - 0.2 * Math.cos(ry)), Q, Sc); cab.setMatrixAt(n, M); body.setColorAt(n, C.setHex(cols[n % cols.length]));
+      let k = 0; for (const [dx, dz] of [[-0.86, -1.35], [0.86, -1.35], [-0.86, 1.35], [0.86, 1.35]]) { M.compose(V.set(x + dx, 0.34, z + dz), Q, Sc); wheels.setMatrixAt(n * 4 + k++, M); } n++; }
+    body.count = cab.count = n; wheels.count = n * 4; body.instanceColor.needsUpdate = true; g.add(body, cab, wheels); }
+
+  // ---------- life on the road: real taxis (the Rodin model) driving slowly along the far carriageway, one stopped at the kerb across
+  const movers = [];
+  [[0xf2f2f0, 3.2, 21.2, 1, -50], [0x1d3f7a, 4.4, 27.6, -1, 20], [0x8a1f1f, 2.6, 21.2, 1, 10], [0xd7d9dc, 3.6, 27.6, -1, -40]].forEach(([col, v, z, dir, x0]) => {
+    const car = propGroup('taxi', 2.1, 0, (m) => m.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.set(col); } }));
+    const holder = new THREE.Group(); holder.add(car); car.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2; holder.position.set(x0, 0, z); g.add(holder); movers.push({ holder, v: v * dir });
+  });
+  g.userData.update = (dt) => { for (const m of movers) { m.holder.position.x += m.v * dt; if (m.holder.position.x > 62) m.holder.position.x = -62; if (m.holder.position.x < -62) m.holder.position.x = 62; } };
+
+  // ---------- median planting: ferns and palms between the lamps
+  const median = [];
+  for (let x = -66; x <= 66; x += 4.5) median.push(['fern_02', x, 0.16, (MZ0 + MZ1) / 2 + ((x * 3) % 1) * 0.6, x * 1.3, 1.0]);
+  for (let x = -60; x <= 60; x += 15) { add(new THREE.CylinderGeometry(0.12, 0.2, 5.5, 10), bark, x, 2.75, (MZ0 + MZ1) / 2 + 0.3); for (let k = 0; k < 4; k++) median.push(['fern_02', x + Math.cos(k * 1.6) * 0.15, 5.4, (MZ0 + MZ1) / 2 + 0.3 + Math.sin(k * 1.6) * 0.15, k * 1.6 + x, 2.6]); }
+  placeProps(g, median);
+
   // ---------- soft contact shadows under the columns, planters and bollards
   const T = shadowTextures(), sh = new THREE.MeshBasicMaterial({ map: T.round, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blob = (x, z, r) => { const m = add(flat, sh, x, 0.012, z); m.scale.set(r * 2, 1, r * 2); };

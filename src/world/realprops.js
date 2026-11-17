@@ -10,10 +10,16 @@ export function placeProps(group, items, envMap = null) {
   const holder = new THREE.Group(); holder.name = 'RealProps'; group.add(holder);
   for (const n of new Set(items.map((i) => i[0]))) load(n).then((scene) => {
     if (!scene) return;
-    for (const [name, x, y, z, ry, s] of items) {
+    const tints = {};      // one material per tint colour, shared by every copy
+    for (const [name, x, y, z, ry, s, tint] of items) {
       if (name !== n) continue;
       const m = scene.clone(true); m.position.set(x, y, z); m.rotation.y = ry; m.scale.setScalar(s);
-      m.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = true; if (envMap && o.material) o.material.envMapIntensity = 0.8; } });
+      m.traverse((o) => {
+        if (!o.isMesh) return;
+        o.castShadow = false; o.frustumCulled = true;
+        if (tint !== undefined && o.material?.name === 'Body tint') o.material = (tints[tint] ??= Object.assign(o.material.clone(), { color: new THREE.Color(tint) }));
+        if (envMap && o.material) o.material.envMapIntensity = 0.8;
+      });
       holder.add(m);
     }
   });

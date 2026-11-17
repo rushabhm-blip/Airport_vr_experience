@@ -153,10 +153,12 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   { const ring = skylineRing(56, 24); ring.position.z = -22; g.add(ring); }
   P.shop(-16, 21.6, -1, 8, 'CAFE', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']); P.shop(0, 21.6, -1, 8, 'NEWS & BOOKS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(16, 21.6, -1, 8, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']);
   for (const z of [4, 10, 16]) { P.lightbox(-25.88, 3.4, z, Math.PI / 2, 4.6, 1.7, ['Fly Practice Air', 'Visit Kerala', 'Meet the Taj'][(z / 6) | 0 ? 0 : 1], 'Book at practiceair.example', '#15305a', '#12a3a1'); P.lightbox(25.88, 3.4, z, -Math.PI / 2, 4.6, 1.7, ['Discover Goa', 'Welcome Aboard', 'Fly Calm'][((z / 6) | 0) % 3], 'Your journey starts here', '#c0392b', '#e0a030'); }
-  P.clock(0, 6.0, 21.8, Math.PI); P.gateSign(-10, 5.2, -4.5, 'GATE 12  \u2192', 0, vy(-10)); P.gateSign(11, 5.2, -4.5, 'GATE 18  \u2190', 0, vy(11));
+  const shop = [];
+  shop.push(['shop-clock', 0, 6.0, 21.8, Math.PI, 1]); P.gateSign(-10, 5.2, -4.5, 'GATE 12  \u2192', 0, vy(-10)); P.gateSign(11, 5.2, -4.5, 'GATE 18  \u2190', 0, vy(11));
   for (const bx of [-22, -12, 6, 16]) P.charger(bx + 8 * 0.28, 3.55);
-  for (const [cx, cz] of [[-20, -3], [-8, -3], [8, -3], [20, -3], [-20, 10], [-8, 10], [8, 10], [20, 10]]) P.bin(cx + 1.2, cz + 0.3);
-  for (const z of [8, 9.2, 10.4]) P.vending(25.2, z, -Math.PI / 2, [0xd63a3a, 0x2c6bd0, 0x1f8a70][((z - 8) / 1.2) | 0]);
+  for (const [cx, cz] of [[-20, -3], [-8, -3], [8, -3], [20, -3], [-20, 10], [-8, 10], [8, 10], [20, 10]]) shop.push(['shop-bin', cx + 1.2, 0, cz + 0.3, 0, 1]);
+  for (const z of [8, 9.2, 10.4]) shop.push(['shop-vending', 25.2, 0, z, -Math.PI / 2, 1, [0xd63a3a, 0x2c6bd0, 0x1f8a70][((z - 8) / 1.2) | 0]]);
+  placeProps(g, shop, envMap);
   P.play(19.5, 17.5);
 
   const solid = blockersFrom(static_, 0.18);

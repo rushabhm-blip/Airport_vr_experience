@@ -189,11 +189,13 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   P.shop(-20, 25.6, -1, 9, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']); P.shop(-8, 25.6, -1, 9, 'CAFE & BAKERY', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']);
   P.shop(8, 25.6, -1, 9, 'BOOKS & GIFTS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(20, 25.6, -1, 9, 'PHARMACY', 0x2f8a3f, ['#ffffff', '#7bbf6a', '#5a8fd0', '#e0e0e0']);
   P.lightbox(-14, 7.3, 25.85, Math.PI, 7, 2.1, 'Fly Practice Air', 'Mumbai · Delhi · Chennai', '#15305a', '#12a3a1'); P.lightbox(0, 7.3, 25.85, Math.PI, 7, 2.1, 'Discover India', 'Your journey starts here', '#c0392b', '#e0a030'); P.lightbox(14, 7.3, 25.85, Math.PI, 7, 2.1, 'Welcome Aboard', 'Calm. Clear. Cared for.', '#2c5aa0', '#7de0ff');
-  P.clock(-4, 7.0, 25.8, Math.PI); P.clock(4, 7.0, 25.8, Math.PI);
+  const shop = [];
+  real.push(['shop-clock', -4, 7.0, 25.8, Math.PI, 1], ['shop-clock', 4, 7.0, 25.8, Math.PI, 1]);
   for (let i = 0; i < 4; i++) { real.push(['kiosk', 8 + i * 1.25, 0, -4.2, window.__kry ?? 0, 0.85], ['kiosk', -8 - i * 1.25, 0, -4.2, window.__kry ?? 0, 0.85]); }
   const realHolder = placeProps(g, real.concat(counters), envMap);
-  for (const cx of [-15, 15]) for (const cz of [-16, -4, 8, 20]) P.bin(cx - 1.6, cz + 0.4);
-  for (const z of [13, 14.3]) { P.vending(-29.2, z, Math.PI / 2, z === 13 ? 0xd63a3a : 0x2c6bd0); P.vending(29.2, z, -Math.PI / 2, z === 13 ? 0x2c6bd0 : 0x1f8a70); }
+  for (const cx of [-15, 15]) for (const cz of [-16, -4, 8, 20]) shop.push(['shop-bin', cx - 1.6, 0, cz + 0.4, 0, 1]);
+  for (const z of [13, 14.3]) { shop.push(['shop-vending', -29.2, 0, z, Math.PI / 2, 1, z === 13 ? 0xd63a3a : 0x2c6bd0], ['shop-vending', 29.2, 0, z, -Math.PI / 2, 1, z === 13 ? 0x2c6bd0 : 0x1f8a70]); }
+  placeProps(g, shop, envMap);
   P.lightbox(-29.88, 4.2, -2, Math.PI / 2, 5, 1.8, 'Lounge', 'Level 2', '#15305a', '#35c6c2'); P.lightbox(-29.88, 4.2, 8, Math.PI / 2, 5, 1.8, 'Wi-Fi Free', 'Practice-Air-Guest', '#7a1f2b', '#d97b3c');
 
   const solid = blockersFrom(static_, 0.18);                 // what people must walk round, measured before the shapes are merged

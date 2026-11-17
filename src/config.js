@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-18 · v92 · body-language clips (phone, talking, clasped, crossed, watch, seated)';
+export const BUILD = '2026-11-18 · v93 · no bindi dots, much higher people detail (2048 faces, 2x geometry), fixed crew body';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

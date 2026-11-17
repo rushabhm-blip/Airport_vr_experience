@@ -34,8 +34,7 @@ export function makeAccessories(model) {
   const hit = (x, y, only = null) => { rc.set(new THREE.Vector3(x, y, 0.8), new THREE.Vector3(0, 0, -1)); for (const h of rc.intersectObjects(skins, false)) { const mt = Array.isArray(h.object.material) ? h.object.material[h.face.materialIndex] : h.object.material, n = mt?.name || ''; if (only ? n === only : !SKIP.test(n)) return h.point.z; } return null; };
   const mk = (geo, bn, mat) => { const b = bone(bn); if (!b) return null; geo.applyMatrix4(rest(b)); const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.visible = false; m.castShadow = false; b.add(m); return m; };
   const out = {};
-  // bindi on the forehead
-  const zf = hit(0, 1.503, 'Skin') ?? 0.105; out.bindi = mk(new THREE.CircleGeometry(0.0065, 12).translate(0, 1.503, zf + 0.0012), 'Head', new THREE.MeshStandardMaterial({ color: 0xb01020, roughness: 0.6 }));
+  out.bindi = null;      // no forehead dot on anyone
   // spectacles: two thin rims and a bridge in front of the eyes
   const rim = (x) => new THREE.TorusGeometry(0.0135, 0.0012, 6, 18).translate(x, 1.474, 0.137);
   out.glasses = mk(mergeGeometries([rim(0.028), rim(-0.028), new THREE.BoxGeometry(0.014, 0.002, 0.002).translate(0, 1.478, 0.137), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(0.0415, 1.474, 0.102), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(-0.0415, 1.474, 0.102)]), 'Head', new THREE.MeshStandardMaterial({ color: 0x2a2623, roughness: 0.4, metalness: 0.4 }));
@@ -99,6 +98,29 @@ export function loadAnims() {
   return animsP;
 }
 
+/** A fine, tiling skin-pore / micro-relief normal map, so skin keeps detail when you are close. */
+let skinDetailTex = null;
+export function skinDetail() {
+  if (skinDetailTex) return skinDetailTex;
+  const N = 256, h = new Float32Array(N * N); let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (const [cell, amp] of [[2, 0.5], [4, 0.35], [8, 0.2], [16, 0.12]]) {          // value noise at several scales, wrapped so it tiles
+    const g = new Float32Array(cell * cell).map(() => rnd());
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const fx = (x / N) * cell, fy = (y / N) * cell, x0 = Math.floor(fx) % cell, y0 = Math.floor(fy) % cell, x1 = (x0 + 1) % cell, y1 = (y0 + 1) % cell, tx = fx - Math.floor(fx), ty = fy - Math.floor(fy);
+      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      h[y * N + x] += amp * ((g[y0 * cell + x0] * (1 - sx) + g[y0 * cell + x1] * sx) * (1 - sy) + (g[y1 * cell + x0] * (1 - sx) + g[y1 * cell + x1] * sx) * sy);
+    }
+  }
+  for (let i = 0; i < h.length; i++) h[i] += 0.18 * rnd();                                  // fine pore speckle
+  const c = document.createElement('canvas'); c.width = c.height = N; const x2 = c.getContext('2d'), img = x2.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = h[y * N + ((x + 1) % N)] - h[y * N + ((x + N - 1) % N)], dy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x], l = Math.hypot(dx * 3, dy * 3, 1), i = (y * N + x) * 4;
+    img.data[i] = (-dx * 3 / l * 0.5 + 0.5) * 255; img.data[i + 1] = (-dy * 3 / l * 0.5 + 0.5) * 255; img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
+  }
+  x2.putImageData(img, 0, 0); skinDetailTex = new THREE.CanvasTexture(c); skinDetailTex.wrapS = skinDetailTex.wrapT = THREE.RepeatWrapping; skinDetailTex.repeat.set(10, 10); skinDetailTex.anisotropy = 4;
+  return skinDetailTex;
+}
+
 let cache = null;
 export function loadGlbPeople() {
   if (cache) return cache;
@@ -156,7 +178,8 @@ export class GlbPeople {
 
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
-    tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 1.0); if (m['Skin body']) m['Skin body'].color.set(SKIN_TONES[p.skinIdx ?? 2]);
+    tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 0.9); if (m['Skin body']) m['Skin body'].color.set(SKIN_TONES[p.skinIdx ?? 2]);
+    if (e.tier === 'near' && !m.Skin.normalMap) { m.Skin.normalMap = skinDetail(); m.Skin.normalScale.set(0.45, 0.45); m.Skin.needsUpdate = true; }
     if (m.Hair) softenHair(m.Hair);
     if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.1 : 1);
     if (m.Beard) tint(m.Beard, HAIR_TONES[p.hairIdx ?? 0], 1);
@@ -270,7 +293,7 @@ export class GlbPeople {
 const STAFF_LOOK = { checkin: [0xa56b44, true], crew: [0xb67e53, true], security: [0x935c3a, true], gate: [0xa56b44, false], guard: [0x7e4d2e, false], driver: [0x935c3a, false] };
 export function indianiseStaff(model, kind) {
   const look = STAFF_LOOK[kind]; if (!look) return null;
-  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') tint(m, look[0]); else if (m.name === 'Skin body') m.color.set(look[0]); else if (m.name === 'Hair') { softenHair(m); tint(m, 0x0e0b09); } else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
+  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') { tint(m, look[0]); if (!m.normalMap) { m.normalMap = skinDetail(); m.normalScale.set(0.45, 0.45); m.needsUpdate = true; } } else if (m.name === 'Skin body') m.color.set(look[0]); else if (m.name === 'Hair') { softenHair(m); tint(m, 0x0e0b09); } else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
   const acc = makeAccessories(model);
   if (acc.bindi) acc.bindi.visible = look[1]; for (const k of ['bangleL', 'bangleR']) if (acc[k]) acc[k].visible = look[1];
   if (acc.sash) acc.sash.visible = false; if (acc.glasses) acc.glasses.visible = false;

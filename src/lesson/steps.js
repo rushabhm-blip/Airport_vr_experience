@@ -1046,7 +1046,7 @@ function kerbRail(d, z) { for (const s of [-1, 1]) { const m = new THREE.Mesh(ne
 
 /** Travellers on the forecourt in front of the terminal: arriving with trolleys and bags, heading for the doors, standing in groups. */
 function forecourtCrowd(d, seed = 31, zShift = 0) {
-  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5, mid: { size: 6, radius: 9 } } : { size: 6, radius: 6, mid: { size: 18, radius: 15 } } }), rr = c.rng;
+  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5, mid: { size: 6, radius: 9 } } : { size: 8, radius: 7, mid: { size: 24, radius: 15 } } }), rr = c.rng;
   c.walker([[5.5, -0.7], [15, -0.7], [5.5, -0.9], [-14, -0.8]], { speed: 1.2, bag: 'roll' });
   c.walker([[-6, -0.8], [-15, -0.8], [8, -0.7]], { speed: 1.1, bag: 'pack', elder: true });
   c.trolley([[9, 3.2], [3.2, -0.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });

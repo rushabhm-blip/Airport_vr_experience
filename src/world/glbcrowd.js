@@ -15,7 +15,7 @@ const OPTIONAL = new Set(['saree-woman', 'kameez-woman', 'kurta-man']);      // 
 const KURTA = [0xf1ead8, 0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0x3d4f91, 0xf6f3ea, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xd98c2f, 0xc9a24a, 0x7a3b69];
 const PYJAMA = [0xf6f3ea, 0xe9d9b5, 0xf1ead8, 0x2b3040, 0xe9e4da];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
-const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xe0b48e, 0xeec7a3, 0xd6a478];
+const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xdcae86, 0xe0b48e, 0xd09a6a];
 const HAIR_TONES = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
 const CLOTH = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
 const DRESS = [0xa3223a, 0x1f7a5c, 0x1e4fa0, 0xe0a030, 0x8e2a6e, 0xc94f7c, 0x0f7f86, 0xd9641c, 0x5b3a8c, 0xf1e8d0, 0xb4472b, 0x2c7a3f];
@@ -92,6 +92,13 @@ export function softenHair(mat, keep = 0.3) {
   mat.map = tex; mat.userData.avg = undefined; mat.needsUpdate = true;
 }
 
+/** Extra body-language clips (phone, talking, hands clasped, arms crossed, watch, sitting), authored on the same skeleton so they play on every body. */
+let animsP = null;
+export function loadAnims() {
+  animsP ??= new GLTFLoader().loadAsync(new URL('../../assets/people/anims.glb', import.meta.url).href).then((g) => Object.fromEntries(g.animations.map((a) => [a.name, a]))).catch(() => null);
+  return animsP;
+}
+
 let cache = null;
 export function loadGlbPeople() {
   if (cache) return cache;
@@ -118,7 +125,7 @@ export const tint = (mat, hex, boost = 1) => {
 export class GlbPeople {
   constructor(parent, { size = 12, radius = 9, mid = null, sarees = 2 } = {}) {
     this.group = new THREE.Group(); this.group.name = 'GlbPeople'; parent.add(this.group);
-    this.size = size; this.radius = radius; this.mid = mid; this.sarees = sarees; this.entries = []; this.ready = false; this.bound = new Map();
+    this.size = size; this.radius = radius; this.mid = mid; this.sarees = sarees; this.anims = null; loadAnims().then((a) => { this.anims = a; }); this.entries = []; this.ready = false; this.bound = new Map();
     loadGlbPeople().then((sets) => { if (!sets || this.disposed) return; this._build(sets.lite, this.size, 'near', this.sarees); if (this.mid && sets.mid) this._build(sets.mid, this.mid.size, 'mid', this.mid.sarees ?? 4); this.ready = true; });
   }
 
@@ -130,13 +137,20 @@ export class GlbPeople {
       const model = cloneSkinned(g.scene);
       model.traverse((o) => { if (o.isMesh) { o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); o.frustumCulled = false; o.castShadow = false; } });
       const acc = tier === 'near' ? makeAccessories(model) : null;
+      let phone = null; const rh = model.getObjectByName('RightHand');
+      if (tier === 'near' && rh) {          // a phone that appears in the right hand during the phone posture
+        phone = new THREE.Group(); phone.visible = false;
+        const pb = new THREE.Mesh(new THREE.BoxGeometry(0.074, 0.152, 0.009), new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.3 }));
+        const ps = new THREE.Mesh(new THREE.PlaneGeometry(0.066, 0.140), new THREE.MeshBasicMaterial({ color: 0x8fc0ff, toneMapped: false })); ps.position.z = 0.0052;
+        phone.add(pb, ps); phone.position.set(...(window.__phPos ?? [0.0, 0.045, 0.02])); phone.rotation.set(...(window.__phRot ?? [0, 0, 0])); rh.add(phone);
+      }
       const box = new THREE.Box3().setFromObject(model), h = box.max.y - box.min.y;
       const root = new THREE.Group(); root.add(model); model.scale.setScalar(1.74 / h); root.visible = false; this.group.add(root);
       const mixer = new THREE.AnimationMixer(model), idle = g.animations.find((a) => a.name === 'Idle'), walk = g.animations.find((a) => a.name === 'Walk');
       const aI = mixer.clipAction(idle).play(), aW = walk ? mixer.clipAction(walk).play() : null; aI.setEffectiveWeight(1); aW?.setEffectiveWeight(0);      // the saree body has no walk: sarees stand, queue and gesture
       const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: name === 'saree-woman' ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: name === 'saree-woman' ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
   }
 
@@ -177,16 +191,16 @@ export class GlbPeople {
     const Rn = this.radius, Rm = this.mid ? Math.max(this.mid.radius, Rn) : Rn, far = (Rm + 1.5) ** 2;
     for (const [p, e] of [...this.bound]) {                                           // release those that left, sat down or are gone
       const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2;
-      if (d2 > far || p.mode === 'sit' || (e.kind === 'saree' && p.stride > 0.05)) { e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
+      if (d2 > far || (p.mode === 'sit' && !(this.anims && e.tier === 'near')) || (e.kind === 'saree' && p.stride > 0.05)) { e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
     }
-    const want = []; for (const p of people) { if (p.mode === 'sit') continue; const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2; if (d2 < far) want.push([d2, p]); }
+    const want = []; for (const p of people) { if (p.mode === 'sit' && !this.anims) continue; const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2; if (d2 < far) want.push([d2, p]); }
     want.sort((a, b) => a[0] - b[0]);
     let nNear = 0, nMid = 0;
     for (const [d2, p] of want) {
       const was = p.glb?.tier, hy = (t) => (was === t ? 1.2 : 0);
       let tier = null;
       if (nNear < this.size && d2 < (Rn + hy('near')) ** 2) { tier = 'near'; nNear++; }
-      else if (this.mid && nMid < this.mid.size && d2 < (Rm + hy('mid')) ** 2) { tier = 'mid'; nMid++; }
+      else if (this.mid && p.mode !== 'sit' && nMid < this.mid.size && d2 < (Rm + hy('mid')) ** 2) { tier = 'mid'; nMid++; }
       if (was && was !== tier) { const e = p.glb; e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
       if (!tier || p.glb) continue;
       const pool = this.entries.filter((e) => !e.who && e.tier === tier), still = p.female && p.dress && p.stride < 0.05 && (p.mode === 'idle' || p.mode === 'queue');
@@ -199,13 +213,31 @@ export class GlbPeople {
     for (const [p, e] of this.bound) {
       const s = p.scale * (p.child ? 1 : 1), wide = e.root.userData.wide ?? 1;
       e.root.position.set(p.x, p.y, p.z); e.root.rotation.y = p.yaw; e.root.scale.set(s * wide, s, s * (0.96 + (wide - 0.92) * 0.4));
-      const moving = p.stride > 0.05, k = Math.min(1, dt * 6);
-      if (e.aW) { e.wW += ((moving ? 1 : 0) - e.wW) * k; e.wI = 1 - e.wW; e.aW.setEffectiveWeight(e.wW); } e.aI.setEffectiveWeight(Math.max(0.001, e.wI));
+      const moving = p.stride > 0.05, k = Math.min(1, dt * 6), wantClip = this._clipFor(e, p, moving);
+      // posture clips (phone, talking, hands clasped...) fade in over the plain idle; a change of posture fades out first, then the next fades in
+      if (e.alt && wantClip !== e.altName) { e.wA += (0 - e.wA) * k; if (e.wA < 0.04) { e.alt.stop(); e.alt = null; e.altName = null; e.wA = 0; } }
+      if (!e.alt && wantClip && this.anims?.[wantClip]) { e.alt = e.mixer.clipAction(this.anims[wantClip]); e.alt.reset().play(); e.alt.setEffectiveWeight(0.001); e.altName = wantClip; }
+      if (e.alt && e.altName === wantClip) e.wA += (1 - e.wA) * k;
+      if (e.aW) { e.wW += ((moving ? 1 : 0) - e.wW) * k; e.aW.setEffectiveWeight(e.wW); }
+      e.alt?.setEffectiveWeight(Math.max(0.001, e.wA));
+      if (e.phone) e.phone.visible = e.altName === 'Phone' && e.wA > 0.5;
+      e.wI = Math.max(0.001, 1 - e.wW - e.wA); e.aI.setEffectiveWeight(e.wI);
       e.aW?.setEffectiveTimeScale(Math.max(0.55, Math.min(1.5, (p.vNow || 0.7) / 0.95))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
       e.mixer.update(dt);
       if (e.tier === 'near') this._life(e, p, dt);
       if (p.bag === 'roll' && e.bones.arm) { const a = window.__arm ?? [-0.75, 0, 0.42], f = window.__fore ?? [0.25, 0, 0]; this._hold(e.bones.arm, a); this._hold(e.bones.fore, f); }     // the right hand takes the suitcase handle, held low and a little behind
     }
+  }
+
+  /** Which posture clip this person should be in right now (null = the plain idle). */
+  _clipFor(e, p, moving) {
+    if (moving || !this.anims) return null;
+    if (p.mode === 'sit') return 'Sit';
+    if (p.pose === 'phone') return 'Phone';
+    if (p.pose === 'talk') return 'Talk';
+    const v = (p.seedA >>> 9) % 10;
+    if (e.kind === 'saree') return v < 3 ? 'Clasp' : null;
+    return v < 2 ? 'Clasp' : v === 2 ? 'Cross' : v === 3 ? 'Watch' : null;
   }
 
   /** Small human details on top of the animation: breathing, a slow weight shift, and head glances (towards you when you are close and in front of them, otherwise a casual look round). */

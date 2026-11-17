@@ -742,7 +742,7 @@ const seat = (d) => {
         const plate = labelSurface('Row ' + num, { w: 0.5, px: 520 }); plate.mesh.userData.noMerge = true; plate.mesh.position.set(0, 2.05, z + 0.45); W.add(plate.mesh); d.track(plate, false);
       });
       // the other passengers, already seated: bags stowed, some on their phones, some asleep with their heads back
-      pax = new Crowd({ capacity: 30, seed: 5, density: d.app.xrPresenting ? 0.69 : 1 }); W.add(pax.group);
+      pax = new Crowd({ capacity: 30, seed: 5, density: d.app.xrPresenting ? 0.69 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 4, sarees: 0 } : { size: 6, radius: 5, sarees: 0 } }); W.add(pax.group);
       ROWS.forEach((num, k) => { for (const sd of [-1, 1]) for (let idx = 0; idx < 3; idx++) {
         if (k === TARGET && sd === -1 && idx === 2) continue;                      // seat 14A is yours
         if (pax.rng() < 0.28) continue;

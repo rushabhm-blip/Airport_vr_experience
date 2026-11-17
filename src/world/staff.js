@@ -5,7 +5,7 @@ import { Surface } from '../ui/surface.js';
 import { COLORS } from '../config.js';
 import { FONT, roundRect } from '../util.js';
 import { cloneSkinned } from '../assets.js';
-import { indianiseStaff } from './glbcrowd.js';
+import { indianiseStaff, loadAnims } from './glbcrowd.js';
 
 const HEIGHT = { checkin: 1.66, security: 1.76, gate: 1.66, crew: 1.66, guard: 1.76, driver: 1.72 };
 
@@ -68,7 +68,8 @@ export class Staff {
     this.mixer = new THREE.AnimationMixer(model);
     this.clips = clips;
     const idle = (this.wantClip && clips.find((c) => this.wantClip.test(c.name))) || clips.find((c) => /idle|stand|breath/i.test(c.name)) || clips[0];
-    if (idle) this.mixer.clipAction(idle).play();
+    if (idle) { this.idleAction = this.mixer.clipAction(idle); this.idleAction.play(); }
+    if (this.kind !== 'driver') loadAnims().then((a) => { this.anims = a; });      // body language: a talking gesture while the person is saying something
     model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = true; } if (/^(head|Head)$/.test(o.name) || /mixamorigHead$/.test(o.name)) this.headBone = o; if (o.morphTargetDictionary) { const k = Object.keys(o.morphTargetDictionary).find((n) => /blink|eyesClosed|eyeBlink/i.test(n)); if (k) (this.blinkTargets ||= []).push([o, o.morphTargetDictionary[k]]); } });
     const hit = new THREE.Mesh(new THREE.BoxGeometry(0.6, h, 0.4).translate(0, h / 2, 0), new THREE.MeshBasicMaterial({ visible: false }));
     this.body = hit; this.root.add(hit);
@@ -85,6 +86,14 @@ export class Staff {
 
   /** Character path of update(): subtle blinking, a body turn only when you are well off to the side, head attention within limits. */
   _updateCharacter(dt, dx, dz, pyaw) {
+    if (this.anims?.Talk && this.idleAction) {
+      const speaking = !!this.bubble;
+      if (speaking && !this.talk) { this.talk = this.mixer.clipAction(this.anims.Talk); this.talk.reset().play(); this.talk.setEffectiveWeight(0.001); this.wT = 0; }
+      if (this.talk) {
+        this.wT += ((speaking ? 1 : 0) - this.wT) * Math.min(1, dt * 3.5); this.talk.setEffectiveWeight(Math.max(0.001, this.wT)); this.idleAction.setEffectiveWeight(Math.max(0.001, 1 - this.wT));
+        if (!speaking && this.wT < 0.03) { this.talk.stop(); this.talk = null; this.idleAction.setEffectiveWeight(1); }
+      }
+    }
     this.mixer?.update(dt);
     const want = Math.atan2(dx, dz) - pyaw;
     if (this._faced === undefined) { this.bodyYaw = want; this._faced = true; }     // start by facing you, then turn only deliberately

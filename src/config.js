@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-17 · v79 · people walk round walls and objects, you carry your bag from the cab, trolley off the kerb';
+export const BUILD = '2026-11-17 · v80 · boarding pass card sits in front of the printer';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

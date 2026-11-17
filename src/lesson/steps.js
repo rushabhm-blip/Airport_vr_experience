@@ -306,7 +306,7 @@ const checkin = (d) => {
     showCard() {
       if (card) return;
       card = passCard(); card.onSelect = (k) => this.cardTap(k);
-      d.addSurface(card, { pos: [0.36, d.h + 0.0, -0.9], ry: faceUser(0.36, -0.9), follow: { yaw: -0.42, dist: 1.4, scale: 0.8, dy: -0.02 } });
+      d.addSurface(card, { pos: [0.36, d.h + 0.0, -0.9], ry: faceUser(0.36, -0.9), follow: { yaw: -0.3, dist: 0.85, scale: 0.55, dy: 0.02 } });
       card.setState({ highlight: 'name', done: taps });
     },
     cardTap(k) {

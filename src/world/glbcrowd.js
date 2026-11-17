@@ -10,7 +10,10 @@ import { cloneSkinned } from '../assets.js';
  */
 const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
-const FEMALE = ['checkin', 'crew', 'security'], MALE = ['driver', 'gate', 'guard'];
+const FEMALE = ['checkin', 'crew', 'security', 'kameez-woman'], MALE = ['driver', 'gate', 'guard', 'kurta-man'];
+const OPTIONAL = new Set(['saree-woman', 'kameez-woman', 'kurta-man']);      // newer bodies: if a file is missing the crowd simply uses the others
+const KURTA = [0xf1ead8, 0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0x3d4f91, 0xf6f3ea, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xd98c2f, 0xc9a24a, 0x7a3b69];
+const PYJAMA = [0xf6f3ea, 0xe9d9b5, 0xf1ead8, 0x2b3040, 0xe9e4da];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
 const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xe0b48e, 0xeec7a3, 0xd6a478];
 const HAIR_TONES = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
@@ -69,10 +72,30 @@ function loadSareeTextures() {
   return sareeTex;
 }
 
+/**
+ * The hair texture is a card atlas with pale highlights and dark roots. Tinted dark, that contrast shows up as stripes (cornrows) on the scalp.
+ * This pulls every pixel most of the way to the texture's average colour (keeping the alpha shape), so the hair stays dark with soft strands.
+ */
+const softHair = new WeakMap();
+export function softenHair(mat, keep = 0.3) {
+  const img = mat.map?.image; if (!img || mat.userData.soft) return; mat.userData.soft = true;
+  let tex = softHair.get(img);
+  if (!tex) {
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, 512, 512);
+      const d = x.getImageData(0, 0, 512, 512), px = d.data; let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < px.length; i += 4) if (px[i + 3] > 128) { r += px[i]; g += px[i + 1]; b += px[i + 2]; n++; }
+      if (n) { r /= n; g /= n; b /= n; for (let i = 0; i < px.length; i += 4) { px[i] = px[i] * keep + r * (1 - keep); px[i + 1] = px[i + 1] * keep + g * (1 - keep); px[i + 2] = px[i + 2] * keep + b * (1 - keep); } }
+      x.putImageData(d, 0, 0); tex = new THREE.CanvasTexture(c); tex.flipY = mat.map.flipY; tex.colorSpace = mat.map.colorSpace; tex.anisotropy = 4; softHair.set(img, tex);
+    } catch { return; }
+  }
+  mat.map = tex; mat.userData.avg = undefined; mat.needsUpdate = true;
+}
+
 let cache = null;
 export function loadGlbPeople() {
   if (cache) return cache;
-  const load = (base, suffix) => Promise.all([...FEMALE, ...MALE, 'saree-woman'].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]).catch((e) => (n === 'saree-woman' ? [n, null] : Promise.reject(e))))).then((list) => Object.fromEntries(list)).catch(() => null);      // the saree body is optional
+  const load = (base, suffix) => Promise.all([...new Set([...FEMALE, ...MALE, 'saree-woman'])].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]).catch((e) => (OPTIONAL.has(n) ? [n, null] : Promise.reject(e))))).then((list) => Object.fromEntries(list)).catch(() => null);      // the saree body is optional
   cache = Promise.all([load(BASE, '-lite.glb'), load(BASE_MID, '-mid.glb')]).then(([lite, mid]) => (lite ? { lite, mid } : null));     // the close-up set, and a lighter set for the next ring out
   return cache;
 }
@@ -100,7 +123,7 @@ export class GlbPeople {
   }
 
   _build(models, count, tier, sarees = 0) {
-    const list = Array.from({ length: count }, (_, i) => (i < count / 2 ? FEMALE[i % 3] : MALE[i % 3]));
+    const list = Array.from({ length: count }, (_, i) => (i < count / 2 ? FEMALE[i % FEMALE.length] : MALE[i % MALE.length])).map((n) => (models[n] ? n : (FEMALE.includes(n) ? 'checkin' : 'gate')));
     if (models['saree-woman']) for (let i = 0; i < sarees; i++) list.push('saree-woman');
     for (const name of list) {
       const g = models[name];
@@ -120,9 +143,11 @@ export class GlbPeople {
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
     tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 1.0); if (m['Skin body']) m['Skin body'].color.set(SKIN_TONES[p.skinIdx ?? 2]);
+    if (m.Hair) softenHair(m.Hair);
     if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.1 : 1);
     if (m.Beard) tint(m.Beard, HAIR_TONES[p.hairIdx ?? 0], 1);
     const cloth = p.female ? r(DRESS, 1) : r(CLOTH, 1);
+    if (m.Kurta && e.kind !== 'saree') { tint(m.Kurta, p.female ? r(DRESS, 1) : r(KURTA, 1)); if (m.Trousers) tint(m.Trousers, p.female ? r(DRESS, 2) : r(PYJAMA, 2)); }
     if (m.Outfit) tint(m.Outfit, p.female ? cloth : (e.name === 'gate' ? r([0x22303f, 0x3a3f4c, 0x57534b, 0x6b5a45, 0x2a2a2a, 0x41556b], 3) : cloth));
     if (m['Uniform shirt']) tint(m['Uniform shirt'], cloth);
     if (m['Uniform trousers']) tint(m['Uniform trousers'], r(TROUSER, 2));
@@ -213,7 +238,7 @@ export class GlbPeople {
 const STAFF_LOOK = { checkin: [0xa56b44, true], crew: [0xb67e53, true], security: [0x935c3a, true], gate: [0xa56b44, false], guard: [0x7e4d2e, false], driver: [0x935c3a, false] };
 export function indianiseStaff(model, kind) {
   const look = STAFF_LOOK[kind]; if (!look) return null;
-  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') tint(m, look[0]); else if (m.name === 'Skin body') m.color.set(look[0]); else if (m.name === 'Hair') tint(m, 0x0e0b09); else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
+  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') tint(m, look[0]); else if (m.name === 'Skin body') m.color.set(look[0]); else if (m.name === 'Hair') { softenHair(m); tint(m, 0x0e0b09); } else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
   const acc = makeAccessories(model);
   if (acc.bindi) acc.bindi.visible = look[1]; for (const k of ['bangleL', 'bangleR']) if (acc[k]) acc[k].visible = look[1];
   if (acc.sash) acc.sash.visible = false; if (acc.glasses) acc.glasses.visible = false;

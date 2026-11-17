@@ -68,15 +68,12 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   }
 
   // ---- check-in islands: back-to-back counters, a navy and teal canopy over each, and queue stanchions in front
+  const counters = [];
   const island = (cx, cz, n) => {
     const len = n * 1.9;
     for (const side of [-1, 1]) for (let i = 0; i < n; i++) {
       const x = cx - len / 2 + 0.95 + i * 1.9, z = cz + side * 0.95;
-      add(new THREE.BoxGeometry(1.8, 1.0, 0.7), white, x, 0.5, z);
-      add(new THREE.BoxGeometry(1.84, 0.05, 0.78), dark, x, 1.03, z);
-      add(new THREE.BoxGeometry(1.82, 0.05, 0.72), teal, x, 0.72, z);
-      add(new THREE.BoxGeometry(0.5, 0.32, 0.04), dark, x, 1.5, z + side * 0.05, 0, 0, 0);
-      add(new THREE.BoxGeometry(0.05, 0.4, 0.05), steel, x, 1.25, z + side * 0.05);
+      counters.push(['checkin_counter', x, 0, z, side > 0 ? (window.__cry ?? 0) : (window.__cry ?? 0) + Math.PI, 0.98]);
     }
     add(new THREE.BoxGeometry(len + 0.4, 0.5, 3.6), navy, cx, 5.0, cz);              // canopy
     add(new THREE.BoxGeometry(len + 0.42, 0.14, 3.62), teal, cx, 4.68, cz);
@@ -174,7 +171,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   for (const cx of [-15, 15]) for (const cz of [-28, -16, -4, 8, 20]) RL.blob(cx, cz, 1.7);
   for (const [cx, cz] of [[-18, -24], [0, -24], [18, -24], [-18, -10], [18, -10]]) {
     RL.slab(cx, cz, 12.8, 4.6);
-    for (let i = 0; i < 6; i++) { const x = cx - 4.75 + 1.9 * i; RL.belt(x, cz + 1.62, 1); RL.belt(x, cz - 1.62, -1); }
+
   }
   RL.slab(11.2, -4.2, 6.4, 1.2); RL.slab(-11.2, -4.2, 6.4, 1.2); RL.slab(0, 15, 5.8, 2.0); RL.slab(-4.5, 19, 6.2, 1.4);
   for (const x of [-20, -8, 8, 20]) RL.slab(x, 24.4, 9.6, 3.8);
@@ -187,7 +184,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   RL.exit(-27.4, 7.0, 24.6, Math.PI); RL.exit(27.4, 7.0, 24.6, Math.PI); RL.exit(-20, 7.4, -31.5, 0); RL.exit(20, 7.4, -31.5, 0);
   RL.door(-27.5, 25.9, -1, 2.2); RL.door(27.5, 25.9, -1, 2.2); RL.extinguisher(-25.6, 1.3, 25.78, Math.PI); RL.extinguisher(25.6, 1.3, 25.78, Math.PI); RL.wallScreen(-24.6, 3.0, 25.85, Math.PI, 1.6, 0.9);
   for (const cz of [-28, -4, 20]) for (const cx of [-15, 15]) real.push(['korean_fire_extinguisher_01', cx + (cx < 0 ? 1.0 : -1.0), 0, cz + 0.2, cx < 0 ? -1.2 : 1.2, 1.0]);
-  placeProps(g, real, envMap);
+  placeProps(g, real.concat(counters), envMap);
   { const ring = skylineRing(58, 24); ring.position.z = -4; g.add(ring); }
   P.shop(-20, 25.6, -1, 9, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']); P.shop(-8, 25.6, -1, 9, 'CAFE & BAKERY', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']);
   P.shop(8, 25.6, -1, 9, 'BOOKS & GIFTS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(20, 25.6, -1, 9, 'PHARMACY', 0x2f8a3f, ['#ffffff', '#7bbf6a', '#5a8fd0', '#e0e0e0']);

@@ -199,7 +199,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   mergeStatic(static_);                       // a few hundred shapes become a handful of draw calls
 
   // ================= PEOPLE =================
-  const crowd = new Crowd({ capacity: 150, seed: 11, density, glb: density < 0.7 ? { size: 4, radius: 5 } : { size: 12, radius: 9 } });
+  const crowd = new Crowd({ capacity: 150, seed: 11, density, glb: density < 0.7 ? { size: 4, radius: 5, mid: { size: 8, radius: 9 } } : { size: 6, radius: 6, mid: { size: 24, radius: 15 } } });
   const rr = crowd.rng, between = (a, b) => a + rr() * (b - a);
   // queues in front of the check-in counters (they shuffle forward and are served)
   const lane = (cx, cz, i, side, n) => {

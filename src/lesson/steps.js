@@ -1026,7 +1026,7 @@ function taxi3D() {
   g.userData.openDoor = (open, instant = false) => { g.userData.doorTo = open ? 1 : 0; if (instant) g.userData.door = g.userData.doorTo; };
   g.userData.tick = (dt) => {
     const b = g.userData.body; if (!b) return; g.userData.t += dt; const t = g.userData.t, k = g.userData.brake;
-    b.rotation.x = 0.045 * k; b.position.y = 0.006 * Math.sin(t * 38) + 0.005 * Math.sin(t * 13) - 0.03 * k; g.userData.brake = Math.max(0, k - dt * 1.2);
+    b.rotation.x = 0.045 * k; b.position.y = -0.03 * k; g.userData.brake = Math.max(0, k - dt * 1.2);
     const u = g.userData; u.door += Math.sign(u.doorTo - u.door) * Math.min(Math.abs(u.doorTo - u.door), dt / 0.9);
     if (pivot) { const e = u.door * u.door * (3 - 2 * u.door); pivot.rotation.y = -(window.__door ?? 1.05) * e; }
   };
@@ -1042,12 +1042,12 @@ function taxiBillboard(state = 'closed') {
 
 /** Travellers on the forecourt in front of the terminal: arriving with trolleys and bags, heading for the doors, standing in groups. */
 function forecourtCrowd(d, seed = 31) {
-  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5 } : { size: 8, radius: 9 } }), rr = c.rng;
-  c.walker([[5.5, -1.2], [15, -1.2], [5.5, -2.6], [-14, -2.2]], { speed: 1.2, bag: 'roll' });
+  const c = new Crowd({ capacity: 40, seed, density: d.app.xrPresenting ? 0.6 : 1, glb: d.app.xrPresenting ? { size: 3, radius: 5, mid: { size: 6, radius: 9 } } : { size: 6, radius: 6, mid: { size: 18, radius: 15 } } }), rr = c.rng;
+  c.walker([[5.5, -1.2], [15, -1.2], [5.5, -2.8], [-14, -3.0]], { speed: 1.2, bag: 'roll' });
   c.walker([[-6, -3.4], [-15, -3.4], [8, -3.0]], { speed: 1.1, bag: 'pack', elder: true });
-  c.trolley([[9, 3.2], [3.2, -1.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-3.4, -1.8], [-9, 3.6]], { speed: 0.9 });
+  c.trolley([[9, 3.2], [3.2, -1.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });
   const lead = c.walker([[7, 1.4], [3.6, -1.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
-  c.walker([[13, 0.5], [-13, 0.5]], { run: true, bag: 'roll', speed: 1.0 });
+  c.walker([[13, 3.6], [-13, 3.6]], { run: true, bag: 'roll', speed: 1.0 });
   for (const [x, z, yaw, o] of [[-6.5, 1.6, 1.0, { bag: 'roll', phone: true }], [-5.7, 2.2, 4.2, { talkTo: true, bag: 'pack' }], [6.8, -0.6, 2.4, { phone: true }], [11, 2.5, 3.5, { talkTo: true, bag: 'roll' }], [-11.5, 0.2, 0.4, { bag: 'roll', elder: true }]]) c.stander(x, z, yaw, o);
   c.update(0.016, null); d.stage.scenery.add(c.group); return c;
 }

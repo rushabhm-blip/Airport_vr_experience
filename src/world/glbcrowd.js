@@ -7,7 +7,7 @@ import { cloneSkinned } from '../assets.js';
  * Six bodies, made different from each other by skin tone, hair colour, clothes, height and build. Each person near you is given one
  * of these and follows the crowd's own movement (walking, standing, queueing). Seated people stay with the crowd's own seated model.
  */
-const BASE = new URL('../../assets/people/lite/', import.meta.url).href;
+const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
 const FEMALE = ['checkin', 'crew', 'security'], MALE = ['driver', 'gate', 'guard'];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
 const SKIN_TONES = [0xf3cfb0, 0xe0b48e, 0xc99063, 0xa97248, 0x8a5a3a, 0x6a4430];
@@ -19,7 +19,8 @@ const TROUSER = [0x2b3040, 0x3a3f4c, 0x57534b, 0x1f2630, 0x6b5a45, 0x41556b, 0x2
 let cache = null;
 export function loadGlbPeople() {
   if (cache) return cache;
-  cache = Promise.all([...FEMALE, ...MALE].map((n) => new GLTFLoader().loadAsync(BASE + n + '-lite.glb').then((g) => [n, g]))).then((list) => Object.fromEntries(list)).catch(() => null);
+  const load = (base, suffix) => Promise.all([...FEMALE, ...MALE].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]))).then((list) => Object.fromEntries(list)).catch(() => null);
+  cache = Promise.all([load(BASE, '-lite.glb'), load(BASE_MID, '-mid.glb')]).then(([lite, mid]) => (lite ? { lite, mid } : null));     // the close-up set, and a lighter set for the next ring out
   return cache;
 }
 
@@ -39,16 +40,15 @@ const tint = (mat, hex, boost = 1) => {
 };
 
 export class GlbPeople {
-  constructor(parent, { size = 12, radius = 9 } = {}) {
+  constructor(parent, { size = 12, radius = 9, mid = null } = {}) {
     this.group = new THREE.Group(); this.group.name = 'GlbPeople'; parent.add(this.group);
-    this.size = size; this.radius = radius; this.entries = []; this.ready = false; this.bound = new Map();
-    loadGlbPeople().then((models) => { if (!models || this.disposed) return; this._build(models); this.ready = true; });
+    this.size = size; this.radius = radius; this.mid = mid; this.entries = []; this.ready = false; this.bound = new Map();
+    loadGlbPeople().then((sets) => { if (!sets || this.disposed) return; this._build(sets.lite, this.size, 'near'); if (this.mid && sets.mid) this._build(sets.mid, this.mid.size, 'mid'); this.ready = true; });
   }
 
-  _build(models) {
-    const names = Object.keys(models);
-    for (let i = 0; i < this.size; i++) {
-      const name = i < this.size / 2 ? FEMALE[i % 3] : MALE[i % 3], g = models[name];
+  _build(models, count, tier) {
+    for (let i = 0; i < count; i++) {
+      const name = i < count / 2 ? FEMALE[i % 3] : MALE[i % 3], g = models[name];
       const model = cloneSkinned(g.scene);
       model.traverse((o) => { if (o.isMesh) { o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); o.frustumCulled = false; o.castShadow = false; } });
       const box = new THREE.Box3().setFromObject(model), h = box.max.y - box.min.y;
@@ -57,7 +57,7 @@ export class GlbPeople {
       const aI = mixer.clipAction(idle).play(), aW = mixer.clipAction(walk).play(); aI.setEffectiveWeight(1); aW.setEffectiveWeight(0);
       const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name), root, model, mixer, aI, aW, mats, bones, who: null, wI: 1, wW: 0, phase: Math.random() * 3 });
     }
   }
 
@@ -74,18 +74,25 @@ export class GlbPeople {
     e.root.userData.wide = 0.92 + (((p.seedA >>> 3) % 20) / 100);          // build: narrower to broader
   }
 
-  /** Give the nearest standing or walking people a real character; free the ones that moved away. Returns the set of bound people. */
+  /** Give the nearest standing or walking people a real character (the full one very close, the lighter one further out); free the ones that moved away. */
   assign(people, cam) {
     if (!this.ready) return;
-    const R2 = this.radius * this.radius, R2out = (this.radius + 1.5) ** 2;
+    const Rn = this.radius, Rm = this.mid ? Math.max(this.mid.radius, Rn) : Rn, far = (Rm + 1.5) ** 2;
     for (const [p, e] of [...this.bound]) {                                           // release those that left, sat down or are gone
       const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2;
-      if (d2 > R2out || p.mode === 'sit') { e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
+      if (d2 > far || p.mode === 'sit') { e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
     }
-    const want = []; for (const p of people) { if (p.glb || p.mode === 'sit') continue; const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2; if (d2 < R2) want.push([d2, p]); }
+    const want = []; for (const p of people) { if (p.mode === 'sit') continue; const d2 = (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2; if (d2 < far) want.push([d2, p]); }
     want.sort((a, b) => a[0] - b[0]);
-    for (const [, p] of want) {
-      const free = this.entries.find((e) => !e.who && e.female === p.female) || this.entries.find((e) => !e.who); if (!free) break;
+    let nNear = 0, nMid = 0;
+    for (const [d2, p] of want) {
+      const was = p.glb?.tier, hy = (t) => (was === t ? 1.2 : 0);
+      let tier = null;
+      if (nNear < this.size && d2 < (Rn + hy('near')) ** 2) { tier = 'near'; nNear++; }
+      else if (this.mid && nMid < this.mid.size && d2 < (Rm + hy('mid')) ** 2) { tier = 'mid'; nMid++; }
+      if (was && was !== tier) { const e = p.glb; e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
+      if (!tier || p.glb) continue;
+      const pool = this.entries.filter((e) => !e.who && e.tier === tier), free = pool.find((e) => e.female === p.female) || pool[0]; if (!free) continue;
       free.who = p; this.bound.set(p, free); p.glb = free; this._dress(free, p); free.root.visible = true; free.phase = Math.random() * 3;
     }
   }

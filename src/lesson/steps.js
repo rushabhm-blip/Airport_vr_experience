@@ -1012,8 +1012,24 @@ function cabPlate(d, file = 'cab-interior-driver.webp') {
 
 /** The taxi as a real 3D car (a Rodin model), nose towards +z. It idles with a small engine tremble and rocks on its springs when it brakes or sets off. */
 function taxi3D() {
-  const g = propGroup('taxi', 2.1, window.__txy ?? 0); g.userData.t = 0; g.userData.brake = 0;
-  g.userData.tick = (dt) => { const b = g.userData.body; if (!b) return; g.userData.t += dt; const t = g.userData.t, k = g.userData.brake; b.rotation.x = 0.045 * k; b.position.y = 0.006 * Math.sin(t * 38) + 0.005 * Math.sin(t * 13) - 0.03 * k; g.userData.brake = Math.max(0, k - dt * 1.2); };
+  const HX = 0.382, HZ = -0.047;                                           // the rear door's hinge, in the model's own units
+  let pivot = null;
+  const g = propGroup('taxi', 2.1, window.__txy ?? 0, (m) => {
+    m.traverse((o) => { if (o.isMesh) o.material.side = THREE.DoubleSide; });
+    const door = m.getObjectByName('DoorRR'); if (!door) return;
+    pivot = new THREE.Group(); pivot.position.set(HX, 0, HZ); door.position.set(-HX, 0, -HZ); door.parent.remove(door); pivot.add(door); m.add(pivot);
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1b1d20, roughness: 0.9, side: THREE.DoubleSide });           // the cabin seen through the open door
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.4), dark); cabin.position.set(0.0, 0.36, -0.27); m.add(cabin);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.34), new THREE.MeshStandardMaterial({ color: 0x4a4f57, roughness: 0.95 })); seat.position.set(0.04, 0.3, -0.27); m.add(seat);
+  });
+  g.userData.t = 0; g.userData.brake = 0; g.userData.door = 0; g.userData.doorTo = 0;
+  g.userData.openDoor = (open, instant = false) => { g.userData.doorTo = open ? 1 : 0; if (instant) g.userData.door = g.userData.doorTo; };
+  g.userData.tick = (dt) => {
+    const b = g.userData.body; if (!b) return; g.userData.t += dt; const t = g.userData.t, k = g.userData.brake;
+    b.rotation.x = 0.045 * k; b.position.y = 0.006 * Math.sin(t * 38) + 0.005 * Math.sin(t * 13) - 0.03 * k; g.userData.brake = Math.max(0, k - dt * 1.2);
+    const u = g.userData; u.door += Math.sign(u.doorTo - u.door) * Math.min(Math.abs(u.doorTo - u.door), dt / 0.9);
+    if (pivot) { const e = u.door * u.door * (3 - 2 * u.door); pivot.rotation.y = -(window.__door ?? 1.05) * e; }
+  };
   return g;
 }
 /** The taxi as a photo billboard (green key removed). state: 'closed' or 'open' (rear door). Returns the mesh, or null if the photo is missing. */
@@ -1070,7 +1086,7 @@ const cab = (d) => {
       cabMesh = taxi3D();
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-0.7, 0, -1.3]);
       if (cabMesh) {
-        d.addScenery(cabMesh, { x: -2.0, z: 0.35, ry: 0, fixed: true });
+        d.addScenery(cabMesh, { x: -2.7, z: 0.35, ry: 0, fixed: true });
         cabMesh.position.z = -15; driver.root.visible = false;                     // the cab pulls up from down the road, then stops
         d.tweens.add({ dur: d.reduceMotion ? 0.3 : 3.4, update: (e) => { cabMesh.position.z = -15 + 15.35 * (1 - Math.pow(1 - e, 2.2)); if (e > 0.82) cabMesh.userData.brake = Math.max(cabMesh.userData.brake, 1 - (1 - e) * 5); }, done: () => { driver.root.visible = true; driver.say('Good morning! Airport?', 7); } });
       } else driver.say('Good morning! Airport?', 7);
@@ -1082,7 +1098,7 @@ const cab = (d) => {
     onButton(b) { if (b === 'in') this.board(); if (b === 't1') this.pick(1); if (b === 't2') this.pick(2); },
     board() {
       if (phase !== 'board') return; phase = 'terminal'; d.voice.success();
-      if (cabMesh?.userData.open) cabMesh.material.map = cabMesh.userData.open;       // the rear door swings open
+      cabMesh?.userData.openDoor?.(true);                                              // the rear door swings open
       d.setPanel({ title: 'Which terminal, please?', body: 'Check your booking on the phone, then choose.', note: '', tone: 'normal', buttons: [{ id: 't1', label: 'Terminal 1' }, { id: 't2', label: 'Terminal 2' }] });
       d.panel.set({ chips: d._chips() });
       d.tweens.add({ delay: d.reduceMotion ? 0.1 : 1.1, dur: 0.01, done: () => blink(d, () => {
@@ -1133,7 +1149,7 @@ const kerb = (d) => {
       // the taxi you arrived in, parked beside you with its rear door open (a real photo, background removed)
       d.app.env.setOutdoorTheme('airport'); fc = forecourtCrowd(d, 31);
       cab = taxi3D();
-      d.addScenery(cab, { x: -2.0, z: 0.35, ry: 0, fixed: true }); rmCab = d.obstacle(cab);
+      d.addScenery(cab, { x: -2.7, z: 0.35, ry: 0, fixed: true }); rmCab = d.obstacle(cab); cab.userData.openDoor(true, true);
       driver = d.addStaff('driver', 'Cab driver', d.stage.scenery, [-1.0, 0, 1.2]); driver.noPush = true; alive = true;
       doors = d.assets.make('terminal-sliding-doors'); d.addScenery(doors, { x: 0, z: -2.5 });
       if (d.app.env.theme360) doors.traverse((o) => { if (o.isMesh) o.visible = false; });      // the photograph shows the real entrance; the doors stay as an invisible barrier
@@ -1158,7 +1174,7 @@ const kerb = (d) => {
       } });
       const say = (t0, f) => T.add({ delay: t0, dur: 0.01, done: () => { if (alive) f(); } });
       const k = quick ? 0.25 : 1;
-      const A = P(-1.0, 1.2), B = P(-1.05, -2.2), C = P(0.4, -1.35), D = P(-1.5, 0.1);
+      const A = P(-0.4, 1.2), B = P(-1.05, -2.2), C = P(0.4, -1.35), D = P(-1.75, 0.9);
       say(0.8 * k, () => driver.playClip(/walk/i));
       walk(A, B, 0.8 * k, 3.4 * k);
       say(4.2 * k, () => { driver.playClip(/idle/i); driver.heading = Math.PI; bag.visible = true; bag.position.set(-1.45, lift, -2.15); });      // at the boot
@@ -1169,7 +1185,8 @@ const kerb = (d) => {
       walk(C, D, 10.6 * k, 2.6 * k);
       say(13.2 * k, () => {
         driver.root.visible = false;                                         // back in the driver's seat, hidden behind the cab
-        T.add({ dur: quick ? 0.4 : 4.5, update: (e) => { if (alive && cab) { cab.position.z = 0.35 + 18 * e * e; cab.userData.brake = Math.max(cab.userData.brake, 0.8 * (1 - e * 3 > 0 ? 1 - e * 3 : 0)); } }, done: () => { if (cab) cab.visible = false; rmCab?.(); } });   // and the cab drives away
+        cab?.userData.openDoor(false);                                       // the door shuts
+        T.add({ delay: quick ? 0.1 : 1.0, dur: quick ? 0.4 : 4.5, update: (e) => { if (alive && cab) { cab.position.z = 0.35 + 18 * e * e; cab.userData.brake = Math.max(cab.userData.brake, 0.8 * (1 - e * 3 > 0 ? 1 - e * 3 : 0)); } }, done: () => { if (cab) cab.visible = false; rmCab?.(); } });   // and the cab drives away
       });
     },
     onButton(b) { if (b === 'out') this.out(); },

@@ -15,6 +15,7 @@ const OPTIONAL = new Set(['saree-woman', 'kameez-woman', 'kurta-man']);      // 
 const KURTA = [0xf1ead8, 0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0x3d4f91, 0xf6f3ea, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xd98c2f, 0xc9a24a, 0x7a3b69];
 const PYJAMA = [0xf6f3ea, 0xe9d9b5, 0xf1ead8, 0x2b3040, 0xe9e4da];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
+const FACE_SKIN = 0xc09070;
 const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xdcae86, 0xe0b48e, 0xd09a6a];
 const HAIR_TONES = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
 const CLOTH = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
@@ -178,7 +179,8 @@ export class GlbPeople {
 
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
-    tint(m.Skin, SKIN_TONES[p.skinIdx ?? 2], 0.9); if (m['Skin body']) m['Skin body'].color.set(SKIN_TONES[p.skinIdx ?? 2]);
+    const faced = !!m.Face, tone = faced ? FACE_SKIN : SKIN_TONES[p.skinIdx ?? 2];      // a sculpted head brings its own skin: the body skin is matched to it instead
+    tint(m.Skin, tone, 0.9); if (m['Skin body']) m['Skin body'].color.set(tone);
     if (e.tier === 'near' && !m.Skin.normalMap) { m.Skin.normalMap = skinDetail(); m.Skin.normalScale.set(0.45, 0.45); m.Skin.needsUpdate = true; }
     if (m.Hair) softenHair(m.Hair);
     if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.1 : 1);
@@ -200,7 +202,7 @@ export class GlbPeople {
     if (A) {
       const f = !!p.female;
       if (A.bindi) A.bindi.visible = f && rr(3) < 0.8;
-      if (A.glasses) A.glasses.visible = elder ? rr(5) < 0.55 : rr(5) < 0.12;
+      if (A.glasses) A.glasses.visible = !m.Face && elder ? rr(5) < 0.55 : rr(5) < 0.12;
       for (const k of ['bangleL', 'bangleR']) if (A[k]) { A[k].visible = f && rr(9) < 0.85; A[k].material.color.set([0xd4a437, 0xd4a437, 0xb3262e, 0x2f7d4a, 0x2c5aa0][((p.seedA >>> 11) % 5)]); }
       if (A.sash) { A.sash.visible = e.kind !== 'saree' && f && rr(13) < 0.6; A.sash.material.color.set(r(DRESS, 5)); }
     }
@@ -293,7 +295,8 @@ export class GlbPeople {
 const STAFF_LOOK = { checkin: [0xa56b44, true], crew: [0xb67e53, true], security: [0x935c3a, true], gate: [0xa56b44, false], guard: [0x7e4d2e, false], driver: [0x935c3a, false] };
 export function indianiseStaff(model, kind) {
   const look = STAFF_LOOK[kind]; if (!look) return null;
-  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') { tint(m, look[0]); if (!m.normalMap) { m.normalMap = skinDetail(); m.normalScale.set(0.45, 0.45); m.needsUpdate = true; } } else if (m.name === 'Skin body') m.color.set(look[0]); else if (m.name === 'Hair') { softenHair(m); tint(m, 0x0e0b09); } else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
+  let faced = false; model.traverse((o) => { if (o.isMesh) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (m.name === 'Face') faced = true; });
+  model.traverse((o) => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Skin') { tint(m, faced ? FACE_SKIN : look[0]); if (!m.normalMap) { m.normalMap = skinDetail(); m.normalScale.set(0.45, 0.45); m.needsUpdate = true; } } else if (m.name === 'Skin body') m.color.set(faced ? FACE_SKIN : look[0]); else if (m.name === 'Hair') { softenHair(m); tint(m, 0x0e0b09); } else if (m.name === 'Beard') tint(m, 0x0e0b09); } });
   const acc = makeAccessories(model);
   if (acc.bindi) acc.bindi.visible = look[1]; for (const k of ['bangleL', 'bangleR']) if (acc[k]) acc[k].visible = look[1];
   if (acc.sash) acc.sash.visible = false; if (acc.glasses) acc.glasses.visible = false;

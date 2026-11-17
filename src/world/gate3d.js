@@ -58,15 +58,10 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   }
 
   // ---- seating: rows facing the windows, plus two rows back to back
-  const seats = (x0, z, n, facing = -1) => {
-    for (let i = 0; i < n; i++) {
-      const x = x0 + i * 0.56;
-      add(new THREE.BoxGeometry(0.5, 0.09, 0.48), seatMat, x, 0.45, z); add(new THREE.BoxGeometry(0.46, 0.012, 0.44), teal, x, 0.5, z);                                       // seat pad and a teal cushion strip
-      add(new THREE.BoxGeometry(0.5, 0.4, 0.07), seatMat, x, 0.76, z - facing * 0.23, -0.12 * facing, 0, 0); add(new THREE.BoxGeometry(0.3, 0.1, 0.075), seatMat, x, 1.04, z - facing * 0.255, -0.12 * facing, 0, 0);   // back and headrest
-      add(new THREE.BoxGeometry(0.045, 0.04, 0.4), steel, x + 0.28, 0.64, z); add(new THREE.BoxGeometry(0.035, 0.2, 0.035), steel, x + 0.28, 0.54, z + 0.12 * -facing);   // armrest and its post
-    }
-    add(new THREE.BoxGeometry(n * 0.56, 0.06, 0.07), steel, x0 + (n - 1) * 0.28, 0.34, z);
-    for (const lx of [0, n - 1]) add(new THREE.BoxGeometry(0.06, 0.4, 0.5), steel, x0 + lx * 0.56, 0.2, z);
+  const seatBlocks = [];
+  const seats = (x0, z, n, facing = -1) => {                  // real four-seat gate benches (Rodin), centred over the old row
+    const k = Math.max(1, Math.round(n / 4)), pitch = 2.28, cx = x0 + (n - 1) * 0.28;
+    for (let i = 0; i < k; i++) seatBlocks.push(['gate_seats', cx + (i - (k - 1) / 2) * pitch, 0, z, facing === -1 ? (window.__sry ?? 0) : (window.__sry ?? 0) + Math.PI, 1.2]);
   };
   for (const [bx, n] of [[-22, 14], [8, 14]]) seats(bx, -7.2, n, -1);                       // along the glass, facing the aircraft
   for (const bx of [-22, -12, 6, 16]) for (const z of [3, 4.1]) seats(bx, z, 16 > 0 ? 8 : 8, z === 3 ? -1 : 1);
@@ -154,7 +149,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (const x of [-12, 12]) for (const z of [-4, 7, 18]) RL.vent(x, z);
   RL.exit(-23.5, 5.2, 19.5, Math.PI); RL.exit(23.5, 5.2, 19.5, Math.PI); RL.extinguisher(-10, 1.3, 21.8, Math.PI); RL.extinguisher(10, 1.3, 21.8, Math.PI); RL.wallScreen(-25.7, 2.4, 14, Math.PI / 2, 1.6, 0.9); RL.door(-24, 21.9, -1, 2.2);
   for (const x of [-18, 18]) real.push(['korean_fire_extinguisher_01', x, 0, 21.4, Math.PI, 1.0]);
-  placeProps(g, real, envMap);
+  placeProps(g, real.concat(seatBlocks), envMap);
   { const ring = skylineRing(56, 24); ring.position.z = -22; g.add(ring); }
   P.shop(-16, 21.6, -1, 8, 'CAFE', 0x8a4b2a, ['#d9a05b', '#f2e0c0', '#8a4b2a', '#e8c06a']); P.shop(0, 21.6, -1, 8, 'NEWS & BOOKS', 0x12a3a1, ['#5a8fd0', '#c95b4a', '#7bbf6a', '#e8c06a']); P.shop(16, 21.6, -1, 8, 'DUTY FREE', 0x15305a, ['#e8c06a', '#c95b4a', '#5a8fd0', '#e0e0e0']);
   for (const z of [4, 10, 16]) { P.lightbox(-25.88, 3.4, z, Math.PI / 2, 4.6, 1.7, ['Fly Practice Air', 'Visit Kerala', 'Meet the Taj'][(z / 6) | 0 ? 0 : 1], 'Book at practiceair.example', '#15305a', '#12a3a1'); P.lightbox(25.88, 3.4, z, -Math.PI / 2, 4.6, 1.7, ['Discover Goa', 'Welcome Aboard', 'Fly Calm'][((z / 6) | 0) % 3], 'Your journey starts here', '#c0392b', '#e0a030'); }

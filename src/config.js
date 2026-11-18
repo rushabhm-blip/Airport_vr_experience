@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-18 · v99 · security officer rebuilt: proper loose uniform, collar, belt, trousers';
+export const BUILD = '2026-11-18 · v100 · guard: sculpted moustache head, rebuilt uniform with visible neck';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

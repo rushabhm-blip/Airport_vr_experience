@@ -176,7 +176,7 @@ export class GlbPeople {
       const aI = mixer.clipAction(idle).play(), aW = walk ? mixer.clipAction(walk).play() : null; aI.setEffectiveWeight(1); aW?.setEffectiveWeight(0);      // the saree body has no walk: sarees stand, queue and gesture
       const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), hand: model.getObjectByName('RightHand'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: (name === 'saree-woman' || name === 'kameez-woman') ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: name === 'saree-woman' ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
   }
 

@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-18 · v106 · suitcase held by the handle, adult companions, fewer look-alikes side by side';
+export const BUILD = '2026-11-18 · v107 · people restored to the v100 sculpted heads on the original bodies';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

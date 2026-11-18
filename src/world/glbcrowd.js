@@ -27,6 +27,8 @@ const TROUSER = [0x2b3040, 0x3a3f4c, 0x57534b, 0x1f2630, 0x6b5a45, 0x41556b, 0x2
  * Geometry is made in the model's own space (metres, rest pose) and moved into each bone's space, so it follows the animation.
  */
 export function makeAccessories(model) {
+  let face = false, skin = false; model.traverse((o) => { if (o.isMesh) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.name === 'Face') face = true; if (m.name === 'Skin') skin = true; } });
+  if (face && !skin) return { bindi: null };       // a whole sculpted character already carries its own jewellery, glasses and scarves
   model.updateMatrixWorld(true);
   const bone = (n) => model.getObjectByName(n), rest = (b) => new THREE.Matrix4().copy(b.matrixWorld).invert();
   const skins = []; model.traverse((o) => { if (o.isSkinnedMesh) { o.skeleton.update(); skins.push(o); } });
@@ -173,15 +175,15 @@ export class GlbPeople {
       const aI = mixer.clipAction(idle).play(), aW = walk ? mixer.clipAction(walk).play() : null; aI.setEffectiveWeight(1); aW?.setEffectiveWeight(0);      // the saree body has no walk: sarees stand, queue and gesture
       const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: name === 'saree-woman' ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: (name === 'saree-woman' || name === 'kameez-woman') ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
   }
 
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
     const faced = !!m.Face, tone = faced ? FACE_SKIN : SKIN_TONES[p.skinIdx ?? 2];      // a sculpted head brings its own skin: the body skin is matched to it instead
-    tint(m.Skin, tone, 0.9); if (m['Skin body']) m['Skin body'].color.set(tone);
-    if (e.tier === 'near' && !m.Skin.normalMap) { m.Skin.normalMap = skinDetail(); m.Skin.normalScale.set(0.45, 0.45); m.Skin.needsUpdate = true; }
+    if (m.Skin) tint(m.Skin, tone, 0.9); if (m['Skin body']) m['Skin body'].color.set(tone);
+    if (e.tier === 'near' && m.Skin && !m.Skin.normalMap) { m.Skin.normalMap = skinDetail(); m.Skin.normalScale.set(0.45, 0.45); m.Skin.needsUpdate = true; }
     if (m.Hair) softenHair(m.Hair);
     if (m.Hair) tint(m.Hair, HAIR_TONES[p.hairIdx ?? 0], p.hairIdx >= 4 ? 1.1 : 1);
     if (m.Beard) tint(m.Beard, HAIR_TONES[p.hairIdx ?? 0], 1);

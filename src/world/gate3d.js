@@ -175,7 +175,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   for (const bx of [-22, 14]) { sit(bx, 14, 10, Math.PI); sit(bx, 15.1, 10, 0); }
   // standing at the glass watching the aircraft, with luggage; a few chatting
   for (const x of [-19, -18.2, -6.5, 4.5, 5.4, 21]) crowd.stander(x, -7.9, Math.PI + (rr() - 0.5) * 0.4, { bag: rr() < 0.6 ? 'roll' : 'pack', talkTo: rr() < 0.4, phone: rr() < 0.3 });
-  crowd.stander(-12, -7.8, Math.PI, { child: true }); crowd.stander(-11.4, -7.8, Math.PI - 0.2, { bag: 'roll', elder: true });
+  crowd.stander(-12, -7.8, Math.PI, { child: false }); crowd.stander(-11.4, -7.8, Math.PI - 0.2, { bag: 'roll', elder: true });
   // walkers: along the glass (clear of the boarding desk in the middle), through the lounge and at the back
   const lane = (z, xa, xb, count, opts = {}) => { for (let k = 0; k < count; k++) { const dir = rr() < 0.5 ? 1 : -1, a = [between(xa, xb), z + (rr() - 0.5) * 1.0], b = dir > 0 ? [xb, a[1]] : [xa, a[1]], c = dir > 0 ? [xa, a[1]] : [xb, a[1]]; crowd.walker([a, b, c], { speed: between(0.95, 1.4), bag: rr() < 0.55 ? (rr() < 0.7 ? 'roll' : 'pack') : null, ...opts }); } };
   lane(-3.5, -24, -7, 3); lane(-3.5, 7, 24, 3); lane(0.6, -24, 24, 4); lane(9.5, -24, 24, 6); lane(18.5, -24, 24, 4);
@@ -184,7 +184,7 @@ export function buildGate3D({ envMap = null, floorTex = null, density = 1 } = {}
   crowd.walker([[22, 7.0], [-22, 7.0]], { run: true, bag: 'pack', speed: 1.0 });
   for (const [x0, z, dir] of [[-15, 11.5, 1], [12, 7.5, -1], [-4, 16.5, 1], [4, 1.5, -1]]) {
     const lead = crowd.walker([[x0, z], [dir * 23, z], [-dir * 23, z]], { speed: 0.85, bag: 'roll', elder: rr() < 0.3, female: rr() < 0.5 });
-    if (lead) { crowd.follower(lead, 0.55, -0.7, { child: true }); if (rr() < 0.7) crowd.follower(lead, -0.55, -1.1, { child: true }); }
+    if (lead) { crowd.follower(lead, 0.55, -0.7, { child: false }); if (rr() < 0.7) crowd.follower(lead, -0.55, -1.1, { child: false }); }
   }
   // a boarding queue forming beside the gate desk on the right
   crowd.queue([[6.2, -2.4], [6.2, -1.5], [6.2, -0.6], [6.2, 0.3], [6.2, 1.2]], -Math.PI / 2, { n: 5, interval: 9, exit: [3.2, -6.2], entry: [9.0, 3.0] });

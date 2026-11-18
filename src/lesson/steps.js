@@ -1050,7 +1050,7 @@ function forecourtCrowd(d, seed = 31, zShift = 0) {
   c.walker([[5.5, -0.7], [15, -0.7], [5.5, -0.9], [-14, -0.8]], { speed: 1.2, bag: 'roll' });
   c.walker([[-6, -0.8], [-15, -0.8], [8, -0.7]], { speed: 1.1, bag: 'pack', elder: true });
   c.trolley([[9, 3.2], [3.2, -0.6], [9.5, 3.4]], { speed: 0.9 }); c.trolley([[-9, 3.5], [-4.8, 0.4], [-9, 3.6]], { speed: 0.9 });
-  const lead = c.walker([[7, 1.4], [3.6, -0.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: true }); c.follower(lead, -0.5, -1.0, { child: true }); }
+  const lead = c.walker([[7, 1.4], [3.6, -0.6], [7.5, 1.6]], { speed: 0.85, bag: 'roll' }); if (lead) { c.follower(lead, 0.5, -0.7, { child: false }); c.follower(lead, -0.5, -1.0, { child: false }); }
   c.walker([[13, 3.6], [-13, 3.6]], { run: true, bag: 'roll', speed: 1.0 });
   for (const [x, z, yaw, o] of [[-6.5, 1.6, 1.0, { bag: 'roll', phone: true }], [-5.7, 2.2, 4.2, { talkTo: true, bag: 'pack' }], [6.8, -0.6, 2.4, { phone: true }], [11, 2.5, 3.5, { talkTo: true, bag: 'roll' }], [-11.5, 0.2, 0.4, { bag: 'roll', elder: true }]]) c.stander(x, z, yaw, o);
   c.group.position.z = zShift; d.stage.scenery.add(c.group);

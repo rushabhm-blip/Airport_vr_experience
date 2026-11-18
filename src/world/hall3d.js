@@ -223,7 +223,7 @@ export function buildHall3D({ envMap = null, floorTex = null, ceilTex = null, de
   // families: an adult with a child or two following, and some elders
   for (const [x0, z, dir] of [[-14, 11, 1], [10, 6.4, -1], [-3, 14.5, 1]]) {
     const lead = crowd.walker([[x0, z], [dir * 24, z], [-dir * 24, z]], { speed: 0.85, bag: 'roll', elder: rr() < 0.3, female: rr() < 0.5 });
-    if (lead) { crowd.follower(lead, 0.55, -0.7, { child: true }); if (rr() < 0.7) crowd.follower(lead, -0.55, -1.1, { child: true }); }
+    if (lead) { crowd.follower(lead, 0.55, -0.7, { child: false }); if (rr() < 0.7) crowd.follower(lead, -0.55, -1.1, { child: false }); }
   }
   // standing groups: chatting, on phones, waiting with luggage
   const stand = (x, z, yaw, o = {}) => crowd.stander(x, z, yaw, o);

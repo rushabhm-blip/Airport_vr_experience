@@ -128,7 +128,7 @@ export class Crowd {
     const p = this._make({ x, z, yaw, y, bag, child, elder, female }); if (!p) return null; p.mode = 'sit'; p.pose = phone ? 'phone' : 'sit'; return p;
   }
   /** A child (or second person) who follows a leader at an offset. */
-  follower(leader, ox, oz, { child = true, bag = null } = {}) {
+  follower(leader, ox, oz, { child = false, bag = null } = {}) {
     if (!leader) return null;
     const p = this._make({ x: leader.x + ox, z: leader.z + oz, child, bag }); if (!p) return null; p.mode = 'follow'; p.leader = leader; p.offset = [ox, oz]; p.speed = leader.speed; return p;
   }
@@ -278,7 +278,7 @@ export class Crowd {
     // luggage
     const none = (part) => this._hide(part, i);
     if (p.bag === 'roll') {
-      const bx = -0.3, bz = -0.44;
+      const bx = -0.36, bz = -0.3;
       L.makeRotationX(0.26); L.setPosition(bx, 0, bz); M.multiplyMatrices(B, L); this._put('suitcase', i, M);
       L.setPosition(bx, 0, bz); M.multiplyMatrices(B, L); this._put('handle', i, M); none('pack'); none('cart');
     } else if (p.bag === 'pack') { L.makeRotationX(0.05); L.setPosition(0, 1.2, -0.17); M.multiplyMatrices(B, L); this._put('pack', i, M); none('suitcase'); none('handle'); none('cart'); }
@@ -381,7 +381,7 @@ export class Crowd {
     // luggage
     const none = (part) => this._hideD(part, k);
     if (p.bag === 'roll') {
-      const bx = -0.3, bz = -0.44;
+      const bx = -0.36, bz = -0.3;
       L.makeRotationX(0.26); L.setPosition(bx, 0, bz); M5.multiplyMatrices(B, L); put('suitcase', M5); none('pack'); none('cart');
     } else if (p.bag === 'pack') { L.makeRotationX(0.05); L.setPosition(0, 1.2, -0.17); M5.multiplyMatrices(B, L); put('pack', M5); none('suitcase'); none('cart'); }
     else if (p.bag === 'cart') {

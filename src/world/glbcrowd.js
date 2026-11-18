@@ -8,6 +8,7 @@ import { cloneSkinned } from '../assets.js';
  * Six bodies, made different from each other by skin tone, hair colour, clothes, height and build. Each person near you is given one
  * of these and follows the crowd's own movement (walking, standing, queueing). Seated people stay with the crowd's own seated model.
  */
+const GRIP = [-0.36, 0.88, -0.24];      // the rolling suitcase's handle top, in the person's own space (it stands at their right, a little behind)
 const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
 const FEMALE = ['checkin', 'crew', 'security', 'kameez-woman'], MALE = ['driver', 'gate', 'guard', 'kurta-man'];
@@ -149,7 +150,7 @@ export const tint = (mat, hex, boost = 1) => {
 
 export class GlbPeople {
   constructor(parent, { size = 12, radius = 9, mid = null, sarees = 2 } = {}) {
-    this.group = new THREE.Group(); this.group.name = 'GlbPeople'; parent.add(this.group);
+    this.group = new THREE.Group(); this.group.name = 'GlbPeople'; this.group.userData.owner = this; parent.add(this.group);      // owner: reachable from the scene for debugging
     this.size = size; this.radius = radius; this.mid = mid; this.sarees = sarees; this.anims = null; loadAnims().then((a) => { this.anims = a; }); this.entries = []; this.ready = false; this.bound = new Map();
     loadGlbPeople().then((sets) => { if (!sets || this.disposed) return; this._build(sets.lite, this.size, 'near', this.sarees); if (this.mid && sets.mid) this._build(sets.mid, this.mid.size, 'mid', this.mid.sarees ?? 4); this.ready = true; });
   }
@@ -173,7 +174,7 @@ export class GlbPeople {
       const root = new THREE.Group(); root.add(model); model.scale.setScalar(1.74 / h); root.visible = false; this.group.add(root);
       const mixer = new THREE.AnimationMixer(model), idle = g.animations.find((a) => a.name === 'Idle'), walk = g.animations.find((a) => a.name === 'Walk');
       const aI = mixer.clipAction(idle).play(), aW = walk ? mixer.clipAction(walk).play() : null; aI.setEffectiveWeight(1); aW?.setEffectiveWeight(0);      // the saree body has no walk: sarees stand, queue and gesture
-      const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
+      const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), hand: model.getObjectByName('RightHand'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
       this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: (name === 'saree-woman' || name === 'kameez-woman') ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
@@ -209,6 +210,7 @@ export class GlbPeople {
       if (A.sash) { A.sash.visible = e.kind !== 'saree' && f && rr(13) < 0.6; A.sash.material.color.set(r(DRESS, 5)); }
     }
     e.root.userData.wide = 0.92 + (((p.seedA >>> 3) % 20) / 100);          // build: narrower to broader
+    e.model.scale.x = Math.abs(e.model.scale.x) * (p.bag !== 'roll' && ((p.seedA >>> 15) & 1) ? -1 : 1);      // a mirror image half the time, so the same body is less recognisable (not with a suitcase in the right hand)
   }
 
   /** Give the nearest standing or walking people a real character (the full one very close, the lighter one further out); free the ones that moved away. */
@@ -231,7 +233,10 @@ export class GlbPeople {
       if (was && was !== tier) { const e = p.glb; e.who = null; e.root.visible = false; this.bound.delete(p); p.glb = null; }
       if (!tier || p.glb) continue;
       const pool = this.entries.filter((e) => !e.who && e.tier === tier), still = p.female && p.dress && p.stride < 0.05 && (p.mode === 'idle' || p.mode === 'queue');
-      const free = (still && pool.find((e) => e.kind === 'saree')) || pool.find((e) => e.kind !== 'saree' && e.female === p.female) || pool.find((e) => e.kind !== 'saree'); if (!free) continue;
+      // avoid twins: prefer a body nobody within 7 m is already wearing
+      const near = new Set(); for (const [q, e] of this.bound) if ((q.x - p.x) ** 2 + (q.z - p.z) ** 2 < 49) near.add(e.name);
+      const pick = (ok) => pool.find((e) => ok(e) && !near.has(e.name)) || pool.find(ok);
+      const free = (still && pick((e) => e.kind === 'saree')) || pick((e) => e.kind !== 'saree' && e.female === p.female) || pick((e) => e.kind !== 'saree'); if (!free) continue;
       free.who = p; this.bound.set(p, free); p.glb = free; this._dress(free, p); free.root.visible = true; free.phase = Math.random() * 3;
     }
   }
@@ -252,7 +257,7 @@ export class GlbPeople {
       e.aW?.setEffectiveTimeScale(Math.max(0.55, Math.min(1.5, (p.vNow || 0.7) / 0.95))); e.aI.setEffectiveTimeScale(0.9 + ((p.seedA >>> 5) % 20) / 100);
       e.mixer.update(dt);
       if (e.tier === 'near') this._life(e, p, dt);
-      if (p.bag === 'roll' && e.bones.arm) { const a = window.__arm ?? [-0.75, 0, 0.42], f = window.__fore ?? [0.25, 0, 0]; this._hold(e.bones.arm, a); this._hold(e.bones.fore, f); }     // the right hand takes the suitcase handle, held low and a little behind
+      if (p.bag === 'roll' && e.bones.arm && e.bones.hand) this._reach(e, GRIP);     // the right hand takes the suitcase handle, low at the side and a little behind
     }
   }
 
@@ -288,7 +293,30 @@ export class GlbPeople {
     if (!moving) turn(b.hips, 0, Math.sin(t * 0.37 + e.phase) * 0.03, Math.sin(t * 0.5 + e.phase) * 0.03);         // shifting weight from foot to foot
   }
 
-  _hold(b, eu) { if (!b?.userData.rest) return; this._q ??= new THREE.Quaternion(); this._e ??= new THREE.Euler(); b.quaternion.copy(b.userData.rest).multiply(this._q.setFromEuler(this._e.set(eu[0], eu[1], eu[2]))); }
+  /**
+   * Two-bone reach: puts the right hand on a point given in the person's own space (the suitcase handle), elbow out and back.
+   * Works in world space, so it does not depend on how a skeleton's rest pose is set up.
+   */
+  _reach(e, local) {
+    const b = e.bones, v = this._v ??= Array.from({ length: 7 }, () => new THREE.Vector3());
+    e.root.updateMatrixWorld(true);
+    const S = b.arm.getWorldPosition(v[0]), F = b.fore.getWorldPosition(v[1]), H = b.hand.getWorldPosition(v[2]);
+    const l1 = S.distanceTo(F), l2 = F.distanceTo(H), T = e.root.localToWorld(v[3].set(local[0], local[1], local[2]));
+    const dir = v[6].copy(T).sub(S); const L = Math.min(Math.max(dir.length(), Math.abs(l1 - l2) + 1e-3), (l1 + l2) * 0.995); dir.normalize();
+    const a = (l1 * l1 + L * L - l2 * l2) / (2 * L), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+    const pole = v[4].set(-0.6, 0, -1).transformDirection(e.root.matrixWorld); pole.addScaledVector(dir, -pole.dot(dir)).normalize();
+    const E = v[5].copy(S).addScaledVector(dir, a).addScaledVector(pole, h), hand = v[3].copy(S).addScaledVector(dir, L);
+    this._aim(b.arm, F, E); b.arm.updateMatrixWorld(true);
+    this._aim(b.fore, b.hand.getWorldPosition(v[2]), hand);
+  }
+
+  /** Turn a bone so that the point `child` (world) moves onto the line towards `want` (world). */
+  _aim(bone, child, want) {
+    const q = this._q ??= new THREE.Quaternion(), pw = this._pw ??= new THREE.Quaternion(), bw = this._bw ??= new THREE.Quaternion(), o = this._o ??= new THREE.Vector3(), c = this._c ??= new THREE.Vector3(), w = this._w ??= new THREE.Vector3();
+    bone.getWorldPosition(o); c.copy(child).sub(o).normalize(); w.copy(want).sub(o).normalize();
+    q.setFromUnitVectors(c, w); bone.getWorldQuaternion(bw); bone.parent.getWorldQuaternion(pw);
+    bone.quaternion.copy(pw.invert().multiply(q.multiply(bw)));
+  }
 
   dispose() { this.disposed = true; this.group.removeFromParent(); for (const e of this.entries) e.model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); }); }
 }

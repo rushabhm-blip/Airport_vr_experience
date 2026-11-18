@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-18 · v101 · every person is now one sculpted character: head, body and clothes together';
+export const BUILD = '2026-11-18 · v102 · people's arms hang naturally and hands rest at the sides';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

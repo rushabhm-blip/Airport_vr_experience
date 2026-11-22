@@ -18,7 +18,8 @@ const KURTA = [0xf1ead8, 0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0x3d4f91, 0xf6f3ea, 0x2f6
 const PYJAMA = [0xf6f3ea, 0xe9d9b5, 0xf1ead8, 0x2b3040, 0xe9e4da];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
 const FACE_SKIN = 0xc09070;
-const SKIN_TONES = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xdcae86, 0xe0b48e, 0xd09a6a];
+const FACE_TONES = [0xc09070, 0xa87a58, 0xd2a47c, 0x946446, 0xb88660, 0xc9996f, 0x9c6e4c, 0xd8b088];
+const SKIN_TONES =[0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xdcae86, 0xe0b48e, 0xd09a6a];
 const HAIR_TONES = [0x0e0b09, 0x17110d, 0x261a12, 0x0a0807, 0x6b6762, 0x938e88, 0xb8b3ad];
 const CLOTH = [0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0xf1ead8, 0x3d4f91, 0xd98c2f, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xe9d9b5, 0x7a3b69, 0xf6f3ea, 0x3a7d7b, 0xc9a24a, 0x274472, 0x9a2f2f];
 const DRESS = [0xa3223a, 0x1f7a5c, 0x1e4fa0, 0xe0a030, 0x8e2a6e, 0xc94f7c, 0x0f7f86, 0xd9641c, 0x5b3a8c, 0xf1e8d0, 0xb4472b, 0x2c7a3f];
@@ -40,9 +41,22 @@ export function makeAccessories(model) {
   const mk = (geo, bn, mat) => { const b = bone(bn); if (!b) return null; geo.applyMatrix4(rest(b)); const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.visible = false; m.castShadow = false; b.add(m); return m; };
   const out = {};
   out.bindi = null;      // no forehead dot on anyone
-  // spectacles: two thin rims and a bridge in front of the eyes
-  const rim = (x) => new THREE.TorusGeometry(0.0135, 0.0012, 6, 18).translate(x, 1.474, 0.137);
-  out.glasses = mk(mergeGeometries([rim(0.028), rim(-0.028), new THREE.BoxGeometry(0.014, 0.002, 0.002).translate(0, 1.478, 0.137), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(0.0415, 1.474, 0.102), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(-0.0415, 1.474, 0.102)]), 'Head', new THREE.MeshStandardMaterial({ color: 0x2a2623, roughness: 0.4, metalness: 0.4 }));
+  // head landmarks from the skeleton itself (the bodies differ in size, so nothing is placed by fixed heights)
+  const P = (n) => { const o = bone(n); return o ? new THREE.Vector3().setFromMatrixPosition(o.matrixWorld) : null; };
+  const hd = P('Head'), top = P('HeadTop_End'), eL = P('LeftEye'), eR = P('RightEye');
+  if (hd && top && eL && eR) {
+    const ey = (eL.y + eR.y) / 2, ez = Math.max(eL.z, eR.z) + 0.012, ex = (eL.x + eR.x) / 2, half = Math.max(0.026, Math.min(0.04, Math.abs(eL.x - eR.x) / 2));
+    // spectacles: two thin rims and a bridge in front of the eyes
+    const rim = (x) => new THREE.TorusGeometry(0.0135, 0.0012, 6, 18).translate(ex + x, ey, ez);
+    out.glasses = mk(mergeGeometries([rim(half), rim(-half), new THREE.BoxGeometry(0.014, 0.002, 0.002).translate(ex, ey + 0.004, ez), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(ex + half + 0.0135, ey, ez - 0.035), new THREE.BoxGeometry(0.0015, 0.0015, 0.07).translate(ex - half - 0.0135, ey, ez - 0.035)]), 'Head', new THREE.MeshStandardMaterial({ color: 0x2a2623, roughness: 0.4, metalness: 0.4 }));
+    // a baseball cap: a dome over the top of the head and a short peak at the front
+    const cy = top.y - 0.082, cz = hd.z - 0.005;
+    const cap = mergeGeometries([
+      new THREE.SphereGeometry(0.104, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.46).scale(1, 0.92, 1.08).translate(top.x, cy, cz),
+      new THREE.CylinderGeometry(0.098, 0.098, 0.004, 18, 1, false, -Math.PI / 2, Math.PI).scale(1, 1, 0.95).translate(top.x, ey + 0.062, cz + 0.086),
+    ].map((g) => (g.index ? g.toNonIndexed() : g)));
+    out.cap = mk(cap, 'Head', new THREE.MeshStandardMaterial({ color: 0x1f3a5f, roughness: 0.85, side: THREE.DoubleSide }));
+  }
   // bangles on both wrists: a stack of thin rings around the forearm, just above the hand
   const rings = [];
   for (const side of ['Left', 'Right']) {
@@ -181,7 +195,10 @@ export class GlbPeople {
 
   _dress(e, p) {
     const m = e.mats, r = (arr, k) => arr[((p.seedA + k * 7) >>> 0) % arr.length];
-    const faced = !!m.Face, tone = faced ? FACE_SKIN : SKIN_TONES[p.skinIdx ?? 2];      // a sculpted head brings its own skin: the body skin is matched to it instead
+    const faced = !!m.Face;
+    // a sculpted head brings its own skin; to give each person their own complexion the head is shifted lighter or darker (keeping its detail) and the body skin follows
+    const tone = faced ? r(FACE_TONES, 9) : SKIN_TONES[p.skinIdx ?? 2];
+    if (faced) { const c = new THREE.Color(tone), b = new THREE.Color(FACE_SKIN); m.Face.color.setRGB(Math.min(1.35, c.r / b.r), Math.min(1.35, c.g / b.g), Math.min(1.35, c.b / b.b)); }
     if (m.Skin) tint(m.Skin, tone, 0.9); if (m['Skin body']) m['Skin body'].color.set(tone);
     if (e.tier === 'near' && m.Skin && !m.Skin.normalMap) { m.Skin.normalMap = skinDetail(); m.Skin.normalScale.set(0.45, 0.45); m.Skin.needsUpdate = true; }
     if (m.Hair) softenHair(m.Hair);
@@ -204,11 +221,13 @@ export class GlbPeople {
     if (A) {
       const f = !!p.female;
       if (A.bindi) A.bindi.visible = f && rr(3) < 0.8;
-      if (A.glasses) A.glasses.visible = !m.Face && elder ? rr(5) < 0.55 : rr(5) < 0.12;
+      if (A.glasses) { A.glasses.visible = elder ? rr(5) < 0.5 : rr(5) < 0.16; A.glasses.material.color.set([0x2a2623, 0x6b4a2a, 0x1c2b44, 0x8a8a90][(p.seedA >>> 6) % 4]); }
+      if (A.cap) { A.cap.visible = !f && e.kind !== 'saree' && !elder && rr(17) < 0.28; A.cap.material.color.set(r([0x1f3a5f, 0x2d2d30, 0x7a2a2a, 0x3f5a3a, 0xd8d2c4, 0x2b4f7a], 6)); }
       for (const k of ['bangleL', 'bangleR']) if (A[k]) { A[k].visible = f && rr(9) < 0.85; A[k].material.color.set([0xd4a437, 0xd4a437, 0xb3262e, 0x2f7d4a, 0x2c5aa0][((p.seedA >>> 11) % 5)]); }
       if (A.sash) { A.sash.visible = e.kind !== 'saree' && f && rr(13) < 0.6; A.sash.material.color.set(r(DRESS, 5)); }
     }
-    e.root.userData.wide = 0.92 + (((p.seedA >>> 3) % 20) / 100);          // build: narrower to broader
+    e.root.userData.wide = 0.88 + (((p.seedA >>> 3) % 28) / 100);          // build: slighter to stockier
+    e.root.userData.tall = 0.94 + (((p.seedA >>> 7) % 13) / 100);            // height: a little shorter or taller
     e.model.scale.x = Math.abs(e.model.scale.x) * (p.bag !== 'roll' && ((p.seedA >>> 15) & 1) ? -1 : 1);      // a mirror image half the time, so the same body is less recognisable (not with a suitcase in the right hand)
   }
 
@@ -242,7 +261,7 @@ export class GlbPeople {
 
   update(dt) {
     for (const [p, e] of this.bound) {
-      const s = p.scale * (p.child ? 1 : 1), wide = e.root.userData.wide ?? 1;
+      const s = p.scale * (e.root.userData.tall ?? 1), wide = e.root.userData.wide ?? 1;
       e.root.position.set(p.x, p.y, p.z); e.root.rotation.y = p.yaw; e.root.scale.set(s * wide, s, s * (0.96 + (wide - 0.92) * 0.4));
       const moving = p.stride > 0.05, k = Math.min(1, dt * 6), wantClip = this._clipFor(e, p, moving);
       // posture clips (phone, talking, hands clasped...) fade in over the plain idle; a change of posture fades out first, then the next fades in

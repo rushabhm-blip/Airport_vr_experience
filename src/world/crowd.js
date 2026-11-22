@@ -177,14 +177,19 @@ export class Crowd {
 
   /** Keep a little personal space: walkers ease sideways round anyone they would brush past. */
   _separate(dt) {
-    const P = this.people, R = 0.62;
+    const P = this.people;
+    // a person's footprint: the body, or, with a trolley, the body plus the trolley pushed in front (so two trolleys cannot drive through each other)
+    const foot = (p) => (p.bag === 'cart' ? [p.x + Math.sin(p.yaw) * 0.45, p.z + Math.cos(p.yaw) * 0.45, 0.62] : p.bag === 'roll' ? [p.x - Math.sin(p.yaw) * 0.12, p.z - Math.cos(p.yaw) * 0.12, 0.5] : [p.x, p.z, 0.36]);
     for (let i = 0; i < P.length; i++) {
       const a = P[i]; if (!a._mv || a.mode === 'sit') continue;
+      const fa = foot(a);
       for (let j = 0; j < P.length; j++) {
         if (i === j) continue; const b = P[j]; if (b.mode === 'sit' || (a.mode === 'follow' && a.leader === b) || (b.mode === 'follow' && b.leader === a)) continue;
-        const dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz; if (d2 > R * R || d2 < 1e-6) continue;
-        const d = Math.sqrt(d2), push = (R - d) * Math.min(1, dt * 2.5) * (b._mv ? 0.5 : 1);
-        const nx = a.x + (dx / d) * push, nz = a.z + (dz / d) * push; if (this._free(nx, nz)) { a.x = nx; a.z = nz; }
+        if ((a.x - b.x) ** 2 + (a.z - b.z) ** 2 > 6) continue;
+        const fb = foot(b), R = fa[2] + fb[2] + 0.12, dx = fa[0] - fb[0], dz = fa[1] - fb[1], d2 = dx * dx + dz * dz; if (d2 > R * R || d2 < 1e-6) continue;
+        const d = Math.sqrt(d2), push = (R - d) * Math.min(1, dt * 3) * (b._mv ? 0.5 : 1), side = (a.seedA & 1) ? 1 : -1;
+        // push apart, plus a sideways nudge so two people meeting head-on slide past each other instead of pushing straight back and forth
+        const nx = a.x + (dx / d) * push - (dz / d) * push * 0.6 * side, nz = a.z + (dz / d) * push + (dx / d) * push * 0.6 * side; if (this._free(nx, nz)) { a.x = nx; a.z = nz; }
       }
     }
   }

@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-22 · v110 · whole-body people back: head, neck and clothes are one continuous model';
+export const BUILD = '2026-11-23 · v111 · fixed the grey, black-headed people in the crowd (their clothes colours were missing)';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

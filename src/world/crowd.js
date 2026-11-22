@@ -90,7 +90,7 @@ export class Crowd {
     const p = {
       x: o.x ?? 0, z: o.z ?? 0, yaw: o.yaw ?? 0, y: o.y ?? 0, scale: child ? 0.6 + r() * 0.06 : (female ? 0.93 : 1) * (0.95 + r() * 0.1),
       female, child, mode: 'idle', phase: r() * 6.28, speed: 1.15, run: false, t: r() * 5, bag: o.bag ?? null, bagColor: this.pick(BAGS), pose: o.pose ?? null,
-      skin: SKIN[[0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6, 6, 7, 8, 6][(r() * 17) | 0]],       // a mixed crowd: mostly warm brown tones, with lighter ones too shirt: this.pick(SHIRT), trouser: this.pick(TROUSER), dress: female && !child && r() < 0.4 ? this.pick(SAREE) : 0,
+      skin: SKIN[[0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6, 6, 7, 8, 6][(r() * 17) | 0]],  shirt: this.pick(SHIRT), trouser: this.pick(TROUSER), dress: female && !child && r() < 0.4 ? this.pick(SAREE) : 0,
       hair: elder ? this.pick(HAIR.slice(4)) : this.pick(HAIR.slice(0, 4)), shoe: 0x1c1c1e, stride: 0, onDone: null, path: null, pi: 0, leader: null, offset: null, idx: -1, spin: r() * 6,
     };
     p.skinIdx = Math.max(0, SKIN.indexOf(p.skin)); p.hairIdx = Math.max(0, HAIR.indexOf(p.hair)); p.seedA = (r() * 4294967295) >>> 0; p.vNow = 0;

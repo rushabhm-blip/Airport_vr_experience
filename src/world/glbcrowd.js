@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cloneSkinned } from '../assets.js';
+import { buildPhone } from './phoneshape.js';
 
 /**
  * Real, finished characters (the same people as the staff, shrunk to about 10,000 triangles) for the people nearest to you.
@@ -166,9 +167,7 @@ export class GlbPeople {
       let phone = null; const rh = model.getObjectByName('RightHand');
       if (tier === 'near' && rh) {          // a phone that appears in the right hand during the phone posture
         phone = new THREE.Group(); phone.visible = false;
-        const pb = new THREE.Mesh(new THREE.BoxGeometry(0.074, 0.152, 0.009), new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.3 }));
-        const ps = new THREE.Mesh(new THREE.PlaneGeometry(0.066, 0.140), new THREE.MeshBasicMaterial({ color: 0x8fc0ff, toneMapped: false })); ps.position.z = 0.0052;
-        phone.add(pb, ps); phone.position.set(...(window.__phPos ?? [0.0, 0.045, 0.02])); phone.rotation.set(...(window.__phRot ?? [0, 0, 0])); rh.add(phone);
+        phone.add(buildPhone(0.072, { screenColor: 0x8fc0ff })); phone.position.set(...(window.__phPos ?? [0.0, 0.045, 0.02])); phone.rotation.set(...(window.__phRot ?? [0, 0, 0])); rh.add(phone);
       }
       const box = new THREE.Box3().setFromObject(model), h = box.max.y - box.min.y;
       const root = new THREE.Group(); root.add(model); model.scale.setScalar(1.74 / h); root.visible = false; this.group.add(root);

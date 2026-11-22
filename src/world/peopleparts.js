@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { crowdPhoneGeometry } from './phoneshape.js';
 
 /**
  * The detailed version of a person, as separate parts (each part is later drawn as ONE instanced mesh for the whole crowd).
@@ -67,7 +68,7 @@ export function buildPeopleGeometries() {
   G.collar = merge([new THREE.TorusGeometry(0.075, 0.016, 5, 14).rotateX(Math.PI / 2).translate(0, 1.46, 0)]);
   G.belt = merge([new THREE.CylinderGeometry(0.152, 0.152, 0.03, 14, 1, true).scale(1.3, 1, 0.78).translate(0, 0.97, 0)]);
 
-  G.phone = merge([paint(new THREE.BoxGeometry(0.068, 0.138, 0.009), 0x1a1a1e), paint(new THREE.BoxGeometry(0.058, 0.122, 0.0095).translate(0, 0, 0.0008), 0x9ec6ff), paint(new THREE.BoxGeometry(0.058, 0.122, 0.0095).translate(0, 0, -0.0008), 0x2a2a30)]);
+  G.phone = crowdPhoneGeometry(paint, merge);       // a rounded modern phone: glass front, camera island on the back
   // ---- luggage
   const wheel = (x, z) => paint(new THREE.CylinderGeometry(0.032, 0.032, 0.025, 8).rotateZ(Math.PI / 2).translate(x, 0.032, z), 0x222222);
   G.suitcase = merge([paint(new THREE.BoxGeometry(0.42, 0.62, 0.25, 1, 1, 1).translate(0, 0.35, 0), 0xffffff), paint(new THREE.BoxGeometry(0.43, 0.025, 0.255).translate(0, 0.35, 0), 0xb0b0b0), paint(new THREE.BoxGeometry(0.2, 0.05, 0.02).translate(0, 0.62, 0.13), 0x555555),

@@ -3,6 +3,7 @@ import { Surface } from '../ui/surface.js';
 import { PRACTICE as P, COLORS } from '../config.js';
 import { FONT, roundRect } from '../util.js';
 import { lerp, ease } from '../util.js';
+import { buildPhone } from './phoneshape.js';
 
 const W = 720, H = 1360;
 
@@ -25,13 +26,12 @@ export class Phone {
     const w = 0.15, h = w * H / W;
     this.size = { w, h };
     this.group = new THREE.Group(); this.group.name = 'Phone'; this.group.visible = false;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w + 0.018, h + 0.018, 0.011), new THREE.MeshStandardMaterial({ color: 0x0f1318, roughness: 0.35, metalness: 0.6 }));
-    body.castShadow = true; this.body = body;
     this.screen = new Surface({ width: w, pxW: W, pxH: H, transparent: false });
     this.screen.painter = (ctx) => this.paint(ctx);
     this.screen.onSelect = (id) => this.tap(id);
-    this.screen.mesh.position.z = 0.0058;
-    this.group.add(body, this.screen.mesh);
+    // a present-day phone: rounded slab, rounded-corner screen with a camera cut-out, camera island and side buttons on it
+    const model = buildPhone(w + 0.014, { screenMesh: this.screen.mesh, screenAspect: H / W, detail: true });
+    this.body = model.children[0]; this.group.add(model);
     // the grab handle is the whole phone; screen presses win over grabbing, so grabbing is done from the edge
     this.screen.redraw();
     director.stage.root.add(this.group);

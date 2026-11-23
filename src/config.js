@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-23 · v117 · removed the white-top passenger model';
+export const BUILD = '2026-11-23 · v118 · one voice at a time (no overlapping speech)';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

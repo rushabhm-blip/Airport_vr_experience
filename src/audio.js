@@ -31,17 +31,25 @@ export class Voice {
     if (!text) return;
     this.last = text; this.log.add(text);
     if (!this.enabled) { this._speakUntil = 0; return; }
-    this.stop();
+    this.stop(); const id = this._seq;      // this line's ticket: anything still pending from an older line is dropped
     this._speakUntil = performance.now() + Math.min(18000, 1500 + String(text).split(/s+/).length * 430);      // roughly how long the line takes at this pace: the watch tour waits for it
     const file = this.manifest[text];
     if (file) {
-      try { this.audio = new Audio('./assets/voice/' + file); this.audio.volume = 0.95; this.audio.play().catch(() => this._tts(text)); return; } catch { /* fall through */ }
+      try {
+        const a = new Audio('./assets/voice/' + file); a.volume = 0.95; this.audio = a;
+        // fall back to the system voice only if this recording itself could not play, and only if it is still the current line
+        // (stopping a recording that had not started yet also rejects play(): that used to speak the OLD line over the new one)
+        a.play().catch((e) => { if (id === this._seq && e?.name !== 'AbortError') this._tts(text, id); });
+        return;
+      } catch { /* fall through */ }
     }
-    this._tts(text);
+    this._tts(text, id);
   }
 
-  _tts(text) {
-    if (!this.synth) return;
+  _tts(text, id = this._seq, tries = 0) {
+    if (!this.synth || id !== this._seq) return;
+    // some browsers keep speaking a cancelled line for a moment: give the cancel a beat before the new line starts
+    if ((this.synth.speaking || this.synth.pending) && tries < 4) { this.synth.cancel(); setTimeout(() => this._tts(text, id, tries + 1), 80); return; }
     try {
       const u = new SpeechSynthesisUtterance(text);
       if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; } else u.lang = 'en-IN';
@@ -54,6 +62,7 @@ export class Voice {
   get busy() { return this.enabled && performance.now() < (this._speakUntil || 0); }
   repeat() { if (this.last) this.say(this.last); }
   stop() {
+    this._seq = (this._seq || 0) + 1;
     try { this.synth?.cancel(); } catch { /* ignore */ }
     if (this.audio) { try { this.audio.pause(); } catch { /* ignore */ } this.audio = null; }
   }

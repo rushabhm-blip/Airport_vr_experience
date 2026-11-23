@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-23 · v115 · everyone stands; gestures use each body own animation (no stretched necks)';
+export const BUILD = '2026-11-23 · v116 · no more doubled people (simple figure hidden inside real characters)';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

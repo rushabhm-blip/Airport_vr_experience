@@ -12,6 +12,7 @@ import { shadowTextures } from './realism3d.js';
  *
  * Person space: y up, forward = +z, hips at 0.9 m, height about 1.7 m. A person at (x, z) with yaw faces (sin yaw, cos yaw).
  */
+const LUGGAGE = new Set(['suitcase', 'handle', 'pack', 'cart']);
 const PARTS = ['torso', 'head', 'hair', 'skirt', 'thighL', 'thighR', 'shinL', 'shinR', 'shoeL', 'shoeR', 'armL', 'armR', 'handL', 'handR', 'suitcase', 'handle', 'pack', 'cart'];
 
 const SKIN = [0xc58f62, 0xb67e53, 0xa56b44, 0x935c3a, 0x7e4d2e, 0x663d25, 0xdcae86, 0xe0b48e, 0xd09a6a];
@@ -427,7 +428,8 @@ export class Crowd {
         if (this.slotOwner[k] !== p) { this.slotOwner[k] = p; this._colorsD(p, k); }
         this._drawDetail(p, k, this._poseD(p, this._pose(p)), !!p.glb);
         if (!p.hidFar) { for (const part of PARTS) this._hide(part, p.idx); p.hidFar = true; }
-      } else { p.hidFar = false; this._draw(p); }
+      } else if (p.glb) { p.hidFar = false; this._draw(p); for (const part of PARTS) if (!LUGGAGE.has(part)) this._hide(part, p.idx); }      // a real character is shown: draw only their luggage, never the simple figure inside them
+      else { p.hidFar = false; this._draw(p); }
     }
     if (this.dmeshes) for (const k of this.dparts) { const m = this.dmeshes[k]; m.count = near; m.instanceMatrix.needsUpdate = true; }
     this.glb?.update(dt);

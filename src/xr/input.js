@@ -238,7 +238,7 @@ export class Interactions {
 
   /** Walking input as a stick-like vector: the left thumbstick, or W A S D on the desktop. y < 0 is forward. */
   walkAxes() {
-    const s = this.stick();
+    const s = this.stick('left');
     if (Math.hypot(s.x, s.y) > 0.01) return s;
     return { x: (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0), y: (this.keys.has('s') ? 1 : 0) - (this.keys.has('w') ? 1 : 0) };
   }
@@ -247,8 +247,14 @@ export class Interactions {
    * Thumbstick (-1..1) of whichever controller is being pushed. It reads the headset's live input sources every time (a stored copy can
    * go stale when the headset swaps controllers or hands), accepts 2-axis or 4-axis gamepads, and uses the left stick on a tie.
    */
-  stick() {
+  stick(only = null) {
     let best = { x: 0, y: 0 }, bm = 0;
+    // `only` = 'left' or 'right': that hand's stick. If the headset reports just one controller (or no handedness), that one is used.
+    if (only) {
+      const srcs = this._sources().filter((s) => s.gp?.axes?.length >= 2);
+      if (srcs.length > 1 || srcs.some((s) => s.hand === only)) { const s = srcs.find((x) => x.hand === only); if (!s) return best; const a = s.gp.axes, n = a.length; return n >= 4 ? { x: a[2] || 0, y: a[3] || 0 } : { x: a[0] || 0, y: a[1] || 0 }; }
+      if (only === 'right') return best;      // a single controller walks; it never turns as well
+    }
     const consider = (gp, hand) => {
       if (!gp || !gp.axes) return;
       const n = gp.axes.length; if (n < 2) return;
@@ -260,6 +266,14 @@ export class Interactions {
     if (session) { for (const src of session.inputSources) if (!src.hand) consider(src.gamepad, src.handedness); }
     else for (const p of this.pointers) if (p.kind === 'xr' && p.connected && !p.isHand) consider(p.source?.gamepad, p.handedness);
     return best;
+  }
+
+  /** The live controllers (not tracked hands) with their gamepads. */
+  _sources() {
+    const session = this.renderer.xr.getSession?.(), out = [];
+    if (session) { for (const src of session.inputSources) if (!src.hand && src.gamepad) out.push({ gp: src.gamepad, hand: src.handedness }); }
+    else for (const p of this.pointers) if (p.kind === 'xr' && p.connected && !p.isHand && p.source?.gamepad) out.push({ gp: p.source.gamepad, hand: p.handedness });
+    return out;
   }
 
   // ----------------------------------------------------------------- per-frame

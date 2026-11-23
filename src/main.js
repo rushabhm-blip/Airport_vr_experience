@@ -438,6 +438,24 @@ class App {
 
   haptic(intensity = 0.5, ms = 60) { for (const p of this.input.pointers) this.input._haptic?.(p, intensity, ms); }
 
+  /**
+   * Full VR: the right thumbstick turns you in comfortable 30° steps (push left or right, let go, push again).
+   * The turn is a rotation of the tracking space about your head, so the whole world, the cards and the controllers turn together.
+   * Not in mixed reality: there the practice is laid out on your real room and must stay put.
+   */
+  _stickTurn() {
+    if (this.mode !== 'vr' || !this.renderer.xr.isPresenting || typeof XRRigidTransform === 'undefined') return;
+    const x = this.input.stick('right').x;
+    if (this._turnHeld) { if (Math.abs(x) < 0.35) this._turnHeld = false; return; }
+    if (Math.abs(x) < 0.7) return;
+    this._turnHeld = true;
+    const ref = this.renderer.xr.getReferenceSpace(); if (!ref) return;
+    const a = (x > 0 ? 1 : -1) * Math.PI / 6, c = Math.cos(a), s = Math.sin(a);
+    const h = new THREE.Vector3().setFromMatrixPosition(this.camera.matrixWorld);
+    const rx = h.x * c + h.z * s, rz = -h.x * s + h.z * c;                       // the head, rotated by a about the vertical
+    this.renderer.xr.setReferenceSpace(ref.getOffsetReferenceSpace(new XRRigidTransform({ x: h.x - rx, y: 0, z: h.z - rz }, { x: 0, y: Math.sin(a / 2), z: 0, w: Math.cos(a / 2) })));
+  }
+
   onKey(e) {
     if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowRight' || e.key === 'n') this.director.next?.();
@@ -469,6 +487,7 @@ class App {
     this.camera.updateMatrixWorld(true);       // head pose must be current before anything is placed relative to it (no one-frame lag)
     this.stage.root.updateMatrixWorld(true);
     this.input.update(dt);
+    this._stickTurn();
     this.director.update(dt, t / 1000);
     for (const a of this.assets.live) a.update(dt);
     if (this.env.update(dt, this.director.headLocal, this.camera) && !this.env.safe) this.director.safetyStop('boundary');

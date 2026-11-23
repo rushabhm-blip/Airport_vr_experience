@@ -815,7 +815,7 @@ export class Director {
   }
   _stationUI() {
     const s = this.station, far = !!s && !this.near && !this.tour;
-    const keys = this.app.xrPresenting ? 'Use the left thumbstick, or choose Take me.' : 'W A S D to walk, or choose Take me.';
+    const keys = this.app.xrPresenting ? (this.app.mode === 'vr' ? 'Left stick to walk, right stick to turn, or choose Take me.' : 'Use the left thumbstick, or choose Take me.') : 'W A S D to walk, or choose Take me.';
     this.panel.set({ minimal: far, minimalTitle: s ? 'Walk to ' + s.label : '', minimalHint: s?.hint ?? keys, chips: this._chips() });
   }
   /** Walk there for the learner: for hand-only users, and for the watch tour. */

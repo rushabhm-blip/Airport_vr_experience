@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-23 · v112 · a one-screen, Apple-style start screen';
+export const BUILD = '2026-11-23 · v113 · full VR: left stick walks, right stick turns';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

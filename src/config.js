@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-23 · v120 · close crowd people at full quality again (no blocky clothes), fewer of them';
+export const BUILD = '2026-11-23 · v121 · the loose phone (security tray, packing) is the same rounded phone as at home';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

@@ -10,6 +10,20 @@ import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCan
 import { mergeStatic } from '../world/merge.js';
 import { RoadVideo } from '../world/roadvideo.js';
 import { Crowd } from '../world/crowd.js';
+import { buildPhone } from '../world/phoneshape.js';
+
+/** The learner's own phone as a loose object (in the tray, on the bed): the same rounded phone as at home, showing the boarding pass. */
+function phoneProp() {
+  const W = 360, H = 680, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  x.fillStyle = '#0b1f33'; x.fillRect(0, 0, W, H); x.fillStyle = '#ffffff'; x.textAlign = 'center';
+  x.font = `700 26px ${FONT}`; x.fillStyle = 'rgba(255,255,255,0.75)'; x.fillText('BOARDING PASS', W / 2, 150);
+  x.font = `600 24px ${FONT}`; x.fillText(`${P.airline} · ${P.flight}`, W / 2, 195);
+  x.fillStyle = '#ffffff'; x.font = `800 64px ${FONT}`; x.fillText(P.to.city, W / 2, 330); x.fillText(`Seat ${P.seat}`, W / 2, 410);
+  x.font = `800 26px ${FONT}`; x.fillStyle = 'rgba(255,255,255,0.85)'; x.fillText('PRACTICE ONLY', W / 2, 560);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  const g = new THREE.Group(); g.name = 'phone-prop'; g.add(buildPhone(0.074, { screenMesh: screen, screenAspect: H / W, detail: true })); return g;
+}
 
 /**
  * Where a member of staff stands: beside the end of their desk (not hidden behind it), so the learner sees a whole standing person
@@ -370,7 +384,7 @@ const security = (d) => {
       d.addProp(tray, { radius: 0.28, rest: 'upright', restOffset: 0, inScenery: true }, [-0.05, 0.73, -0.78]);
       tray.userData.grab.onRelease = (o) => this.trayReleased(o);
       tray.userData.grab.onTap = (o) => this.tapTray(o);
-      phone = d.assets.make('smartphone', { actions: false }); phone.scale.setScalar(1.25); phone.rotation.x = -0.5;
+      phone = phoneProp(); phone.scale.setScalar(1.25); phone.rotation.x = -0.5;
       d.addProp(phone, { radius: 0.17, rest: 'flat', restOffset: 0.006 }, [0.22, d.h - 0.4, -0.45]);
       phone.userData.grab.onRelease = (o) => this.phoneReleased(o);
       phone.userData.grab.onTap = (o) => this.tapToTray(o);
@@ -889,7 +903,7 @@ const packing = (d) => {
       spec.forEach(([id, dest, box], i) => {
         let o;
         if (id === 'laptop') { o = d.assets.make('laptop', { actions: false }); o.scale.setScalar(0.62); }
-        else if (id === 'phone') { o = d.assets.make('smartphone', { actions: false }); o.scale.setScalar(1.1); }
+        else if (id === 'phone') { o = phoneProp(); o.scale.setScalar(1.1); }
         else if (id === 'wallet') { o = d.assets.make('wallet', { actions: false }); o.scale.setScalar(1.2); }
         else if (id === 'id') { o = makeDoc(d, 'practice-id'); o.scale.setScalar(1.6); }
         else o = labelBox(box[2], box[3], box[4], box[0], box[1], box[1].includes('\n') ? 30 : 36, box[5]);

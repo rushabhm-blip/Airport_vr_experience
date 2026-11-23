@@ -13,7 +13,7 @@ const GRIP = [-0.36, 0.88, -0.24];      // the rolling suitcase's handle top, in
 const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
 // everyday passengers (the staff in uniform are only used at their posts, not in the crowd)
-const PAX_F = ['pax-f1', 'pax-f2', 'pax-f3', 'pax-f4'], PAX_M = ['pax-m1', 'pax-m2', 'pax-m3', 'pax-m4'];
+const PAX_F = ['pax-f2', 'pax-f3', 'pax-f4'], PAX_M = ['pax-m1', 'pax-m2', 'pax-m3', 'pax-m4'];
 const FEMALE = [...PAX_F, 'kameez-woman'], MALE = [...PAX_M, 'kurta-man'];
 // if the everyday passengers are not there, the staff bodies stand in for them (as before)
 const STAFF_F = ['checkin', 'crew', 'security'], STAFF_M = ['driver', 'gate', 'guard'];

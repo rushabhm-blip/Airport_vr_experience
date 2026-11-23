@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-23 · v116 · no more doubled people (simple figure hidden inside real characters)';
+export const BUILD = '2026-11-23 · v117 · removed the white-top passenger model';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

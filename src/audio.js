@@ -31,7 +31,7 @@ export class Voice {
     if (!text) return;
     this.last = text; this.log.add(text);
     if (!this.enabled) { this._speakUntil = 0; return; }
-    this.stop(); const id = this._seq;      // this line's ticket: anything still pending from an older line is dropped
+    this.stop(); const id = this._seq; this._startedAt = performance.now();      // this line's ticket: anything still pending from an older line is dropped
     this._speakUntil = performance.now() + Math.min(18000, 1500 + String(text).split(/s+/).length * 430);      // roughly how long the line takes at this pace: the watch tour waits for it
     const file = this.manifest[text];
     if (file) {
@@ -59,7 +59,13 @@ export class Voice {
   }
 
   /** True while a spoken line is probably still playing (used to pace the watch tour). */
-  get busy() { return this.enabled && performance.now() < (this._speakUntil || 0); }
+  get busy() {
+    if (!this.enabled) return false;
+    const since = performance.now() - (this._startedAt || 0);
+    if (this.audio && !this.audio.ended && (!this.audio.paused || since < 1500)) return true;      // a recording: busy exactly while it plays (and briefly while it starts)
+    if (this.synth?.speaking || this.synth?.pending) return true;
+    return !this.audio && performance.now() < (this._speakUntil || 0) && since < 1200;
+  }
   repeat() { if (this.last) this.say(this.last); }
   stop() {
     this._seq = (this._seq || 0) + 1;

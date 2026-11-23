@@ -10,6 +10,18 @@ import { boardingPassCanvas, bookingCanvas, idCanvas, applyDocument, phonePdfCan
 import { mergeStatic } from '../world/merge.js';
 import { RoadVideo } from '../world/roadvideo.js';
 import { Crowd } from '../world/crowd.js';
+
+/**
+ * Where a member of staff stands: beside the end of their desk (not hidden behind it), so the learner sees a whole standing person
+ * rather than a head and shoulders above the counter that reads as someone seated with a stretched neck.
+ * Measured from the desk itself; `fallback` is used if the desk model has not loaded yet.
+ */
+function besideDesk(desk, side, fallback) {
+  desk.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(desk); if (b.isEmpty()) return fallback;
+  b.applyMatrix4(desk.matrixWorld.clone().invert());
+  return [side < 0 ? b.min.x - 0.34 : b.max.x + 0.34, 0, Math.min(b.max.z - 0.15, (b.min.z + b.max.z) / 2 + 0.1)];
+}
 import { tileTexture, boxUV } from '../world/images.js';
 import { IMG, photoTexture, cropTexture, drawCover, planarUV, cutoutCrop, keyedCrop } from '../world/images.js';
 
@@ -215,7 +227,7 @@ const checkin = (d) => {
       printer = d.assets.make('boarding-pass-printer'); printer.position.set(0.5, 1.027, 0.1); desk.add(printer);
       d.addScenery(desk, { x: 0, z: -1.5, fixed: true }); d.obstacle(desk);
       d.setStation({ point: new THREE.Vector3(0, 0, -1.5), label: 'the check-in counter', radius: 1.4 });
-      agent = d.addStaff('checkin', 'Check-in agent · practice', desk, [-0.55, 0, -0.85]);
+      agent = d.addStaff('checkin', 'Check-in agent · practice', desk, besideDesk(desk, -1, [-1.25, 0, -0.1]));
       agent.say('Good morning. Booking and photo ID, please.', 8);
       photoPlane(d, 'checkin-hall', 9.6, 3.2, [0, 1.6, -5.2]);
       const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.0, z: -0.9, ry: 0.3 });
@@ -593,7 +605,7 @@ const boarding = (d) => {
       scanner = d.assets.make('boarding-scanner', { unique: ['StatusDisplay'], actions: false });
       scanner.position.set(0.45, 1.027, 0.12); desk.add(scanner);
       d.addScenery(desk, { x: -0.25, z: -1.0, fixed: true }); d.obstacle(desk);
-      gateAgent = d.addStaff('gate', 'Gate agent · practice', desk, [0.55, 0, -0.9]);
+      gateAgent = d.addStaff('gate', 'Gate agent · practice', desk, besideDesk(desk, -1, [-1.2, 0, -0.1]));
       gateAgent.say('Boarding pass, please. Hold it over the reader.', 9);
       d.addSupport(-0.25 - 0.85, -0.25 + 0.85, -1.0 - 0.38, -1.0 + 0.38, 1.027);
       const barrier = d.assets.make('queue-barrier'); d.addScenery(barrier, { x: -3.1, z: -0.8, ry: 0.3 }); d.obstacle(barrier);
@@ -1244,7 +1256,7 @@ const arrival = (d) => {
       d.track(signSurf, false);
       desk = new THREE.Group(); desk.add(d.assets.make('information-desk'));
       d.addScenery(desk, { x: 0, z: -1.3, fixed: true }); rmDesk = d.obstacle(desk);
-      guard = d.addStaff('guard', 'Entry guard · practice', desk, [0.15, 0, -0.75]);
+      guard = d.addStaff('guard', 'Entry guard · practice', desk, besideDesk(desk, 1, [1.15, 0, -0.1]));
       photoPlane(d, 'view-hall-wide', 9.6, 3.2, [0, 1.6, -5.6]);
       d.addSupport(-0.8, 0.8, -1.3 - 0.38, -1.3 + 0.38, 1.027);
       d.addScenery(d.assets.make('luggage-trolley'), { x: -1.9, z: -0.1, ry: 0.4 });

@@ -16,21 +16,22 @@
 <main id="launcher">
   <div class="card">
     <img class="hero" src="assets/images/keyart.jpg" alt="" onerror="this.remove()">
-    <div class="brand">saath<i></i></div>
-    <p class="eyebrow">Airport practice · Mixed reality</p>
-    <h1>Rehearse your whole journey, right in your room.</h1>
-    <p class="lead">Read a booking, check in, pass security, find a changed gate, scan your pass and find your seat. Calm, untimed and entirely practice.</p>
-    <ul class="tips">
-      <li>Clear about 2 × 3 metres. You can practise seated.</li>
-      <li>Allow the headset to see your room if it asks. That is how Saath finds free space.</li>
-    </ul>
-    <label class="field">What should we call you? <small>Used on your boarding pass and documents · stays on this device</small>
-      <input id="name-input" type="text" maxlength="24" placeholder="e.g. Asha Rao" autocomplete="given-name" enterkeyhint="done"></label>
+    <div class="head">
+      <div class="brand">saath</div>
+      <h1>Rehearse your journey.</h1>
+      <p class="lead">Calm, untimed airport practice at home.</p>
+    </div>
+    <input id="name-input" type="text" maxlength="24" placeholder="Your name" aria-label="Your name, shown on your boarding pass" autocomplete="given-name" enterkeyhint="done">
     <button id="btn-mr" class="primary off">Start in mixed reality</button>
-    <button id="btn-vr" class="secondary off">Start in full VR</button>
-    <button id="btn-webcam" class="secondary">Mixed reality preview with my webcam</button>
-    <button id="btn-tour" class="ghost">Watch the whole journey (play)</button>
-    <button id="btn-desktop" class="ghost">Desktop preview (virtual terminal)</button>
+    <div class="row">
+      <button id="btn-vr" class="secondary off">Full VR</button>
+      <button id="btn-webcam" class="secondary">Webcam preview</button>
+    </div>
+    <div class="row links">
+      <button id="btn-tour" class="ghost">Watch the journey</button>
+      <button id="btn-desktop" class="ghost">Desktop preview</button>
+    </div>
+    <p class="tips">Clear about 2 × 3 m, or practise seated.</p>
     <p id="cap" class="cap">Checking headset support…</p>
     <p id="build" class="cap"></p>
     <p id="err" class="err"></p>

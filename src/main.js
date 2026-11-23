@@ -10,7 +10,7 @@ import { Panel } from './ui/panel.js';
 import { Surface } from './ui/surface.js';
 import { STAGE, PRACTICE, setPassenger, BUILD } from './config.js';
 import { CARD } from './lesson/rules.mjs';
-document.getElementById('build')?.append('Version ' + BUILD);
+{ const b = document.getElementById('build'); if (b) { b.append('Version ' + BUILD.split(' · ').slice(0, 2).join(' · ')); b.title = BUILD; } }
 import { KeyboardCard } from './ui/keyboard.js';
 import { loadImages } from './world/images.js';
 import { Staff } from './world/staff.js';

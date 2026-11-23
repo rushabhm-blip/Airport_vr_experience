@@ -332,7 +332,10 @@ export class Director {
   _boxes(M = 0.4) {
     const out = [], root = this.stage.root;
     for (const o of this.obstacles) {
-      const b = new THREE.Box3().setFromObject(o); if (b.isEmpty()) continue;
+      // the solid part only: staff standing at a desk belong to the desk group, but are not part of the counter you walk round
+      const b = new THREE.Box3(); o.updateMatrixWorld(true);
+      o.traverse((m) => { if (!m.isMesh || !m.geometry) return; for (let p = m; p && p !== o; p = p.parent) if (p.name?.startsWith('Staff-')) return; m.geometry.boundingBox || m.geometry.computeBoundingBox(); b.union(new THREE.Box3().copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld)); });
+      if (b.isEmpty()) continue;
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (const x of [b.min.x, b.max.x]) for (const z of [b.min.z, b.max.z]) { const p = root.worldToLocal(new THREE.Vector3(x, b.min.y, z)); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
       out.push({ x0: x0 - M, x1: x1 + M, z0: z0 - M, z1: z1 + M });
@@ -837,7 +840,9 @@ export class Director {
     if (!this.walkStick || this.step?.roam === false) return;
     if (this.app.phase !== 'lesson' || this.walking || this.paused || !['scene', 'phone'].includes(this.pres.mode) || this.demoing || this.tour) return;
     const s = this.input.walkAxes(), mag = Math.hypot(s.x, s.y);
-    if (mag < 0.2) { if (this._stickOn) { this._stickOn = false; this.app.env.vigTarget = 0; } return; }
+    // walking speed follows real time, not frames: on a slow frame you still cover the distance (up to a quarter second per frame)
+    const now = performance.now(); dt = Math.min(0.25, Math.max(dt, ((now - (this._walkT || now)) / 1000))); this._walkT = now;
+    if (mag < 0.2) { this._walkT = 0; if (this._stickOn) { this._stickOn = false; this.app.env.vigTarget = 0; } return; }
     this._stickOn = true; this.app.env.vigTarget = this.reduceMotion ? 0.3 : 0.5;
     const sp = 1.3 * Math.min(1, (mag - 0.2) / 0.8) * dt, yaw = this.headYaw;
     // stick up = forward along the gaze, in stage space (x right, -z forward)

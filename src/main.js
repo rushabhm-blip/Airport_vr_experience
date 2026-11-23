@@ -179,6 +179,7 @@ class App {
     this.env.forced = webcam ? null : 'immersive';
     this.env.mode = webcam ? 'immersive' : 'mixed';
     this.env.setMode(webcam ? 'mixed' : 'immersive', { instant: true });
+    document.activeElement?.blur?.();      // the name box must not keep the keyboard
     $('launcher').hidden = true; $('hud').hidden = false;
     this.camera.position.set(0, 1.25, 0.0);
     this.stage.headY = 1.25;
@@ -457,7 +458,7 @@ class App {
   }
 
   onKey(e) {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'INPUT' && e.target.offsetParent !== null) return;      /* only while the text box is on screen */
     if (e.key === 'ArrowRight' || e.key === 'n') this.director.next?.();
     if (e.key === 'ArrowLeft') this.director.goto(Math.max(0, this.director.index - 1));
     if (e.key === 'm') this.onMenu('mode');

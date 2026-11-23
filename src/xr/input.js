@@ -28,8 +28,12 @@ export class Interactions {
     this.showJoints = false;
     this.listeners = {};
     this.keys = new Set();   // desktop walking: W A S D
-    addEventListener('keydown', (e) => { if (e.target?.tagName !== 'INPUT' && /^[wasd]$/i.test(e.key)) this.keys.add(e.key.toLowerCase()); });
-    addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+    // W A S D by key position (works with Caps Lock and other keyboard layouts). A text box only swallows the keys while it is on screen:
+    // the name box on the start screen keeps focus after you press Start, and used to eat every key so walking did nothing.
+    const wasd = (e) => ({ KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' }[e.code] || (/^[wasd]$/i.test(e.key) ? e.key.toLowerCase() : null));
+    const typing = (e) => { const t = e.target; return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && t.offsetParent !== null; };
+    addEventListener('keydown', (e) => { const k = wasd(e); if (k && !typing(e)) { this.keys.add(k); e.preventDefault(); } });
+    addEventListener('keyup', (e) => { const k = wasd(e); if (k) this.keys.delete(k); });
     addEventListener('blur', () => this.keys.clear());
 
     for (let i = 0; i < 2; i++) this.pointers.push(this._makeXRPointer(i));

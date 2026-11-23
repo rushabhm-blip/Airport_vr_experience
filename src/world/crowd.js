@@ -125,7 +125,8 @@ export class Crowd {
   /** Someone sitting. (x, z) is where the seat is; y is the seat height reference (floor of the seat). */
   sitter(x, z, yaw, { bag = null, phone = false, child = false, elder, female, y = 0 } = {}) {
     if (this.rng() > this.density) return null;
-    const p = this._make({ x, z, yaw, y, bag, child, elder, female }); if (!p) return null; p.mode = 'sit'; p.pose = phone ? 'phone' : 'sit'; return p;
+    // everyone stands: a waiting passenger stands just in front of the seat instead of sitting in it
+    const p = this._make({ x: x + Math.sin(yaw) * 0.45, z: z + Math.cos(yaw) * 0.45, yaw, y, bag, child, elder, female }); if (!p) return null; p.mode = 'idle'; p.pose = phone ? 'phone' : 'stand'; return p;
   }
   /** A child (or second person) who follows a leader at an offset. */
   follower(leader, ox, oz, { child = false, bag = null } = {}) {

@@ -12,8 +12,12 @@ import { buildPhone } from './phoneshape.js';
 const GRIP = [-0.36, 0.88, -0.24];      // the rolling suitcase's handle top, in the person's own space (it stands at their right, a little behind)
 const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const BASE = new URL('../../assets/people/lite/', import.meta.url).href, BASE_MID = new URL('../../assets/people/mid/', import.meta.url).href;
-const FEMALE = ['checkin', 'crew', 'security', 'kameez-woman'], MALE = ['driver', 'gate', 'guard', 'kurta-man'];
-const OPTIONAL = new Set(['saree-woman', 'kameez-woman', 'kurta-man']);      // newer bodies: if a file is missing the crowd simply uses the others
+// everyday passengers (the staff in uniform are only used at their posts, not in the crowd)
+const PAX_F = ['pax-f1', 'pax-f2', 'pax-f3', 'pax-f4'], PAX_M = ['pax-m1', 'pax-m2', 'pax-m3', 'pax-m4'];
+const FEMALE = [...PAX_F, 'kameez-woman'], MALE = [...PAX_M, 'kurta-man'];
+// if the everyday passengers are not there, the staff bodies stand in for them (as before)
+const STAFF_F = ['checkin', 'crew', 'security'], STAFF_M = ['driver', 'gate', 'guard'];
+const OPTIONAL = new Set(['saree-woman', 'kameez-woman', 'kurta-man', ...PAX_F, ...PAX_M, ...STAFF_F, ...STAFF_M]);      // newer bodies: if a file is missing the crowd simply uses the others
 const KURTA = [0xf1ead8, 0xe3c27a, 0x1f6f8f, 0x8c2a3a, 0x3d4f91, 0xf6f3ea, 0x2f6b55, 0xb7413a, 0x5b6fa8, 0xd98c2f, 0xc9a24a, 0x7a3b69];
 const PYJAMA = [0xf6f3ea, 0xe9d9b5, 0xf1ead8, 0x2b3040, 0xe9e4da];
 // how strongly each kind of material is re-coloured (the garment texture's own average colour is divided out, so the pattern stays)
@@ -143,8 +147,9 @@ export function skinDetail() {
 let cache = null;
 export function loadGlbPeople() {
   if (cache) return cache;
-  const load = (base, suffix) => Promise.all([...new Set([...FEMALE, ...MALE, 'saree-woman'])].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]).catch((e) => (OPTIONAL.has(n) ? [n, null] : Promise.reject(e))))).then((list) => Object.fromEntries(list)).catch(() => null);      // the saree body is optional
-  cache = Promise.all([load(BASE, '-lite.glb'), load(BASE_MID, '-mid.glb')]).then(([lite, mid]) => (lite ? { lite, mid } : null));     // the close-up set, and a lighter set for the next ring out
+  const load = (base, suffix, names = [...FEMALE, ...MALE, 'saree-woman']) => Promise.all([...new Set(names)].map((n) => new GLTFLoader().loadAsync(base + n + suffix).then((g) => [n, g]).catch((e) => (OPTIONAL.has(n) ? [n, null] : Promise.reject(e))))).then((list) => Object.fromEntries(list)).catch(() => null);      // the saree body is optional
+  const fill = async (set, base, suffix) => { if (!set || [...PAX_F, ...PAX_M].filter((x) => set[x]).length >= 4) return set; Object.assign(set, await load(base, suffix, [...STAFF_F, ...STAFF_M]) || {}); return set; };
+  cache = Promise.all([load(BASE, '-lite.glb').then((x) => fill(x, BASE, '-lite.glb')), load(BASE_MID, '-mid.glb').then((x) => fill(x, BASE_MID, '-mid.glb'))]).then(([lite, mid]) => (lite ? { lite, mid } : null));     // the close-up set, and a lighter set for the next ring out
   return cache;
 }
 
@@ -166,12 +171,13 @@ export const tint = (mat, hex, boost = 1) => {
 export class GlbPeople {
   constructor(parent, { size = 12, radius = 9, mid = null, sarees = 2 } = {}) {
     this.group = new THREE.Group(); this.group.name = 'GlbPeople'; this.group.userData.owner = this; parent.add(this.group);      // owner: reachable from the scene for debugging
-    this.size = size; this.radius = radius; this.mid = mid; this.sarees = sarees; this.anims = null; loadAnims().then((a) => { this.anims = a; }); this.entries = []; this.ready = false; this.bound = new Map();
+    this.size = size; this.radius = radius; this.mid = mid; this.sarees = sarees; this.anims = true; /* posture clips come from each body's own file, made for its own skeleton */ this.entries = []; this.ready = false; this.bound = new Map();
     loadGlbPeople().then((sets) => { if (!sets || this.disposed) return; this._build(sets.lite, this.size, 'near', this.sarees); if (this.mid && sets.mid) this._build(sets.mid, this.mid.size, 'mid', this.mid.sarees ?? 4); this.ready = true; });
   }
 
   _build(models, count, tier, sarees = 0) {
-    const list = Array.from({ length: count }, (_, i) => (i < count / 2 ? FEMALE[i % FEMALE.length] : MALE[i % MALE.length])).map((n) => (models[n] ? n : (FEMALE.includes(n) ? 'checkin' : 'gate')));
+    const F = [...FEMALE, ...STAFF_F].filter((n) => models[n]), M = [...MALE, ...STAFF_M].filter((n) => models[n]);
+    const list = Array.from({ length: count }, (_, i) => (i < count / 2 ? F[i % F.length] : M[i % M.length]));
     if (models['saree-woman']) for (let i = 0; i < sarees; i++) list.push('saree-woman');
     for (const name of list) {
       const g = models[name];
@@ -189,7 +195,7 @@ export class GlbPeople {
       const aI = mixer.clipAction(idle).play(), aW = walk ? mixer.clipAction(walk).play() : null; aI.setEffectiveWeight(1); aW?.setEffectiveWeight(0);      // the saree body has no walk: sarees stand, queue and gesture
       const bones = { arm: model.getObjectByName('RightArm'), fore: model.getObjectByName('RightForeArm'), hand: model.getObjectByName('RightHand'), head: model.getObjectByName('Head'), neck: model.getObjectByName('Neck'), chest: model.getObjectByName('Spine2'), hips: model.getObjectByName('Hips') }; for (const b of Object.values(bones)) if (b) b.userData.rest = b.quaternion.clone();
       const mats = {}; model.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { mats[m.name] = m; }); });
-      this.entries.push({ tier, name, female: FEMALE.includes(name) || name === 'saree-woman', kind: (name === 'saree-woman' || name === 'kameez-woman') ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
+      this.entries.push({ tier, name, female: FEMALE.includes(name) || STAFF_F.includes(name) || name === 'saree-woman', kind: (name === 'saree-woman' || name === 'kameez-woman') ? 'saree' : 'body', root, model, mixer, aI, aW, mats, bones, phone, clips: Object.fromEntries(g.animations.map((a) => [a.name, a])), who: null, wI: 1, wW: 0, wA: 0, alt: null, altName: null, phase: Math.random() * 3, acc, hy: 0, hp: 0, gy: 0, gp: 0, gT: 1 + Math.random() * 3, hold: 0 });
     }
   }
 
@@ -266,7 +272,7 @@ export class GlbPeople {
       const moving = p.stride > 0.05, k = Math.min(1, dt * 6), wantClip = this._clipFor(e, p, moving);
       // posture clips (phone, talking, hands clasped...) fade in over the plain idle; a change of posture fades out first, then the next fades in
       if (e.alt && wantClip !== e.altName) { e.wA += (0 - e.wA) * k; if (e.wA < 0.04) { e.alt.stop(); e.alt = null; e.altName = null; e.wA = 0; } }
-      if (!e.alt && wantClip && this.anims?.[wantClip]) { e.alt = e.mixer.clipAction(this.anims[wantClip]); e.alt.reset().play(); e.alt.setEffectiveWeight(0.001); e.altName = wantClip; }
+      if (!e.alt && wantClip && e.clips[wantClip]) { e.alt = e.mixer.clipAction(e.clips[wantClip]); e.alt.reset().play(); e.alt.setEffectiveWeight(0.001); e.altName = wantClip; }
       if (e.alt && e.altName === wantClip) e.wA += (1 - e.wA) * k;
       if (e.aW) { e.wW += ((moving ? 1 : 0) - e.wW) * k; e.aW.setEffectiveWeight(e.wW); }
       e.alt?.setEffectiveWeight(Math.max(0.001, e.wA));

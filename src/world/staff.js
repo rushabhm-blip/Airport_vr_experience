@@ -69,7 +69,9 @@ export class Staff {
     this.clips = clips;
     const idle = (this.wantClip && clips.find((c) => this.wantClip.test(c.name))) || clips.find((c) => /idle|stand|breath/i.test(c.name)) || clips[0];
     if (idle) { this.idleAction = this.mixer.clipAction(idle); this.idleAction.play(); }
-    if (this.kind !== 'driver') loadAnims().then((a) => { this.anims = a; });      // body language: a talking gesture while the person is saying something
+    // body language: a talking gesture while the person is saying something. Only the character's own clip is used: a clip made for another
+    // skeleton bends this body wrongly (knees buckle, head pushed forward on a stretched neck).
+    { const talk = this.kind !== 'driver' && clips.find((c) => c.name === 'Talk'); if (talk) this.anims = { Talk: talk }; }
     model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = true; } if (/^(head|Head)$/.test(o.name) || /mixamorigHead$/.test(o.name)) this.headBone = o; if (o.morphTargetDictionary) { const k = Object.keys(o.morphTargetDictionary).find((n) => /blink|eyesClosed|eyeBlink/i.test(n)); if (k) (this.blinkTargets ||= []).push([o, o.morphTargetDictionary[k]]); } });
     const hit = new THREE.Mesh(new THREE.BoxGeometry(0.6, h, 0.4).translate(0, h / 2, 0), new THREE.MeshBasicMaterial({ visible: false }));
     this.body = hit; this.root.add(hit);

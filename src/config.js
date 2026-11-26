@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-26 · v123 · starts right away, no room scan or clear-area check; move with the thumbstick';
+export const BUILD = '2026-11-26 · v124 · asks the headset for no play area, boundary or room scan; works in a small space';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',

@@ -145,17 +145,33 @@ class App {
     this.voice.soft(); // unlocks audio inside the user gesture
     // Real-world occlusion (depth-sensing) is OFF by default: on some Quest browser builds it hides every depth-tested
     // 3D object while screen-space UI still shows. Opt in with ?occlusion=1.
-    const optional = ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors', 'bounded-floor', 'layers'];
-    const init = { requiredFeatures: ['local-floor'], optionalFeatures: optional };
+    // Ask the headset for as little as possible. Saath is practised seated or standing still and moves with the thumbstick,
+    // so it needs no play area: nothing is required, the floor height is only "nice to have", and room-scale bounds,
+    // room scanning (planes, meshes) and anchors are left out because asking for them can make the Quest demand a
+    // larger boundary or a Space Setup before the app may start. ?roomscan=1 asks for them again (for the room scan in Settings).
+    const optional = ['local-floor', 'hand-tracking', 'layers'];
+    if (params.get('roomscan') === '1') optional.push('plane-detection', 'mesh-detection', 'anchors', 'bounded-floor');
+    const init = { requiredFeatures: [], optionalFeatures: optional };
     if (params.get('occlusion') === '1') { optional.push('depth-sensing'); init.depthSensing = { usagePreference: ['gpu-optimized', 'cpu-optimized'], dataFormatPreference: ['luminance-alpha', 'float32'] }; }
+    const xrKind = kind === 'mr' ? 'immersive-ar' : 'immersive-vr';
     try {
-      const session = await navigator.xr.requestSession(kind === 'mr' ? 'immersive-ar' : 'immersive-vr', init);
+      let session;
+      try { session = await navigator.xr.requestSession(xrKind, init); }
+      catch (first) { console.warn('Retrying with the bare minimum:', first); session = await navigator.xr.requestSession(xrKind, { requiredFeatures: [], optionalFeatures: ['local-floor'] }); }
       this.mode = kind;
       this.env.forced = kind === 'vr' ? 'immersive' : null;
       this.env.mode = 'mixed';
       this.env.setMode(kind === 'vr' ? 'immersive' : 'mixed', { instant: true });
+      // No floor from the headset (no boundary at all): use the head-centred space and put the floor 1.25 m below the eyes.
+      const feats = session.enabledFeatures;
+      const hasFloor = !feats || feats.includes('local-floor');
+      this.renderer.xr.setReferenceSpaceType(hasFloor ? 'local-floor' : 'local');
       await this.renderer.xr.setSession(session);
-      this.features = session.enabledFeatures || [];
+      if (!hasFloor) {
+        const ref = this.renderer.xr.getReferenceSpace();
+        if (ref && typeof XRRigidTransform !== 'undefined') this.renderer.xr.setReferenceSpace(ref.getOffsetReferenceSpace(new XRRigidTransform({ x: 0, y: -1.25, z: 0 })));
+      }
+      this.features = feats || [];
     } catch (e) {
       console.error(e);
       $('err').textContent = 'Could not start the session: ' + (e.message || e);
@@ -214,7 +230,8 @@ class App {
     this.onSetup('start');
   }
   onSessionEnd() {
-    this.xrPresenting = false;    $('launcher').hidden = false;
+    this.xrPresenting = false;
+    this.renderer.xr.setReferenceSpaceType('local-floor');    $('launcher').hidden = false;
     this.phase = 'idle'; this.anchor = null;
     this.director.setVisible(true);
     this.fitVisual.hide();
@@ -483,7 +500,7 @@ class App {
     if (frame) {
       if (this.phase === 'auto') {      // wait until the head pose is real (a couple of frames), then start
         const h = this.headWorld();
-        if (h.y > 0.3 && ++this._autoFrames > 2) this.startSeated();
+        if (h.lengthSq() > 1e-6 && ++this._autoFrames > 2) this.startSeated();
       }
       if (this.phase === 'scan') {
         this.spaceFit.observe(frame);

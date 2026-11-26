@@ -201,10 +201,17 @@ class App {
     const session = this.renderer.xr.getSession();
     this.blend = session?.environmentBlendMode || 'unknown';   // 'alpha-blend' / 'additive' = passthrough, 'opaque' = VR
     session?.addEventListener('visibilitychange', () => { if (session.visibilityState !== 'visible') this.director.pause(true); });
-    if (this.mode === 'vr') {   // full VR has no room scan and needs no floor space: start in the small seated layout right away
-      this.phase = 'scan'; this.director._teardown(); this.applyFit(null, null, this.headWorld(), this.gazeWorld(), { small: true }); return;
-    }
-    this.beginFit();
+    // Saath is practised seated or standing still, moving only with the thumbstick, so no floor space is needed:
+    // no room scan, no "clear area" step. Once the headset reports where the head is, the practice starts close around the learner.
+    // (Settings > "Scan my room" still runs the room scan for anyone who wants it.)
+    this.phase = 'auto'; this._autoFrames = 0; this.director._teardown(); this.director.snapshot = null;
+  }
+
+  /** Start right away in the compact seated layout, in front of wherever the learner is looking. */
+  startSeated() {
+    this.spaceFit = new SpaceFit(); this.marks = [];
+    this.applyFit(null, null, this.headWorld(), this.gazeWorld(), { small: true, quiet: true });
+    this.onSetup('start');
   }
   onSessionEnd() {
     this.xrPresenting = false;    $('launcher').hidden = false;
@@ -241,7 +248,7 @@ class App {
     this.applyFit(res && !res.none ? res : null, res, head, gaze);
   }
 
-  applyFit(fit, raw, head, gaze, { small = false } = {}) {
+  applyFit(fit, raw, head, gaze, { small = false, quiet = false } = {}) {
     let floorY = raw?.floorY ?? 0;
     if (Math.abs(floorY) > 0.25) floorY = 0;          // an implausible floor height must never bury the scene
     this.scanInfo = raw;
@@ -253,8 +260,12 @@ class App {
     this.fit = fit; this.floorY = floorY;
     this.stage.apply(fit, floorY);
     this.stage.headY = THREE.MathUtils.clamp(head.y - floorY, 0.9, 1.9);
-    this.fitVisual.show(fit, floorY);
+    // The "you left your area" stop only makes sense when a real room scan measured the free floor.
+    this.env.noRim = small || usedDefault;
+    if (this.env.noRim && !this.env.safe) { this.env.safe = true; this.env._applyScene?.(); }
     this.phase = 'setup';
+    if (quiet) return;
+    this.fitVisual.show(fit, floorY);
     const w = fit.width.toFixed(1), d = fit.depth.toFixed(1);
     const pct = Math.round(fit.scale * 100);
     const buttons = [{ id: 'start', label: usedDefault ? 'My area is clear. Start' : 'Start practice' }, { id: 'tour', label: 'Watch the journey first', kind: 'secondary' }, { id: 'small', label: 'I have little space', kind: 'secondary' }, { id: 'mark', label: 'Mark my own area', kind: 'secondary' }, { id: 'rescan', label: 'Scan again', kind: 'secondary' }];
@@ -470,6 +481,10 @@ class App {
     const dt = Math.min(this.clock.getDelta(), 0.1);
     this.lastFrame = frame || null;
     if (frame) {
+      if (this.phase === 'auto') {      // wait until the head pose is real (a couple of frames), then start
+        const h = this.headWorld();
+        if (h.y > 0.3 && ++this._autoFrames > 2) this.startSeated();
+      }
       if (this.phase === 'scan') {
         this.spaceFit.observe(frame);
         this.scanTime += dt;

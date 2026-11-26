@@ -342,7 +342,7 @@ export class Environment {
       this.veil.position.copy(p);
       this.vig.position.copy(p); this.vig.quaternion.copy(camera.getWorldQuaternion(new THREE.Quaternion()));
     }
-    if (this.mode !== 'immersive' || !this.renderer.xr.isPresenting || this.forced === 'immersive') return false;
+    if (this.mode !== 'immersive' || !this.renderer.xr.isPresenting || this.forced === 'immersive' || this.noRim) return false;
     // Safety rim: stay inside the cleared rectangle (+0.45 m) or fall back to passthrough.
     const w = this.stage.width / 2 + 0.45, d = this.stage.depth + 0.2, back = 0.9;
     const slack = this.safe ? 0 : -0.12; // hysteresis

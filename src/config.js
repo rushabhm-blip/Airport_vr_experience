@@ -1,4 +1,4 @@
-export const BUILD = '2026-11-23 · v122 · watch mode waits exactly for the voice; walks stop in front of desks';
+export const BUILD = '2026-11-26 · v123 · starts right away, no room scan or clear-area check; move with the thumbstick';
 // Fictional practice values. Nothing here is a real flight, ID or credential.
 export const PRACTICE = {
   airline: 'Practice Air',
